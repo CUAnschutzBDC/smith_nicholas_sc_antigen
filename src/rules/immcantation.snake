@@ -1,0 +1,38 @@
+# The -b is a path within the container. It should not need to be changed.
+rule igblast:
+	input:
+		"{results}/logs/{sample}_count_done.txt"
+	output:
+		"{results}/{sample}/outs/immcantation/{sample}_finished.txt"
+	params:
+		job_name  = "{sample}_immcantation",
+		memory    = "select[mem>100] rusage[mem=100]",
+		fasta     = "{results}/{sample}/outs/per_sample_outs/{sample}/vdj_b/filtered_contig.fasta",
+		annot     = "{results}/{sample}/outs/per_sample_outs/{sample}/vdj_b/filtered_contig_annotations.csv",
+		outdir    = "{results}/{sample}/outs/immcantation"
+	singularity:
+		config["IMMCANTATION_CONTAINER"]
+	log:
+		"{results}/logs/immcantation/immcantation_{sample}"
+	threads:
+		10
+	shell:
+		"""
+		AssignGenes.py igblast \
+			-s {params.fasta} \
+			-b /usr/local/share/igblast \
+			--organism human \
+			--loci ig \
+			--format blast \
+			--outdir {params.outdir}
+
+
+		MakeDb.py igblast \
+		-i {params.outdir}/filtered_contig_igblast.fmt7 \
+		-s {params.fasta} \
+		-r /usr/local/share/germlines/imgt/human/vdj/imgt_human_*.fasta \
+		--10x {params.annot} \
+		--extended
+
+		echo "Finished igblast" > {output}
+		"""

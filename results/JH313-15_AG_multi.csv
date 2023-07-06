@@ -1,0 +1,11 @@
+[gene-expression]
+reference,/beevol/home/rbilab/ref/cellranger/human/refdata-gex-GRCh38-2020-A
+[feature]
+reference,/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/files/antibody_barcodes.csv
+[vdj]
+reference,/beevol/home/rbilab/ref/cellranger/human/refdata-cellranger-vdj-GRCh38-alts-ensembl-5.0.0
+[libraries]
+fastq_id,fastqs,feature_types
+JH313-15_AG_GEX,/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/results/fastqs,Gene Expression
+JH313-15_AG_FB,/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/results/fastqs,Antibody Capture
+JH313-15_AG_VDJ_B,/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/results/fastqs,VDJ-B
