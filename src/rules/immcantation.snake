@@ -28,11 +28,11 @@ rule igblast:
 
 
 		MakeDb.py igblast \
-		-i {params.outdir}/filtered_contig_igblast.fmt7 \
-		-s {params.fasta} \
-		-r /usr/local/share/germlines/imgt/human/vdj/imgt_human_*.fasta \
-		--10x {params.annot} \
-		--extended
+			-i {params.outdir}/filtered_contig_igblast.fmt7 \
+			-s {params.fasta} \
+			-r /usr/local/share/germlines/imgt/human/vdj/imgt_human_*.fasta \
+			--10x {params.annot} \
+			--extended
 
 		echo "Finished igblast" > {output}
 		"""

@@ -168,6 +168,11 @@ rule all:
             "{results}/logs/{group}_cellranger_aggr_done.txt",
             results = RESULTS, group = AGGR_GROUP
             ),
+        # Run dropkick to identify cells
+        expand(
+            "{results}/R_analysis/{sample}/files/dropkick_cells.csv",
+            results = RESULTS, sample = SAMPLES
+            ),
         expand(
             "{results}/run_scripts/{sample}_run.txt",
             sample = script_name_dict.keys(), results = RESULTS

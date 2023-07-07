@@ -24,6 +24,7 @@ def _get_scripts(wildcards):
 
 rule run_rscript:
 	input:
+		"{results}/R_analysis/{sample}/files/dropkick_cells.csv",
 		_get_input
 	output:
 		"{results}/run_scripts/{sample}_run.txt"
@@ -42,3 +43,21 @@ rule run_rscript:
 		Rscript --vanilla {params.scripts}
 		echo "Finished rscript" > {output}
 		"""
+
+rule run_dropkick:
+	input:
+		"{results}/logs/{sample}_count_done.txt"
+	output:
+		"{results}/R_analysis/{sample}/images/dropkick/coef_plot.pdf",
+		"{results}/R_analysis/{sample}/files/dropkick_cells.csv"
+	params:
+		job_name  = "{sample}_run_dropkick",
+		memory    = "select[mem>100] rusage[mem=100]"
+	singularity:
+		config["DROPKICK_CONTAINER"]
+	log:
+		"{results}/logs/dropkick/dropkick_{sample}"
+	threads:
+		10
+	script:
+		"../scripts/indiviual_analysis/01_dropkick.py"

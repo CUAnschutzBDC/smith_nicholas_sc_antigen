@@ -180,3 +180,6 @@ SAMPLE_SCRIPTS:
 
 RSCRIPT_CONTAINER:
     "/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/docker/r_docker/catherine_bcells.sif"
+
+DROPKICK_CONTAINER:
+    "/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/docker/dropkick/dropkick.sif"
