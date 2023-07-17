@@ -14,24 +14,26 @@ from collections import defaultdict
 
 
 # Parameters from config.yaml
-RAW_DATA       = config["RAW_DATA"]
-SAMPLES        = config["SAMPLES"]
-RNA_SAMPLES    = config["RNA_SAMPLES"]
-ADT_SAMPLES    = config["ADT_SAMPLES"]
-VDJ_T_SAMPLES  = config["VDJ_T_SAMPLES"]
-VDJ_B_SAMPLES  = config["VDJ_B_SAMPLES"]
-RESULTS        = config["RESULTS"]
-GENOME         = config["GENOME"]
-ADT_REF        = config["ADT_REF"]
-VDJ_REF        = config["VDJ_REF"]
-MAX_JOBS       = config["MAX_JOBS"]
-LSF_TEMPLATE   = config["LSF_TEMPLATE"]
-AGGR_GROUP     = config["AGGR_SAMPLES"]
-CHEMISTRY      = config["CHEMISTRY"]
-VELOCYTO_GROUP = config["VELOCYTO_GROUP"]
-SCRIPT_PATH    = config["SCRIPT_PATH"]
-SCRIPTS_RUN    = config["SCRIPTS_RUN"]
-SAMPLE_SCRIPTS = config["SAMPLE_SCRIPTS"]
+RAW_DATA        = config["RAW_DATA"]
+SAMPLES         = config["SAMPLES"]
+RNA_SAMPLES     = config["RNA_SAMPLES"]
+ADT_SAMPLES     = config["ADT_SAMPLES"]
+VDJ_T_SAMPLES   = config["VDJ_T_SAMPLES"]
+VDJ_B_SAMPLES   = config["VDJ_B_SAMPLES"]
+RESULTS         = config["RESULTS"]
+GENOME          = config["GENOME"]
+ADT_REF         = config["ADT_REF"]
+VDJ_REF         = config["VDJ_REF"]
+MAX_JOBS        = config["MAX_JOBS"]
+LSF_TEMPLATE    = config["LSF_TEMPLATE"]
+AGGR_GROUP      = config["AGGR_SAMPLES"]
+CHEMISTRY       = config["CHEMISTRY"]
+VELOCYTO_GROUP  = config["VELOCYTO_GROUP"]
+SCRIPT_PATH     = config["SCRIPT_PATH"]
+SCRIPTS_RUN     = config["SCRIPTS_RUN"]
+SAMPLE_SCRIPTS  = config["SAMPLE_SCRIPTS"]
+SAMPLE_METADATA = config["SAMPLE_METADATA"]
+SAMPLE_INFO     = config["SAMPLE_INFO"]
 
 # Function to check paths for input files/directories
 def _check_path(path):
@@ -122,13 +124,15 @@ else:
     script_name_dict = {}
 
 if SAMPLE_SCRIPTS:
+    if SAMPLE_SCRIPTS["samples"] == "all":
+        SAMPLE_SCRIPTS["samples"] = SAMPLES
     for sample_name in SAMPLE_SCRIPTS["samples"]:
         individual_dict = OrderedDict()
         for script in SAMPLE_SCRIPTS["scripts_run"]:
             # Get key and value information
-            dict_key = sample_name + "_" + script
+            dict_key = sample_name + "__" + script
             dict_key = re.sub('\\.R', '', dict_key)
-            dict_value = os.path.join(sample_name, script)
+            dict_value = os.path.join("indiviual_analysis", script)
             # Add to an individual dict
             individual_dict[dict_key] = dict_value
             # Add the script name to all names

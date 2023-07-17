@@ -117,7 +117,7 @@ GENOME:
 # and barcode. If CITE-seq or cell hashing was not performed, leave this 
 # blank.
 ADT_REF:
-    "files/antibody_barcodes.csv"
+    "files/antibodies.csv"
 
 # Path to the Cell Ranger VDJ reference. If VDJ sequencing was not performed,
 # leave this blank.
@@ -161,15 +161,15 @@ SCRIPTS_RUN:
 
 # If the exact same scripts will be run for multiple samples, put them
 # here. This is a dictionary with sample and scripts_run as keys.
-# Within a sample, the scripts will be run in order, otherwis the
-# scripts will be run in parallel.
+# Within a sample, the scripts will be run in order, otherwise the
+# scripts will be run in parallel. Set to "all" if you want to run
+# on all samples
 SAMPLE_SCRIPTS:
-    # samples:
-    #     - "JH307_MR"
-    #     - "JH307_TM"
-    # scripts_run:
-    #     - "01_Initial_processing.R"
-    #     - "02_remove_doublets.R"
+    samples:
+        "all"
+    scripts_run:
+        - "02_Initial_processing.R"
+        - "03_remove_doublets.R"
     #     - "03_adt_dsb_normalization.R"
     #     - "04_PCA_UMAP.R"
     #     - "05_name_clusters.R"
@@ -177,6 +177,19 @@ SAMPLE_SCRIPTS:
     #     - "07_PCA_UMAP_subset_cluster.R"
     #     - "08_add_subset_info.R"
     #     - "09_check_against_published.R"
+
+# Path to the metadata for each sample that should be added to the objects.
+# Must have a column called "Sample.Name" that has the exact same pattern as
+# the sample names here.
+SAMPLE_METADATA:
+    "files/Deidentified_donor_metadata.xlsx"
+
+# Path to the sample info sheet. This contains the information about if the
+# sample has HTOs and ADTs. It is also where you will add in information
+# about the number of dimensions and resoultion. See files/sample_info.tsv
+# for an example.
+SAMPLE_INFO:
+    "files/sample_info.tsv"
 
 RSCRIPT_CONTAINER:
     "/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/docker/r_docker/catherine_bcells.sif"

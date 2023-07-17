@@ -1,7 +1,7 @@
 [gene-expression]
 reference,/beevol/home/rbilab/ref/cellranger/human/refdata-gex-GRCh38-2020-A
 [feature]
-reference,/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/files/antibody_barcodes.csv
+reference,/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/files/antibodies.csv
 [vdj]
 reference,/beevol/home/rbilab/ref/cellranger/human/refdata-cellranger-vdj-GRCh38-alts-ensembl-5.0.0
 [libraries]
