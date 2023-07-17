@@ -11,6 +11,11 @@ def _get_input(wildcards):
 	    	input_file = os.path.join(wildcards.results, "run_scripts", i + "_run.txt")
 	    	return_list.append(input_file) 
 
+def _get_dropkick_input(wildcards):
+	sample_name = wildcards.sample
+	sample_name = re.sub("__.*", "", wildcards.sample)
+	return(os.path.join(wildcards.results, "R_analysis", sample_name, "files/dropkick_cells.csv"))
+
 def _get_scripts(wildcards):
 	key_value = script_name_dict[wildcards.sample]
 	script_name = script_dict[key_value][wildcards.sample]
@@ -24,23 +29,29 @@ def _get_scripts(wildcards):
 
 rule run_rscript:
 	input:
-		"{results}/R_analysis/{sample}/files/dropkick_cells.csv",
+		_get_dropkick_input,
 		_get_input
 	output:
 		"{results}/run_scripts/{sample}_run.txt"
 	params:
-		job_name  = "{sample}_run_rscript",
-		memory    = "select[mem>100] rusage[mem=100]",
-		scripts   = _get_scripts
+		job_name        = "{sample}_run_rscript",
+		memory          = "select[mem>100] rusage[mem=100]",
+		scripts         = _get_scripts,
+		sample_metadata = SAMPLE_METADATA,
+		sample_info     = SAMPLE_INFO
 	singularity:
 		config["RSCRIPT_CONTAINER"]
 	log:
 		"{results}/logs/rscript/rscript_{sample}"
 	threads:
-		10
+		1
 	shell:
 		"""
-		Rscript --vanilla {params.scripts}
+		Rscript --vanilla {params.scripts} \
+			{wildcards.sample} \
+			{wildcards.results} \
+			{params.sample_metadata} \
+			{params.sample_info} \
 		echo "Finished rscript" > {output}
 		"""
 
