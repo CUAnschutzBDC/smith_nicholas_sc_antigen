@@ -170,8 +170,10 @@ SAMPLE_SCRIPTS:
     scripts_run:
         - "02_Initial_processing.R"
         - "03_remove_doublets.R"
-    #     - "03_adt_dsb_normalization.R"
-    #     - "04_PCA_UMAP.R"
+        - "04_adt_dsb_normalization.R"
+        - "05_PCA.R"
+        - "06a_UMAP_find_resolution.R"
+        - "06b_UMAP.R"
     #     - "05_name_clusters.R"
     #     - "06_adt_gating.R"
     #     - "07_PCA_UMAP_subset_cluster.R"

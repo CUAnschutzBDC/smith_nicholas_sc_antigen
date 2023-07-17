@@ -18,6 +18,5 @@ src/scripts/*/*.html
 src/scripts/integrated_analysis
 src/scripts/full_analysis.Rmd
 src/scripts/Initial_processing.rmd
-files
 *.rds
 docker/*/*.sif
