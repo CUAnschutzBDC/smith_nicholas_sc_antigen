@@ -71,6 +71,10 @@ seurat_data <- seurat_data %>%
   FindVariableFeatures() %>%
   ScaleData(vars.to.regress = vars.to.regress)
 
+# Update variable features
+VariableFeatures(seurat_data) <- VariableFeatures(seurat_data)[!grepl("IG[H|L|K]",
+                                                                      VariableFeatures(seurat_data))]
+
 # PCA --------------------------------------------------------------------------
 
 # PCA of gene expression

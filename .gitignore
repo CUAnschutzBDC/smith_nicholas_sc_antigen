@@ -20,3 +20,4 @@ src/scripts/full_analysis.Rmd
 src/scripts/Initial_processing.rmd
 *.rds
 docker/*/*.sif
+files/210825_object
