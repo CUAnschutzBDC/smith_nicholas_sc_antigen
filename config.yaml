@@ -175,6 +175,7 @@ SAMPLE_SCRIPTS:
         - "06a_UMAP_find_resolution.R"
         - "06b_UMAP.R"
         - "07_name_clusters.R"
+        - "08_find_markers.R"
     #     - "06_adt_gating.R"
     #     - "07_PCA_UMAP_subset_cluster.R"
     #     - "08_add_subset_info.R"
