@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 
-#BSUB -J cellranger
+#BSUB -J sc_seq
 #BSUB -o logs/cellranger_%J.out
 #BSUB -e logs/cellranger_%J.err
 #BSUB -R "select[mem>4] rusage[mem=4]"

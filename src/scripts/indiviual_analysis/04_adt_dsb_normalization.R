@@ -168,12 +168,12 @@ if(ADT){
     use.isotype.control = FALSE)
   
   # Add to object
-  positive_object[["ADT"]] <- CreateAssayObject(data = dsb_norm_prot)
+  positive_object[["DSB_ADT"]] <- CreateAssayObject(data = dsb_norm_prot)
   
-  DefaultAssay(positive_object) <- "ADT"
+  DefaultAssay(positive_object) <- "DSB_ADT"
   plot_adts <- rownames(positive_object)
   violins <- featDistPlot(positive_object, sep_by = "isotype",
-                          geneset = plot_adts, assay = "ADT",
+                          geneset = plot_adts, assay = "DSB_ADT",
                           combine = FALSE) 
 
   DefaultAssay(positive_object) <- "RNA"  

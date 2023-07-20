@@ -51,7 +51,8 @@ rule run_rscript:
 			{wildcards.sample} \
 			{wildcards.results} \
 			{params.sample_metadata} \
-			{params.sample_info} \
+			{params.sample_info}
+			
 		echo "Finished rscript" > {output}
 		"""
 
