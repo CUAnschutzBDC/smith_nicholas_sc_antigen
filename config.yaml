@@ -176,6 +176,7 @@ SAMPLE_SCRIPTS:
         - "06b_UMAP.R"
         - "07_name_clusters.R"
         - "08_find_markers.R"
+        - "09_demultiplex_tets.R"
     #     - "06_adt_gating.R"
     #     - "07_PCA_UMAP_subset_cluster.R"
     #     - "08_add_subset_info.R"
