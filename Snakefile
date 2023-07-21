@@ -32,6 +32,7 @@ VELOCYTO_GROUP  = config["VELOCYTO_GROUP"]
 SCRIPT_PATH     = config["SCRIPT_PATH"]
 SCRIPTS_RUN     = config["SCRIPTS_RUN"]
 SAMPLE_SCRIPTS  = config["SAMPLE_SCRIPTS"]
+MERGE_SCRIPTS   = config["MERGE_SCRIPTS"]
 SAMPLE_METADATA = config["SAMPLE_METADATA"]
 SAMPLE_INFO     = config["SAMPLE_INFO"]
 
@@ -139,6 +140,18 @@ if SAMPLE_SCRIPTS:
             script_name_dict[dict_key] = sample_name
         # Add new dict to the script dict under the sample name as the key
         script_dict[sample_name] = individual_dict
+
+if MERGE_SCRIPTS:
+    if MERGE_SCRIPTS["samples"] == "all":
+        MERGE_SCRIPTS["samples"] = SAMPLES
+    merged_dict = OrderedDict()
+    for script in MERGE_SCRIPTS["scripts_run"]:
+        dict_key = "merged__" + script
+        dict_key = re.sub('\\.R', '', dict_key)
+        dict_value = os.path.join("integrated_analysis", script)
+        merged_dict[dict_key] = dict_value
+        script_name_dict[dict_key] = "merged"
+    script_dict["merged"] = merged_dict
 
 # Check that all names were entered correctly
 for name in SAMPLES:
