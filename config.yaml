@@ -182,6 +182,7 @@ MERGE_SCRIPTS:
     scripts_run:
         - "01_Initial_processing.R"
         - "02_PCA.R"
+        - "03_batch_correction.R"
 
 # Path to the metadata for each sample that should be added to the objects.
 # Must have a column called "Sample.Name" that has the exact same pattern as
