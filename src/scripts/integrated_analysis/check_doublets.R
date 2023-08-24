@@ -8,7 +8,131 @@ library(scran)
 library(DESeq2)
 
 
-source(here("src/scripts/muscat_plotting_functions.R"))
+plot_heatmap2 <- function(seurat_object, gene_list, meta_col,
+                          colors = NULL, meta_df = NULL, color_list = NULL,
+                          max_val = 2.5, min_val = -2.5, cluster_rows = FALSE,
+                          cluster_cols = FALSE, average_expression = FALSE,
+                          plot_meta_col = TRUE, plot_rownames = TRUE,
+                          cell_order = NULL, return_data = FALSE, 
+                          assay = "RNA", ...){
+  
+  if(! assay %in% Seurat::Assays(seurat_object)){
+    stop(paste0("Your chosen assay: ", assay, " is not in the provided object"))
+  }
+  
+  
+  if(average_expression){
+    # Find average expression of genes in clusters
+    Idents(seurat_object) <- meta_col
+    heatmap_df <- AverageExpression(seurat_object, seurat = FALSE,
+                                    group.by = meta_col)
+    heatmap_df <- heatmap_df[[assay]]
+    # Test if the colnames look like integers
+    character_vals <- 
+      suppressWarnings(all(!is.na(as.numeric(as.character(colnames(heatmap_df))))))
+    if(is.null(meta_df)){
+      sample_info <- seurat_object[[meta_col]]
+      # Add levels
+      if(is.null(levels(sample_info[[meta_col]]))){
+        sample_info[[meta_col]] <- factor(sample_info[[meta_col]])
+      }
+      meta_df <- data.frame(levels(sample_info[[meta_col]]))
+      colnames(meta_df) <- meta_col
+      if(character_vals){
+        rownames(meta_df) <- paste0("X", meta_df[[meta_col]])
+      } else {
+        rownames(meta_df) <- meta_df[[meta_col]]
+      }
+      if(is.null(colors)){
+        colors <- brewer.pal(length(levels(sample_info[[meta_col]])), "Set1")
+        names(colors) <- levels(sample_info[[meta_col]])
+      } 
+      # make a list for the column labeing
+      color_list <- list(colors)
+      names(color_list) <- meta_col
+    }
+  } else {
+    # Pull out data and subset to genes of interest
+    heatmap_df <- GetAssayData(seurat_object, slot = "data", assay = assay)
+  }
+  heatmap_df <- heatmap_df[rownames(heatmap_df) %in% gene_list, ]
+  heatmap_df <- data.frame(heatmap_df)
+  
+  heatmap_df <- heatmap_df[order(match(rownames(heatmap_df), gene_list)), ]
+  
+  # remove any zero values
+  heatmap_df <- heatmap_df[rowSums(heatmap_df) > 0,]
+  
+  if(is.null(meta_df)){
+    # Make a df for the column labeling
+    sample_info <- seurat_object[[meta_col]]
+    # Add levels
+    if(is.null(levels(sample_info[[meta_col]]))){
+      sample_info[[meta_col]] <- factor(sample_info[[meta_col]])
+    }
+    if(is.null(colors)){
+      colorcount <- length(levels(sample_info[[meta_col]]))
+      colors <- grDevices::colorRampPalette(RColorBrewer::brewer.pal(9, "Set1"))(colorcount)
+      names(colors) <- levels(sample_info[[meta_col]])
+    } 
+    # make a list for the column labeing
+    coloring <- list(colors)
+    names(coloring) <- meta_col
+  } else {
+    # The sample info and color list must be provided
+    sample_info <- meta_df
+    coloring <- color_list
+  }
+  
+  # Set cluster order
+  
+  cluster_order <- levels(sample_info[[meta_col]])
+  heatmap_scale <- t(scale(t(heatmap_df), scale = TRUE))
+  # Colors for heatmap (from the ArchR package)
+  blueYellow <- c("#352A86", "#343DAE", "#0262E0", "#1389D2", "#2DB7A3",
+                  "#A5BE6A", "#F8BA43", "#F6DA23", "#F8FA0D")
+  
+  if(!is.null(cell_order)){
+    sample_info <- sample_info[order(match(rownames(sample_info),
+                                           cell_order)), , drop = FALSE]
+    rownames(sample_info) <- make.names(rownames(sample_info))
+    if (!identical(colnames(heatmap_scale), rownames(sample_info))) {
+      heatmap_scale <- heatmap_scale[, rownames(sample_info)]
+    }
+  } else if (!cluster_cols) {
+    sample_info <- sample_info[order(match(sample_info[[meta_col]], 
+                                           cluster_order)), , drop = FALSE]
+    rownames(sample_info) <- make.names(rownames(sample_info))
+    if (!identical(colnames(heatmap_scale), rownames(sample_info))) {
+      heatmap_scale <- heatmap_scale[, rownames(sample_info)]
+    }
+  } else {
+    rownames(sample_info) <- make.names(rownames(sample_info))
+  }
+  
+  if(!plot_meta_col){
+    sample_info[[meta_col]] <- NULL
+  }
+  
+  # This makes the values more even
+  heatmap_scale <- ifelse(heatmap_scale > max_val, max_val, heatmap_scale)
+  heatmap_scale <- ifelse(heatmap_scale < min_val, min_val, heatmap_scale)
+  
+  heatmap <- pheatmap::pheatmap(heatmap_scale, cluster_rows = cluster_rows,
+                                cluster_cols = cluster_cols,
+                                show_rownames = plot_rownames,
+                                show_colnames = FALSE, annotation_col = sample_info,
+                                annotation_colors = coloring, color = blueYellow,
+                                border_color = NA, clustering_method = "complete",
+                                silent = TRUE, ...)
+  if(return_data){
+    return(list("heatmap" = heatmap,
+                "z_score" = heatmap_scale,
+                "counts" = heatmap_df))
+  } else {
+    return(heatmap)
+  }
+}
 
 calc_logfc <- 1
 
@@ -133,7 +257,7 @@ Idents(seurat_no_doublet) <- "RNA_combined_celltype"
 
 top_markers <- FindAllMarkers(seurat_no_doublet, logfc.threshold = calc_logfc)
 
-top_fifty_markers <- top_markers %>%
+top_fifty_markers1 <- top_markers %>%
   dplyr::filter(p_val_adj < 0.05) %>%
   dplyr::group_by(cluster) %>%
   dplyr::top_n(n = 50, wt = avg_log2FC)
@@ -163,7 +287,7 @@ all_colors <- list("RNA_combined_celltype" = celltype_colors,
 
 grid::grid.newpage()
 plot_heatmap(seurat_object = seurat_data,
-             gene_list = unique(top_fifty_markers$gene), 
+             gene_list = unique(top_fifty_markers1$gene), 
              meta_col = "cluster_doublet", colors = NULL, 
              meta_df = meta_data, color_list = all_colors, max_val = 2.5, 
              min_val = -2.5,  cluster_rows = TRUE, 
@@ -199,7 +323,7 @@ all_colors <- list("RNA_combined_celltype" = celltype_colors,
                    "nchains" = n_chains_colors)
 grid::grid.newpage()
 plot_heatmap(seurat_object = seurat_data,
-             gene_list = unique(top_fifty_markers$gene), 
+             gene_list = unique(top_fifty_markers1$gene), 
              meta_col = "celltype_nchains", colors = NULL, 
              meta_df = meta_data, color_list = all_colors, max_val = 2.5, 
              min_val = -2.5,  cluster_rows = TRUE, 
@@ -220,7 +344,7 @@ Idents(seurat_no_doublet) <- "RNA_combined_celltype"
 
 top_markers <- FindAllMarkers(seurat_no_doublet, logfc.threshold = calc_logfc)
 
-top_fifty_markers <- top_markers %>%
+top_fifty_markers2 <- top_markers %>%
   dplyr::filter(p_val_adj < 0.05) %>%
   dplyr::group_by(cluster) %>%
   dplyr::top_n(n = 50, wt = avg_log2FC)
@@ -252,7 +376,7 @@ all_colors <- list("RNA_combined_celltype" = celltype_colors[names(celltype_colo
 
 grid::grid.newpage()
 plot_heatmap(seurat_object = seurat_b,
-             gene_list = unique(top_fifty_markers$gene), 
+             gene_list = unique(top_fifty_markers2$gene), 
              meta_col = "cluster_doublet", colors = NULL, 
              meta_df = meta_data, color_list = all_colors, max_val = 2.5, 
              min_val = -2.5,  cluster_rows = TRUE, 
@@ -289,7 +413,7 @@ all_colors <- list("RNA_combined_celltype" = celltype_colors[names(celltype_colo
                    "nchains" = n_chains_colors)
 grid::grid.newpage()
 plot_heatmap(seurat_object = seurat_b,
-             gene_list = unique(top_fifty_markers$gene), 
+             gene_list = unique(top_fifty_markers2$gene), 
              meta_col = "celltype_nchains", colors = NULL, 
              meta_df = meta_data, color_list = all_colors, max_val = 2.5, 
              min_val = -2.5,  cluster_rows = TRUE, 
@@ -302,12 +426,12 @@ seurat_b_doublet <- subset(seurat_b, subset = Doublet_finder == "Doublet")
 
 grid::grid.newpage()
 plot_heatmap2(seurat_object = seurat_b_doublet,
-             gene_list = unique(top_fifty_markers$gene), 
-             meta_col = "RNA_combined_celltype", 
-             colors = celltype_colors[names(celltype_colors) %in% keep_celltypes], 
-             max_val = 2.5, min_val = -2.5,  cluster_rows = TRUE, 
-             cluster_cols = TRUE, average_expression = FALSE, 
-             plot_meta_col = TRUE, plot_rownames = FALSE,
-             cell_order = NULL, return_data = FALSE)
+              gene_list = unique(top_fifty_markers2$gene), 
+              meta_col = "RNA_combined_celltype", 
+              colors = celltype_colors[names(celltype_colors) %in% keep_celltypes], 
+              max_val = 2.5, min_val = -2.5,  cluster_rows = TRUE, 
+              cluster_cols = TRUE, average_expression = FALSE, 
+              plot_meta_col = TRUE, plot_rownames = FALSE,
+              cell_order = NULL, return_data = FALSE)
 
 dev.off()
