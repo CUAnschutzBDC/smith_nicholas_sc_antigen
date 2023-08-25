@@ -191,6 +191,10 @@ rule all:
             results = RESULTS, sample = SAMPLES
             ),
         expand(
+            "{results}/R_analysis/{sample}/files/scar_denoised.csv",
+            results = RESULTS, sample = SAMPLES
+            ),
+        expand(
             "{results}/run_scripts/{sample}_run.txt",
             sample = script_name_dict.keys(), results = RESULTS
             ),

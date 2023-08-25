@@ -16,18 +16,18 @@ normalization_method <- "log" # can be SCT or log
 
 args <- commandArgs(trailingOnly = TRUE)
 
-sample <- args[[1]]
-sample <- gsub("__.*", "", sample)
-#sample <- "JH310-12_AP"
+#sample <- args[[1]]
+#sample <- gsub("__.*", "", sample)
+sample <- "JH310-12_AP"
 
-sample_info <- args[[4]]
-#sample_info <- here("files/sample_info.tsv")
+#sample_info <- args[[4]]
+sample_info <- here("files/sample_info.tsv")
 
-results_dir <- args[[2]]
-#results_dir <- here("results")
+#results_dir <- args[[2]]
+results_dir <- here("results")
 
-sample_metadata <- args[[3]]
-#sample_metadata <- here("files/Deidentified_donor_metadata.xlsx")
+#sample_metadata <- args[[3]]
+sample_metadata <- here("files/Deidentified_donor_metadata.xlsx")
 sample_metadata <- openxlsx::readWorkbook(sample_metadata, detectDates = TRUE)
 colnames(sample_metadata) <- make.names(colnames(sample_metadata))
 sample_metadata <- sample_metadata[!(is.na(sample_metadata$Sample.Name)),]
@@ -85,6 +85,20 @@ sample_vect <- sample_metadata[1,,drop = TRUE]
 
 seurat_object <- AddMetaData(seurat_object, metadata = sample_vect)
 
+# Add in scar counts -----------------------------------------------------------
+scar_counts <- read.csv(file.path(save_dir,
+                                  "files", "scar_denoised.csv"),
+                        row.names = 1) %>%
+  t()
+
+scar_counts <- scar_counts[ , colnames(scar_counts) %in%
+                             colnames(seurat_object)]
+
+seurat_object[["SCAR_ADT"]] <- CreateAssayObject(counts = scar_counts)
+
+seurat_object <- NormalizeData(seurat_object, assay = "SCAR_ADT",
+                               normalization.method = "LogNormalize")
+  
 # Use scuttle for cutoffs ------------------------------------------------------
 se <- as.SingleCellExperiment(seurat_object)
 is.mito <- grep(mt_pattern, rownames(se))

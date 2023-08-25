@@ -87,3 +87,25 @@ rule run_dropkick:
 		10
 	script:
 		"../scripts/indiviual_analysis/01_dropkick.py"
+
+
+rule run_scar:
+	input:
+		"{results}/logs/{sample}_count_done.txt"
+	output:
+		"{results}/R_analysis/{sample}/files/scar_denoised.csv"
+	params:
+		job_name  = "{sample}_run_scar",
+		memory    = "select[mem>100] rusage[mem=100]"
+	singularity:
+		config["SCAR_CONTAINER"]
+	log:
+		"{results}/logs/scar/scar_{sample}"
+	threads:
+		10
+	shell:
+		"""
+		python src/scripts/indiviual_analysis/01b_run_scar.py \
+			-d {wildcards.results} \
+			-s {wildcards.sample}
+		"""
