@@ -198,6 +198,13 @@ clr_vals <- GetAssayData(seurat_data, slot = "data", assay = "CLR_ADT")
 
 clr_vals <- data.frame(t(clr_vals))
 
+scar_vals <- GetAssayData(seurat_data, slot = "data", assay = "SCAR_ADT_LOG")
+
+scar_vals <- data.frame(t(as.matrix(scar_vals)))
+
+scar_clr <- GetAssayData(seurat_data, slot = "data", assay = "SCAR_ADT")
+
+scar_clr <- data.frame(t(scar_clr))
 
 
 # Plots ---------------------------------------------
@@ -213,18 +220,34 @@ p3 <- ggplot2::ggplot(clr_vals, ggplot2::aes(x = IgM, y = IgD)) +
   ggplot2::geom_point() +
   ggplot2::ggtitle("clr norm")
 
+p4 <- ggplot2::ggplot(scar_vals, ggplot2::aes(x = IgM, y = IgD)) +
+  ggplot2::geom_point() +
+  ggplot2::ggtitle("scar log norm")
 
-p4 <- ggplot2::ggplot(dsb_norm, ggplot2::aes(x = IA2.tet, y = GAD.tet)) +
+p5 <- ggplot2::ggplot(scar_clr, ggplot2::aes(x = IgM, y = IgD)) +
+  ggplot2::geom_point() +
+  ggplot2::ggtitle("scar clr norm")
+
+
+p6 <- ggplot2::ggplot(dsb_norm, ggplot2::aes(x = IA2.tet, y = GAD.tet)) +
   ggplot2::geom_point() +
   ggplot2::ggtitle("dsb norm")
 
-p5 <- ggplot2::ggplot(raw_vals, ggplot2::aes(x = IA2.tet, y = GAD.tet)) +
+p7 <- ggplot2::ggplot(raw_vals, ggplot2::aes(x = IA2.tet, y = GAD.tet)) +
   ggplot2::geom_point() +
   ggplot2::ggtitle("raw vals")
 
-p6 <- ggplot2::ggplot(clr_vals, ggplot2::aes(x = IA2.tet, y = GAD.tet)) +
+p8 <- ggplot2::ggplot(clr_vals, ggplot2::aes(x = IA2.tet, y = GAD.tet)) +
   ggplot2::geom_point() +
   ggplot2::ggtitle("clr norm")
+
+p9 <- ggplot2::ggplot(scar_vals, ggplot2::aes(x = IA2.tet, y = GAD.tet)) +
+  ggplot2::geom_point() +
+  ggplot2::ggtitle("scar log norm")
+
+p10 <- ggplot2::ggplot(scar_clr, ggplot2::aes(x = IA2.tet, y = GAD.tet)) +
+  ggplot2::geom_point() +
+  ggplot2::ggtitle("scar clr norm")
 
 # Heatmaps ---------------------------------------------------------------------
 pdf(file.path(save_dir, "images", "clr_vs_dsb_normalization.pdf"),
@@ -235,7 +258,7 @@ genes_plot <- rownames(seurat_data)
 DefaultAssay(seurat_data) <- "RNA"
 
 sample_info <- seurat_data[[]] %>%
-  dplyr::select(hash.ID, dplyr::matches("tet.*_clusters")) %>%
+  dplyr::select(tet_hash_id, scar_hash_id, dplyr::matches("tet.*_clusters")) %>%
   dplyr::select(!tetdsb_nd_clusters)
 
 set1_palette <- grDevices::colorRampPalette(
@@ -248,15 +271,29 @@ names(tet_clr) <- unique(sample_info$tetclr_clusters)
 tet_dsb <- set1_palette(length(unique(sample_info$tetdsb_clusters)))
 names(tet_dsb) <- unique(sample_info$tetdsb_clusters)
 
-hash <- set1_palette(length(unique(sample_info$hash.ID)))
-names(hash) <- unique(sample_info$hash.ID)
+tet_scar <- set1_palette(length(unique(sample_info$tetscar_clusters)))
+names(tet_scar) <- unique(sample_info$tetscar_clusters)
 
-all_colors <- list("tetdsb_clusters" = tet_dsb,
+tet_scar_log <- set1_palette(length(unique(sample_info$tetscarlog_clusters)))
+names(tet_scar_log) <- unique(sample_info$tetscarlog_clusters)
+
+hash_tet <- set1_palette(length(unique(sample_info$tet_hash_id)))
+names(hash_tet) <- unique(sample_info$tet_hash_id)
+
+hash_scar <- set1_palette(length(unique(sample_info$scar_hash_id)))
+names(hash_scar) <- unique(sample_info$scar_hash_id)
+
+sample_info <- rev(sample_info)
+
+all_colors <- list("tet_hash_id" = hash_tet,
+                   "scar_hash_id" = hash_tet,
+                   "tetdsb_clusters" = tet_dsb,
                    "tetclr_clusters" = tet_clr,
-                   "hash.ID" = hash)
+                   "tetscar_clusters" = tet_scar,
+                   "tetscarlog_clusters" = tet_scar_log)
 
 plot_heatmap2(seurat_object = seurat_data, gene_list = genes_plot, 
-              meta_col = "hash.ID", colors = NULL, 
+              meta_col = "tet_hash_id", colors = NULL, 
               meta_df = sample_info, color_list = all_colors, max_val = 2.5, 
               min_val = -2.5,  cluster_rows = TRUE, 
               cluster_cols = TRUE, average_expression = FALSE, 
@@ -267,7 +304,7 @@ plot_heatmap2(seurat_object = seurat_data, gene_list = genes_plot,
 grid::grid.newpage()
 
 plot_heatmap2(seurat_object = seurat_data, gene_list = genes_plot, 
-              meta_col = "hash.ID", colors = NULL, 
+              meta_col = "tet_hash_id", colors = NULL, 
               meta_df = sample_info, color_list = all_colors, max_val = 2.5, 
               min_val = -2.5,  cluster_rows = TRUE, 
               cluster_cols = TRUE, average_expression = FALSE, 
@@ -275,11 +312,33 @@ plot_heatmap2(seurat_object = seurat_data, gene_list = genes_plot,
               cell_order = NULL, return_data = FALSE, 
               assay = "DSB_TET", main = "DSB")
 
+grid::grid.newpage()
+
+plot_heatmap2(seurat_object = seurat_data, gene_list = genes_plot, 
+              meta_col = "tet_hash_id", colors = NULL, 
+              meta_df = sample_info, color_list = all_colors, max_val = 2.5, 
+              min_val = -2.5,  cluster_rows = TRUE, 
+              cluster_cols = TRUE, average_expression = FALSE, 
+              plot_meta_col = TRUE, plot_rownames = TRUE,
+              cell_order = NULL, return_data = FALSE, 
+              assay = "SCAR_TET", main = "SCAR CLR")
+
+grid::grid.newpage()
+
+plot_heatmap2(seurat_object = seurat_data, gene_list = genes_plot, 
+              meta_col = "tet_hash_id", colors = NULL, 
+              meta_df = sample_info, color_list = all_colors, max_val = 2.5, 
+              min_val = -2.5,  cluster_rows = TRUE, 
+              cluster_cols = TRUE, average_expression = FALSE, 
+              plot_meta_col = TRUE, plot_rownames = TRUE,
+              cell_order = NULL, return_data = FALSE, 
+              assay = "SCAR_TET_LOG", main = "SCAR LOG")
+
 ## Heatmap with nd -------------------------------------------------------------
-seurat_no_doub <- subset(seurat_data, subset = hash.ID != "Doublet")
+seurat_no_doub <- subset(seurat_data, subset = tet_hash_id != "Doublet")
 
 sample_info <- seurat_no_doub[[]] %>%
-  dplyr::select(hash.ID, dplyr::matches("tetdsb_nd_clusters")) 
+  dplyr::select(tet_hash_id, dplyr::matches("tetdsb_nd_clusters")) 
 
 set1_palette <- grDevices::colorRampPalette(
   colors = RColorBrewer::brewer.pal(n = 9, name = "Set1")
@@ -288,16 +347,16 @@ set1_palette <- grDevices::colorRampPalette(
 tet_dsb <- set1_palette(length(unique(sample_info$tetdsb_nd_clusters)))
 names(tet_dsb) <- unique(sample_info$tetdsb_nd_clusters)
 
-hash <- set1_palette(length(unique(sample_info$hash.ID)))
-names(hash) <- unique(sample_info$hash.ID)
+hash <- set1_palette(length(unique(sample_info$tet_hash_id)))
+names(hash) <- unique(sample_info$tet_hash_id)
 
 all_colors <- list("tetdsb_nd_clusters" = tet_dsb,
-                   "hash.ID" = hash)
+                   "tet_hash_id" = hash)
 
 grid::grid.newpage()
 
 plot_heatmap2(seurat_object = seurat_no_doub, gene_list = genes_plot, 
-              meta_col = "hash.ID", colors = NULL, 
+              meta_col = "tet_hash_id", colors = NULL, 
               meta_df = sample_info, color_list = all_colors, max_val = 2.5, 
               min_val = -2.5,  cluster_rows = TRUE, 
               cluster_cols = TRUE, average_expression = FALSE, 
@@ -327,5 +386,9 @@ print(p3)
 print(p4)
 print(p5)
 print(p6)
+print(p7)
+print(p8)
+print(p9)
+print(p10)
 
 dev.off()

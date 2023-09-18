@@ -16,18 +16,18 @@ normalization_method <- "log" # can be SCT or log
 
 args <- commandArgs(trailingOnly = TRUE)
 
-#sample <- args[[1]]
-#sample <- gsub("__.*", "", sample)
-sample <- "JH310-12_AP"
+sample <- args[[1]]
+sample <- gsub("__.*", "", sample)
+#sample <- "JH310-12_NG"
 
-#sample_info <- args[[4]]
-sample_info <- here("files/sample_info.tsv")
+sample_info <- args[[4]]
+#sample_info <- here("files/sample_info.tsv")
 
-#results_dir <- args[[2]]
-results_dir <- here("results")
+results_dir <- args[[2]]
+#results_dir <- here("results")
 
-#sample_metadata <- args[[3]]
-sample_metadata <- here("files/Deidentified_donor_metadata.xlsx")
+sample_metadata <- args[[3]]
+#sample_metadata <- here("files/Deidentified_donor_metadata.xlsx")
 sample_metadata <- openxlsx::readWorkbook(sample_metadata, detectDates = TRUE)
 colnames(sample_metadata) <- make.names(colnames(sample_metadata))
 sample_metadata <- sample_metadata[!(is.na(sample_metadata$Sample.Name)),]
@@ -85,20 +85,6 @@ sample_vect <- sample_metadata[1,,drop = TRUE]
 
 seurat_object <- AddMetaData(seurat_object, metadata = sample_vect)
 
-# Add in scar counts -----------------------------------------------------------
-scar_counts <- read.csv(file.path(save_dir,
-                                  "files", "scar_denoised.csv"),
-                        row.names = 1) %>%
-  t()
-
-scar_counts <- scar_counts[ , colnames(scar_counts) %in%
-                             colnames(seurat_object)]
-
-seurat_object[["SCAR_ADT"]] <- CreateAssayObject(counts = scar_counts)
-
-seurat_object <- NormalizeData(seurat_object, assay = "SCAR_ADT",
-                               normalization.method = "LogNormalize")
-  
 # Use scuttle for cutoffs ------------------------------------------------------
 se <- as.SingleCellExperiment(seurat_object)
 is.mito <- grep(mt_pattern, rownames(se))
@@ -267,7 +253,70 @@ seurat_object[["TET"]] <- CreateAssayObject(counts = all_tetramers)
 seurat_object <- NormalizeData(seurat_object, assay = "TET",
                                normalization.method = "CLR", margin = 2)
 
-if(HTO){
+# Add in scar counts -----------------------------------------------------------
+scar_counts <- read.csv(file.path(save_dir,
+                                  "files", "scar_denoised.csv"),
+                        row.names = 1) %>%
+  t()
+
+scar_counts <- scar_counts[ , colnames(scar_counts) %in%
+                              colnames(seurat_object)]
+
+keep_scar <- gsub("-", "_", names(keep_adts))
+scar_counts <- scar_counts[keep_scar,]
+
+rownames(scar_counts) <- gsub("INS_tet[a|b]", "INS_tet", rownames(scar_counts))
+
+seurat_object[["SCAR_ADT_LOG"]] <- CreateAssayObject(counts = scar_counts)
+
+seurat_object <- NormalizeData(seurat_object, assay = "SCAR_ADT_LOG",
+                               normalization.method = "LogNormalize")
+
+seurat_object[["SCAR_ADT"]] <- CreateAssayObject(counts = scar_counts)
+
+seurat_object <- NormalizeData(seurat_object, assay = "SCAR_ADT",
+                               normalization.method = "CLR",
+                               margin = 2)
+
+
+all_tetramers <- scar_counts[grepl("tet", rownames(scar_counts)),]
+
+seurat_object[["SCAR_TET"]] <- CreateAssayObject(counts = all_tetramers)
+
+seurat_object <- NormalizeData(seurat_object, assay = "SCAR_TET",
+                               normalization.method = "CLR",
+                               margin = 2)
+
+seurat_object[["SCAR_TET_LOG"]] <- CreateAssayObject(counts = all_tetramers)
+
+seurat_object <- NormalizeData(seurat_object, assay = "SCAR_TET_LOG",
+                               normalization.method = "LogNormalize")
+
+
+# HTO demux --------------------------------------------------------------------
+seurat_object <- HTODemux(seurat_object, assay = "TET", 
+                          positive.quantile = 0.90)
+
+seurat_object$tet_hash_id <- seurat_object$hash.ID
+
+seurat_object <- HTODemux(seurat_object, assay = "SCAR_TET", 
+                          positive.quantile = 0.90,
+                          kfunc = "kmeans")
+
+seurat_object$scar_hash_id <- seurat_object$hash.ID
+
+cm <- confusionMatrix(seurat_object$tet_hash_id,
+                      seurat_object$scar_hash_id)
+
+cm <- cm / rowSums(cm)
+
+pdf(file.path(save_dir, "images", "hto_demux_heatmap.pdf"))
+
+print(pheatmap::pheatmap(cm, main = "raw_vs_scar"))
+
+dev.off()
+
+ if(HTO){
   # Demultiplex
   seurat_object <- HTODemux(seurat_object, assay = "HTO",
                             positive.quantile = 0.90)

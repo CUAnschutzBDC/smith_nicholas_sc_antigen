@@ -81,7 +81,7 @@ adt_dim_red <- function(seurat_object, assay, reduction_name,
            verbose = FALSE)
   
   # make matrix of norm values to add as dr embeddings
-  pseudo <- t(GetAssayData(seurat_object, slot = "data"))
+  pseudo <- t(as.matrix(GetAssayData(seurat_object, slot = "data")))
   pseudo_colnames <- paste('pseudo', 1:ncol(pseudo), sep = "_")
   colnames(pseudo) <- pseudo_colnames
   # add to object 
@@ -168,10 +168,6 @@ all_tetramers <- dsb_assay[grepl("tet", rownames(dsb_assay)),]
 
 seurat_data[["DSB_TET"]] <- CreateAssayObject(data = all_tetramers)
 
-# HTO demux --------------------------------------------------------------------
-seurat_data <- HTODemux(seurat_data, assay = "CLR_TET",
-                        positive.quantile = 0.90)
-
 # Cluster demux ----------------------------------------------------------------
 
 # Now run through the UMAP for each subset, save the plots
@@ -197,6 +193,20 @@ umap_res <- adt_dim_red(seurat_object = seurat_data, assay = "CLR_ADT",
 seurat_data <- umap_res$object
 
 pdf(file.path(image_dir, "adt_clr_plots.pdf"))
+print(umap_res$plots)
+grid::grid.newpage()
+print(umap_res$heatmap1)
+grid::grid.newpage()
+print(umap_res$heatmap2)
+dev.off()
+
+umap_res <- adt_dim_red(seurat_object = seurat_data, assay = "SCAR_ADT",
+                        reduction_name = "adtscar", sample_name = sample,
+                        resolution = 0.8)
+
+seurat_data <- umap_res$object
+
+pdf(file.path(image_dir, "adt_scar_plots.pdf"))
 print(umap_res$plots)
 grid::grid.newpage()
 print(umap_res$heatmap1)
@@ -232,6 +242,34 @@ grid::grid.newpage()
 print(umap_res$heatmap2)
 dev.off()
 
+umap_res <- adt_dim_red(seurat_object = seurat_data, assay = "SCAR_TET",
+                        reduction_name = "tetscar", sample_name = sample,
+                        resolution = 0.8)
+
+seurat_data <- umap_res$object
+
+pdf(file.path(image_dir, "tet_scar_plots.pdf"))
+print(umap_res$plots)
+grid::grid.newpage()
+print(umap_res$heatmap1)
+grid::grid.newpage()
+print(umap_res$heatmap2)
+dev.off()
+
+umap_res <- adt_dim_red(seurat_object = seurat_data, assay = "SCAR_TET_LOG",
+                        reduction_name = "tetscarlog", sample_name = sample,
+                        resolution = 0.8)
+
+seurat_data <- umap_res$object
+
+pdf(file.path(image_dir, "tet_scar_log_plots.pdf"))
+print(umap_res$plots)
+grid::grid.newpage()
+print(umap_res$heatmap1)
+grid::grid.newpage()
+print(umap_res$heatmap2)
+dev.off()
+
 # Try again without doublets, only on the DSB
 seurat_no_doub <- subset(seurat_data, subset = hash.ID != "Doublet")
 
@@ -257,7 +295,7 @@ dev.off()
 # Plot hto demux as well -------------------------------------------------------
 violins <- featDistPlot(seurat_object = seurat_data, 
                        geneset = rownames(all_tetramers),
-                       combine = FALSE, sep_by = "hash.ID",
+                       combine = FALSE, sep_by = "tet_hash_id",
                        assay = "DSB_TET")
 
 pdf(file.path(image_dir, "hto_demux_dsb.pdf"))
@@ -266,11 +304,66 @@ dev.off()
 
 violins <- featDistPlot(seurat_object = seurat_data, 
                         geneset = rownames(all_tetramers),
-                        combine = FALSE, sep_by = "hash.ID",
+                        combine = FALSE, sep_by = "tet_hash_id",
                         assay = "CLR_TET")
 
 pdf(file.path(image_dir, "hto_demux_clr.pdf"))
 print(violins)
 dev.off()
+
+violins <- featDistPlot(seurat_object = seurat_data, 
+                        geneset = rownames(all_tetramers),
+                        combine = FALSE, sep_by = "tet_hash_id",
+                        assay = "SCAR_TET")
+
+pdf(file.path(image_dir, "hto_demux_scar.pdf"))
+print(violins)
+dev.off()
+
+violins <- featDistPlot(seurat_object = seurat_data, 
+                        geneset = rownames(all_tetramers),
+                        combine = FALSE, sep_by = "tet_hash_id",
+                        assay = "SCAR_TET_LOG")
+
+pdf(file.path(image_dir, "hto_demux_scar_log.pdf"))
+print(violins)
+dev.off()
+
+violins <- featDistPlot(seurat_object = seurat_data, 
+                        geneset = rownames(all_tetramers),
+                        combine = FALSE, sep_by = "scar_hash_id",
+                        assay = "DSB_TET")
+
+pdf(file.path(image_dir, "scar_hto_demux_dsb.pdf"))
+print(violins)
+dev.off()
+
+violins <- featDistPlot(seurat_object = seurat_data, 
+                        geneset = rownames(all_tetramers),
+                        combine = FALSE, sep_by = "scar_hash_id",
+                        assay = "CLR_TET")
+
+pdf(file.path(image_dir, "scar_hto_demux_clr.pdf"))
+print(violins)
+dev.off()
+
+violins <- featDistPlot(seurat_object = seurat_data, 
+                        geneset = rownames(all_tetramers),
+                        combine = FALSE, sep_by = "scar_hash_id",
+                        assay = "SCAR_TET")
+
+pdf(file.path(image_dir, "scar_hto_demux_scar.pdf"))
+print(violins)
+dev.off()
+
+violins <- featDistPlot(seurat_object = seurat_data, 
+                        geneset = rownames(all_tetramers),
+                        combine = FALSE, sep_by = "scar_hash_id",
+                        assay = "SCAR_TET_LOG")
+
+pdf(file.path(image_dir, "scar_hto_demux_scar_log.pdf"))
+print(violins)
+dev.off()
+
 
 saveRDS(seurat_data, file.path(save_dir, "rda_obj", "seurat_processed.rds"))

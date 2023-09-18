@@ -170,23 +170,23 @@ SAMPLE_SCRIPTS:
         - "06b_UMAP.R"
         - "07_name_clusters.R"
         - "08_find_markers.R"
-        # - "09_demultiplex_tets.R"
-        # - "10_compare_dsb_clr.R"
+        - "09_demultiplex_tets.R"
+        - "10_compare_dsb_clr.R"
 
 # If merging all samples, put the scripts to process them below. Under
 # samples include what samples should be merged. If merging all samples,
 # set to "all"
 MERGE_SCRIPTS:
-    # samples:
-    #     "all"
-    # scripts_run:
-        # - "01_Initial_processing.R"
-        # - "02_PCA.R"
-        # - "03_batch_correction.R"
-        # - "04a_UMAP_find_resolution.R"
-        # - "04b_UMAP.R"
-        # - "05_name_clusters.R"
-        # - "06_remove_doublets.R"
+    samples:
+        "all"
+    scripts_run:
+        - "01_Initial_processing.R"
+        - "02_PCA.R"
+        - "03_batch_correction.R"
+        - "04a_UMAP_find_resolution.R"
+        - "04b_UMAP.R"
+        - "05_name_clusters.R"
+        - "06_remove_doublets.R"
 
 # Path to the metadata for each sample that should be added to the objects.
 # Must have a column called "Sample.Name" that has the exact same pattern as
