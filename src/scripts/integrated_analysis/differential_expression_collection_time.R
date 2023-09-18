@@ -43,6 +43,12 @@ samples_use <- sample_info[sample_info$sample != sample, ]$sample
 
 sample_info <- sample_info[sample_info$sample == sample,]
 
+new_metadata <- read.csv(here("files/20230824_Donor_Metadata_updated.csv"))
+
+new_metadata$Sample.Name <- gsub("JH313-15_JBM",
+                                 "JH313-15_JB",
+                                 new_metadata$Sample.Name)
+
 HTO <- sample_info$HTO
 ADT <- sample_info$ADT
 hash_ident <- sample_info$hash_ident
@@ -92,6 +98,20 @@ sample_metadata <- sample_metadata %>%
   dplyr::select(!Sample.Name)
 
 seurat_data <- AddMetaData(seurat_data, metadata = sample_metadata)
+
+# Add collection time
+new_metadata <- new_metadata %>%
+  dplyr::filter(Sample.Name %in% seurat_data$Sample.Name) %>%
+  dplyr::select(Sample.Name, AM.or.PM.sort.and.capture)
+
+new_metadata <- merge(new_metadata, full_seurat_meta, all.x = FALSE,
+                         all.y = TRUE)
+
+new_metadata <- new_metadata %>%
+  tibble::column_to_rownames("barcode") %>%
+  dplyr::select(!Sample.Name)
+
+seurat_data <- AddMetaData(seurat_data, metadata = new_metadata)
 
 # Colors -----------------------------------------------------------------------
 all_samples <- unique(seurat_data$sample)
@@ -258,9 +278,12 @@ pb$date_bin <- factor(pb$date_bin)
 pb$full_date <- paste(pb$processed_date, pb$date_bin,
                       sep = "_")
 
-pb$full_date <- factor(pb$full_date)
+pb$AM.or.PM.sort.and.capture <- gsub(" ", "_",
+                                     pb$AM.or.PM.sort.and.capture)
+
+pb$AM.or.PM.sort.and.capture <- factor(pb$AM.or.PM.sort.and.capture)
 # Definitely grouping by individual, somewhat by family, can't correct by
-dds <- DESeqDataSet(pb, design = ~full_date + test_full_new_status)
+dds <- DESeqDataSet(pb, design = ~AM.or.PM.sort.and.capture + test_full_new_status)
 
 vsd_one <- vst(dds, blind = F)
 
@@ -271,7 +294,7 @@ vsd_one$age_bin <- factor(vsd_one$age_bin)
 mat <- assay(vsd_one)
 
 # Day is the batch, the model.matrix should include everything but the batch
-mat <- limma::removeBatchEffect(mat, vsd_one$full_date,
+mat <- limma::removeBatchEffect(mat, vsd_one$AM.or.PM.sort.and.capture,
                                 design = model.matrix(~vsd_one$test_full))
 
 vsd_two <- vsd_one
@@ -281,9 +304,9 @@ mod_mat <- model.matrix(design(dds), colData(dds))
 
 
 ifelse(!dir.exists(file.path(save_dir, "images", "pseudobulk")),
-                  dir.create(file.path(save_dir, "images", "pseudobulk")),
+       dir.create(file.path(save_dir, "images", "pseudobulk")),
        FALSE)
-pdf(file.path(save_dir, "images", "pseudobulk", "all_b_cells.pdf"))
+pdf(file.path(save_dir, "images", "pseudobulk", "all_b_cells_capture_correct.pdf"))
 
 
 print(plot_pca(vsd_one, group_by = "frozen_cell_bin") +
@@ -319,6 +342,9 @@ print(plot_pca(vsd_one, group_by = "num_PE_pos_sorted_cells_loaded_on_10X",
                color_palette = pos_scale) +
         ggplot2::ggtitle("uncorrected"))
 
+print(plot_pca(vsd_one, group_by = "AM.or.PM.sort.and.capture") +
+        ggplot2::ggtitle("uncorrected"))
+
 print(plot_pca(vsd_one, group_by = "Collection_Date",
                color_palette = collection_scale) +
         ggplot2::ggtitle("uncorected"))
@@ -333,6 +359,7 @@ print(plot_pca(vsd_one, group_by = "new_status", color_palette = status_colors) 
 
 print(plot_pca(vsd_one, group_by = "sample", color_palette = sample_colors) +
         ggplot2::ggtitle("uncorrected"))
+
 
 print(plot_pca(vsd_one, group_by = "test_id", color_palette = antigen_colors) +
         ggplot2::ggtitle("uncorrected"))
@@ -350,12 +377,15 @@ print(plot_pca(vsd_two, group_by = "sample", color_palette = sample_colors) +
 
 print(plot_pca(vsd_two, group_by = "test_id", color_palette = antigen_colors) +
         ggplot2::ggtitle("corrected"))
- 
+
+print(plot_pca(vsd_two, group_by = "AM.or.PM.sort.and.capture") +
+        ggplot2::ggtitle("corrected"))
+
 dev.off()
 
 ### Run deseq with muscat and the new batch term -------------------------------
 
-formula <- ~full_date + test_full
+formula <- ~AM.or.PM.sort.and.capture + test_full
 cd <- as.data.frame(colData(pb))
 design <- model.matrix(formula, cd)
 
@@ -443,7 +473,7 @@ all_res <- all_res[all_res$gene %in% rownames(frq10),]
 
 # Save the results
 write.csv(all_res, file.path(save_dir, "files",
-                             "pseudobulk_all_bcell_de.csv"))
+                             "pseudobulk_all_bcell_de_capture_correct.csv"))
 
 de_wb <- openxlsx::createWorkbook()
 
@@ -461,158 +491,15 @@ for(i in unique(all_res$contrast)){
 
 openxlsx::saveWorkbook(wb = de_wb,
                        file = file.path(save_dir, "files",
-                                        "pseudobulk_all_bcell_de.xlsx"),
+                                        "pseudobulk_all_bcell_de_capture_correct.xlsx"),
                        overwrite = TRUE)
 
-saveRDS(pb, file.path(save_dir, "rda_obj", "muscat_object.rds"))
+saveRDS(pb, file.path(save_dir, "rda_obj", "muscat_object_capture_correct.rds"))
 saveRDS(vsd_two, file.path(save_dir, "rda_obj", 
-                       "psuedobulk_batch_corrected_object.rds"))
+                           "psuedobulk_capture_batch_corrected_object.rds"))
 
 
 
-### Repeat with other batch ----------------------------------------------------
-
-formula <- ~processed_date + test_full
-cd <- as.data.frame(colData(pb))
-design <- model.matrix(formula, cd)
-
-ND <- colMeans(design[which(cd$group_id == "nd"), ])
-NO <- colMeans(design[which(cd$group_id == "no"), ])
-AAB <- colMeans(design[which(cd$group_id == "aab"), ])
-diabetes_antigen <- colMeans(design[which(cd$test_id == "diabetes_antigen"), ])
-Negative <- colMeans(design[which(cd$test_id == "Negative"), ])
-tet <- colMeans(design[which(cd$test_id == "Tet_antigen"), ])
-other <- colMeans(design[which(cd$test_id == "other"), ])
-ND_diabetes_antigen <- colMeans(design[which(cd$test_id == "diabetes_antigen"
-                                             & cd$group_id == "nd") , ])
-ND_Negative <- colMeans(design[which(cd$test_id == "Negative" 
-                                     & cd$group_id == "nd"), ])
-ND_tet <- colMeans(design[which(cd$test_id == "Tet_antigen"
-                                & cd$group_id == "nd"), ])
-ND_other <- colMeans(design[which(cd$test_id == "other"
-                                  & cd$group_id == "nd"), ])
-
-NO_diabetes_antigen <- colMeans(design[which(cd$test_id == "diabetes_antigen"
-                                             & cd$group_id == "no") , ])
-NO_Negative <- colMeans(design[which(cd$test_id == "Negative" 
-                                     & cd$group_id == "no"), ])
-NO_tet <- colMeans(design[which(cd$test_id == "Tet_antigen"
-                                & cd$group_id == "no"), ])
-NO_other <- colMeans(design[which(cd$test_id == "other"
-                                  & cd$group_id == "no"), ])
-
-AAB_diabetes_antigen <- colMeans(design[which(cd$test_id == "diabetes_antigen"
-                                              & cd$group_id == "aab") , ])
-AAB_Negative <- colMeans(design[which(cd$test_id == "Negative" 
-                                      & cd$group_id == "aab"), ])
-AAB_tet <- colMeans(design[which(cd$test_id == "Tet_antigen"
-                                 & cd$group_id == "aab"), ])
-AAB_other <- colMeans(design[which(cd$test_id == "other"
-                                   & cd$group_id == "aab"), ])
-
-all_contrasts <- limma::makeContrasts(NO - ND,
-                                      AAB - ND,
-                                      NO - AAB,
-                                      diabetes_antigen - Negative,
-                                      diabetes_antigen - tet,
-                                      NO_diabetes_antigen - ND_diabetes_antigen,
-                                      NO_Negative - ND_Negative,
-                                      NO_tet - ND_tet, 
-                                      NO_other - ND_other,
-                                      AAB_diabetes_antigen - ND_diabetes_antigen,
-                                      AAB_Negative - ND_Negative,
-                                      AAB_tet - ND_tet,
-                                      AAB_other - ND_other,
-                                      NO_diabetes_antigen - AAB_diabetes_antigen,
-                                      NO_Negative - AAB_Negative,
-                                      NO_tet - AAB_tet,
-                                      NO_other - AAB_other,
-                                      levels = design)
-
-de_genes_all <- muscat::pbDS(pb, method = "DESeq2",
-                             design = design, contrast = all_contrasts)
-
-all_res <- lapply(de_genes_all$table, function(x){
-  return(x$bcells)
-})
-
-all_res <- do.call(rbind, all_res)
-
-all_res <- all_res %>%
-  dplyr::filter(p_adj.glb < 0.05)
-
-# Find percent of cells expressing genes
-freqs <- calcExprFreqs(sce, assay = "counts", th = 0)
-
-all_freqs <- assay(freqs)
-
-# Test against a cutoff
-gids <- levels(sce$group_id)
-frq10 <- vapply(as.list(assays(freqs)), 
-                function(u) apply(u[, gids] > 0.1, 1, any), 
-                logical(nrow(sce)))
-
-frq10 <- data.frame(frq10)
-
-frq10 <- frq10[frq10$bcells,, drop = FALSE]
-
-all_res <- all_res[all_res$gene %in% rownames(frq10),]
-
-# Save the results
-write.csv(all_res, file.path(save_dir, "files",
-                             "pseudobulk_all_bcell_de_processed_date.csv"))
-
-de_wb <- openxlsx::createWorkbook()
-
-for(i in unique(all_res$contrast)){
-  subset_res <- all_res %>%
-    dplyr::filter(contrast == i)
-  
-  if(grepl("diabetes_antigen", i)){
-    i <- gsub("diabetes_antigen", "da", i)
-  }
-  
-  openxlsx::addWorksheet(wb = de_wb, sheetName = i)
-  openxlsx::writeData(wb = de_wb, sheet = i, x = subset_res)
-}
-
-openxlsx::saveWorkbook(wb = de_wb,
-                       file = file.path(save_dir, "files",
-                                        "pseudobulk_all_bcell_de_processed_date.xlsx"),
-                       overwrite = TRUE)
-
-dds <- DESeqDataSet(pb, design = ~processed_date + test_full_new_status)
-
-vsd_one <- vst(dds, blind = F)
-
-vsd_one$frozen_cell_bin <- factor(vsd_one$frozen_cell_bin)
-
-vsd_one$age_bin <- factor(vsd_one$age_bin)
-
-mat <- assay(vsd_one)
-
-# Day is the batch, the model.matrix should include everything but the batch
-mat <- limma::removeBatchEffect(mat, vsd_one$processed_date,
-                                design = model.matrix(~vsd_one$test_full))
-
-vsd_two <- vsd_one
-assay(vsd_two) <- mat
-
-
-saveRDS(vsd_two, file.path(save_dir, "rda_obj", 
-                           "psuedobulk_batch_corrected_processed_date_object.rds"))
-
-### Plots ----------------------------------------------------------------------
-all_genes <- lapply(unique(all_res$contrast), function(x){
-  return_res <- all_res %>%
-    dplyr::filter(contrast == x)
-  
-  return(return_res$gene)
-})
-
-names(all_genes) <- unique(all_res$contrast)
-
-upset(fromList(all_genes), order.by = "freq")
 
 ## Naive memory ----------------------------------------------------------------
 # Naive = naive 1,2,3
@@ -640,7 +527,7 @@ seurat_sub$test_full <- paste(seurat_sub$Status, seurat_sub$test_id,
 # Name columns for muscat sample_id, group_id, cluster_id
 seurat_sub$sample_id <- paste(seurat_sub$sample, 
                               seurat_sub$test_id,
-                                    sep = "_")
+                              sep = "_")
 seurat_sub$group_id <- seurat_sub$new_status
 
 # The cluster id I'm not sure about, I'll do once with cluster and once
@@ -736,10 +623,15 @@ pb$full_date <- factor(pb$full_date)
 colData(pb)$Collection_Date <- factor(colData(pb)$Collection_Date)
 colData(pb)$test_full <- factor(colData(pb)$test_full)
 
+pb$AM.or.PM.sort.and.capture <- gsub(" ", "_",
+                                     pb$AM.or.PM.sort.and.capture)
+
+pb$AM.or.PM.sort.and.capture <- factor(pb$AM.or.PM.sort.and.capture)
+
 dds_list <- lapply(assayNames(pb), function(x){
   dds <- DESeqDataSetFromMatrix(countData = assays(pb)[[x]],
                                 colData = colData(pb),
-                                design = ~full_date + test_full_new_status)
+                                design = ~AM.or.PM.sort.and.capture + test_full_new_status)
   
   return(dds)
 })
@@ -752,12 +644,12 @@ vsd_objs <- lapply(names(dds_list), function(x){
   mat <- assay(vsd)
   
   # Day is the batch, the model.matrix should include everything but the batch
-  mat <- limma::removeBatchEffect(mat, vsd$full_date,
+  mat <- limma::removeBatchEffect(mat, vsd$AM.or.PM.sort.and.capture,
                                   design = model.matrix(~vsd$test_full_new_status))
   assay(vsd) <- mat
   
   saveRDS(vsd, file.path(save_dir, "rda_obj", 
-                         paste0("psuedobulk_batch_corrected_",
+                         paste0("psuedobulk_capture_batch_corrected_",
                                 x, "_object.rds")))
   
   return(vsd)
@@ -779,7 +671,7 @@ all_plots <- lapply(vsd_objs, function(x){
 
 # Run deseq with muscat and the new batch term ---------------------------------
 
-formula <- ~full_date + test_full
+formula <- ~AM.or.PM.sort.and.capture + test_full
 cd <- as.data.frame(colData(pb))
 design <- model.matrix(formula, cd)
 
@@ -870,7 +762,7 @@ all_res <- lapply(names(de_genes_all$table[[1]]), function(celltype){
   
   # Save the results
   write.csv(all_tests, file.path(save_dir, "files",
-                                 paste0("pseudobulk_", celltype, "_de.csv")))
+                                 paste0("pseudobulk_", celltype, "_de_capture_correct.csv")))
   
   de_wb <- openxlsx::createWorkbook()
   
@@ -889,7 +781,7 @@ all_res <- lapply(names(de_genes_all$table[[1]]), function(celltype){
   openxlsx::saveWorkbook(wb = de_wb,
                          file = file.path(save_dir, "files",
                                           paste0("pseudobulk_",
-                                          celltype, "_de.xlsx")),
+                                                 celltype, "_de_caputre_correct.xlsx")),
                          overwrite = TRUE)
   
   
@@ -901,5 +793,5 @@ all_res <- lapply(names(de_genes_all$table[[1]]), function(celltype){
 
 
 # Save the results
-saveRDS(pb, file.path(save_dir, "rda_obj", "mem_naive_muscat_object.rds"))
+saveRDS(pb, file.path(save_dir, "rda_obj", "mem_naive_muscat_object_capture_correct.rds"))
 

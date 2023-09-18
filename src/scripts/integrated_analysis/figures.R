@@ -88,7 +88,8 @@ seurat_data$Status <- gsub(" ", "_", seurat_data$Status)
 
 names(status_colors) <- c("nd", "no", "aab_stage_1", "aab_stage_2")
 # Set levels -------------------------------------------------------------------
-seurat_data$hash.ID <- factor(seurat_data$hash.ID,
+seurat_data <- subset(seurat_data, subset = RNA_combined_celltype != "undetermined")
+seurat_data$tet_hash_id <- factor(seurat_data$tet_hash_id,
                               levels = names(tetramer_colors))
 
 celltype_levels <- c("Naive_1", "Naive_3",
@@ -103,7 +104,7 @@ seurat_data$RNA_combined_celltype <- factor(seurat_data$RNA_combined_celltype,
 
 # Make seurat subsets ----------------------------------------------------------
 seurat_no_dub <- subset(seurat_data, 
-                        subset = hash.ID != "Doublet")
+                        subset = tet_hash_id != "Doublet")
 
 seurat_b_cell <- subset(seurat_data, 
                         subset = RNA_combined_celltype %in% celltype_levels[1:8])
@@ -111,7 +112,7 @@ seurat_b_cell <- subset(seurat_data,
 seurat_b_cell$RNA_combined_celltype <- factor(seurat_b_cell$RNA_combined_celltype,
                                        levels = celltype_levels[1:8])
 
-seurat_b_no_dub <- subset(seurat_b_cell, subset = hash.ID != "Doublet")
+seurat_b_no_dub <- subset(seurat_b_cell, subset = tet_hash_id != "Doublet")
 
 # Celltype plots ---------------------------------------------------------------
 # UMAP of celltypes
@@ -143,7 +144,7 @@ dev.off()
 # Antigen plots ----------------------------------------------------------------
 # Violin plots with the doublet
 all_plots1 <- featDistPlot(seurat_data, geneset = plot_tetramers, 
-                           combine = FALSE, sep_by = "hash.ID",
+                           combine = FALSE, sep_by = "tet_hash_id",
                            assay = "ADT_norm", color = tetramer_colors)
 
 pdf(file.path(fig_dir, "antigen_violins.pdf"), height = 5, width = 10)
@@ -154,7 +155,7 @@ dev.off()
 
 # Violin plots without the doublet
 all_plots1 <- featDistPlot(seurat_no_dub, geneset = plot_tetramers, 
-                           combine = FALSE, sep_by = "hash.ID",
+                           combine = FALSE, sep_by = "tet_hash_id",
                            assay = "ADT_norm", color = tetramer_colors)
 
 pdf(file.path(fig_dir, "antigen_violins_no_doublet.pdf"), height = 5, 
@@ -171,25 +172,25 @@ dev.off()
 make_barplots <- function(full_seurat, b_seurat, save_name = "all"){
   # Barplots separated by individual
   sample_barplot <- scAnalysisR::stacked_barplots(full_seurat,
-                                                  meta_col = "hash.ID",
+                                                  meta_col = "tet_hash_id",
                                                   split_by = "sample", 
                                                   color = tetramer_colors) +
     ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1))
   
   diabetes_barplot <- scAnalysisR::stacked_barplots(full_seurat,
-                                                    meta_col = "hash.ID",
+                                                    meta_col = "tet_hash_id",
                                                     split_by = "Status", 
                                                     color = tetramer_colors) +
     ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1))
   
   cluster_barplot <- scAnalysisR::stacked_barplots(full_seurat,
-                                                   meta_col = "hash.ID",
+                                                   meta_col = "tet_hash_id",
                                                    split_by = "RNA_combined_celltype", 
                                                    color = tetramer_colors) +
     ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1))
   
   bcell_barplot <- scAnalysisR::stacked_barplots(b_seurat,
-                                                 meta_col = "hash.ID",
+                                                 meta_col = "tet_hash_id",
                                                  split_by = "RNA_combined_celltype", 
                                                  color = tetramer_colors) +
     ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1))
@@ -225,9 +226,10 @@ make_barplots <- function(full_seurat, b_seurat, save_name = "all"){
   
   # Barplots separated by celltype
   celltype_barplots <- lapply(unique(full_seurat$RNA_combined_celltype), function(x){
+    print(x)
     seurat_subset <- subset(full_seurat, subset = RNA_combined_celltype == x)
     save_barplot <- scAnalysisR::stacked_barplots(seurat_subset,
-                                                  meta_col = "hash.ID",
+                                                  meta_col = "tet_hash_id",
                                                   split_by = "sample", 
                                                   color = tetramer_colors) +
       ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
@@ -245,7 +247,7 @@ make_barplots <- function(full_seurat, b_seurat, save_name = "all"){
   diabetes_barplots <- lapply(unique(full_seurat$RNA_combined_celltype), function(x){
     seurat_subset <- subset(full_seurat, subset = RNA_combined_celltype == x)
     save_barplot <- scAnalysisR::stacked_barplots(seurat_subset,
-                                                  meta_col = "hash.ID",
+                                                  meta_col = "tet_hash_id",
                                                   split_by = "Status", 
                                                   color = tetramer_colors) +
       ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
@@ -277,7 +279,7 @@ sep_columns <- c("chains", "cdr3", "cdr3_length",
                  "dj_del", "v_mis_freq", "d_mis_freq", "j_mis_freq",
                  "c_mis_freq", "all_mis_freq")
 keep_columns <- c("isotype", "RNA_combined_celltype", "sample", "paired",
-                  "clonotype_id", "Status", "hash.ID")
+                  "clonotype_id", "Status", "tet_hash_id")
 
 all_info <- seurat_b_cell[[]] %>%
   dplyr::select(dplyr::all_of(c(sep_columns, keep_columns)), n_chains)
@@ -343,8 +345,8 @@ status_plot_h <- ggplot2::ggplot(all_data, ggplot2::aes(x = all_mis_freq_chain1,
   ggplot2::ggtitle("Frequency of mismatches in heavy chain")
 
 tetramer_plot_h <- ggplot2::ggplot(all_data, ggplot2::aes(x = all_mis_freq_chain1,
-                                                          y = hash.ID,
-                                                          fill = hash.ID)) +
+                                                          y = tet_hash_id,
+                                                          fill = tet_hash_id)) +
   ggridges::geom_density_ridges() +
   ggplot2::scale_fill_manual(values = tetramer_colors) +
   ggplot2::xlim(c(-0.02, 0.2)) +
@@ -376,8 +378,8 @@ status_plot_l <- ggplot2::ggplot(all_data, ggplot2::aes(x = all_mis_freq_chain2,
   ggplot2::ggtitle("Frequency of mismatches in light chain")
 
 tetramer_plot_l <- ggplot2::ggplot(all_data, ggplot2::aes(x = all_mis_freq_chain2,
-                                                          y = hash.ID,
-                                                          fill = hash.ID)) +
+                                                          y = tet_hash_id,
+                                                          fill = tet_hash_id)) +
   ggridges::geom_density_ridges() +
   ggplot2::scale_fill_manual(values = tetramer_colors) +
   ggplot2::xlim(c(-0.02, 0.2)) +
@@ -442,9 +444,10 @@ name_mapping <- c("INS-tet" = "diabetes_antigen",
                   "Doublet" = "other",
                   "DNA-tet" = "other")
 
-seurat_data$test_id <- name_mapping[as.character(seurat_data$hash.ID)]
+seurat_data$test_id <- name_mapping[as.character(seurat_data$tet_hash_id)]
 
 make_de_plots <- function(all_res, save_name, vsd, seurat_object){
+  divide_by <- 5
   genes_plot <- lapply(unique(all_res$contrast), function(x){
     return_res <- all_res %>%
       dplyr::filter(contrast == x & abs(logFC) > 0.25)
@@ -509,6 +512,125 @@ make_de_plots <- function(all_res, save_name, vsd, seurat_object){
                                coloring = color_list, plot_rownames = FALSE))
   dev.off()
   
+  fig_height <- round(length(genes_plot$`NO - ND`) / divide_by)
+  
+  pdf(file.path(fig_dir, "de_heatmaps", paste0(save_name, "_no_nd_all_name.pdf")),
+      width = 8, height = fig_height)
+  print(make_corrected_heatamp(vsd = vsd, meta_ave = meta_ave,
+                               gene_list = genes_plot$`NO - ND`,
+                               meta_col = "meta_col", plot_meta_col = FALSE,
+                               max_val = 2.5, min_val = -2.5,
+                               cluster_rows = TRUE, cluster_cols = FALSE,
+                               coloring = color_list, plot_rownames = TRUE))
+  dev.off()
+  
+  pdf(file.path(fig_dir, "de_heatmaps", paste0(save_name, "_aab_nd_all.pdf")))
+  print(make_corrected_heatamp(vsd = vsd, meta_ave = meta_ave,
+                               gene_list = genes_plot$`AAB - ND`,
+                               meta_col = "meta_col", plot_meta_col = FALSE,
+                               max_val = 2.5, min_val = -2.5,
+                               cluster_rows = TRUE, cluster_cols = FALSE,
+                               coloring = color_list, plot_rownames = FALSE))
+  dev.off()
+  
+  fig_height <- round(length(genes_plot$`AAB - ND`) / divide_by)
+  pdf(file.path(fig_dir, "de_heatmaps", paste0(save_name, "_aab_nd_all_name.pdf")),
+      width = 8, height = fig_height)
+  print(make_corrected_heatamp(vsd = vsd, meta_ave = meta_ave,
+                               gene_list = genes_plot$`AAB - ND`,
+                               meta_col = "meta_col", plot_meta_col = FALSE,
+                               max_val = 2.5, min_val = -2.5,
+                               cluster_rows = TRUE, cluster_cols = FALSE,
+                               coloring = color_list, plot_rownames = TRUE))
+  dev.off()
+  
+  
+  pdf(file.path(fig_dir, "de_heatmaps", paste0(save_name, "_no_aab_all.pdf")))
+  print(make_corrected_heatamp(vsd = vsd, meta_ave = meta_ave,
+                               gene_list = genes_plot$`NO - AAB`,
+                               meta_col = "meta_col", plot_meta_col = FALSE,
+                               max_val = 2.5, min_val = -2.5,
+                               cluster_rows = TRUE, cluster_cols = FALSE,
+                               coloring = color_list, plot_rownames = FALSE))
+  dev.off()
+  
+  fig_height <- round(length(genes_plot$`NO - AAB`) / divide_by)
+  pdf(file.path(fig_dir, "de_heatmaps", paste0(save_name, "_no_aab_all_name.pdf")),
+      width = 8, height = fig_height)
+  print(make_corrected_heatamp(vsd = vsd, meta_ave = meta_ave,
+                               gene_list = genes_plot$`NO - AAB`,
+                               meta_col = "meta_col", plot_meta_col = FALSE,
+                               max_val = 2.5, min_val = -2.5,
+                               cluster_rows = TRUE, cluster_cols = FALSE,
+                               coloring = color_list, plot_rownames = TRUE))
+  dev.off()
+  
+
+  
+  meta_ave_2 <- meta_ave %>%
+    dplyr::filter(test_id == "diabetes_antigen")
+  
+  pdf(file.path(fig_dir, "de_heatmaps", paste0(save_name, "_no_nd_all_genes_diabetes_plot.pdf")))
+  print(make_corrected_heatamp(vsd = vsd, meta_ave = meta_ave_2,
+                               gene_list = genes_plot$`NO - ND`,
+                               meta_col = "meta_col", plot_meta_col = FALSE,
+                               max_val = 2.5, min_val = -2.5,
+                               cluster_rows = TRUE, cluster_cols = FALSE,
+                               coloring = color_list, plot_rownames = FALSE))
+  dev.off()
+  
+  fig_height <- round(length(genes_plot$`NO - ND`) / divide_by)
+  pdf(file.path(fig_dir, "de_heatmaps", paste0(save_name, "_no_nd_all_genes_diabetes_plot_name.pdf")),
+      width = 8, height = fig_height)
+  print(make_corrected_heatamp(vsd = vsd, meta_ave = meta_ave_2,
+                               gene_list = genes_plot$`NO - ND`,
+                               meta_col = "meta_col", plot_meta_col = FALSE,
+                               max_val = 2.5, min_val = -2.5,
+                               cluster_rows = TRUE, cluster_cols = FALSE,
+                               coloring = color_list, plot_rownames = TRUE))
+  dev.off()
+  
+  pdf(file.path(fig_dir, "de_heatmaps", paste0(save_name, "_aab_nd_all_diabetes_plot.pdf")))
+  print(make_corrected_heatamp(vsd = vsd, meta_ave = meta_ave,
+                               gene_list = genes_plot$`AAB - ND`,
+                               meta_col = "meta_col", plot_meta_col = FALSE,
+                               max_val = 2.5, min_val = -2.5,
+                               cluster_rows = TRUE, cluster_cols = FALSE,
+                               coloring = color_list, plot_rownames = FALSE))
+  dev.off()
+  
+  fig_height <- round(length(genes_plot$`AAB - ND`) / divide_by)
+  pdf(file.path(fig_dir, "de_heatmaps", paste0(save_name, "_aab_nd_all_diabetes_plot_name.pdf")),
+      width = 8, height = fig_height)
+  print(make_corrected_heatamp(vsd = vsd, meta_ave = meta_ave,
+                               gene_list = genes_plot$`AAB - ND`,
+                               meta_col = "meta_col", plot_meta_col = FALSE,
+                               max_val = 2.5, min_val = -2.5,
+                               cluster_rows = TRUE, cluster_cols = FALSE,
+                               coloring = color_list, plot_rownames = TRUE))
+  dev.off()
+  
+  pdf(file.path(fig_dir, "de_heatmaps", paste0(save_name, "_no_aab_all_diabetes_plot.pdf")))
+  print(make_corrected_heatamp(vsd = vsd, meta_ave = meta_ave,
+                               gene_list = genes_plot$`NO - AAB`,
+                               meta_col = "meta_col", plot_meta_col = FALSE,
+                               max_val = 2.5, min_val = -2.5,
+                               cluster_rows = TRUE, cluster_cols = FALSE,
+                               coloring = color_list, plot_rownames = FALSE))
+  dev.off()
+  
+  fig_height <- round(length(genes_plot$`NO - AAB`) / divide_by)
+  
+  pdf(file.path(fig_dir, "de_heatmaps", paste0(save_name, "_no_aab_all_diabetes_plot_name.pdf")),
+      width = 8, height = fig_height)
+  print(make_corrected_heatamp(vsd = vsd, meta_ave = meta_ave,
+                               gene_list = genes_plot$`NO - AAB`,
+                               meta_col = "meta_col", plot_meta_col = FALSE,
+                               max_val = 2.5, min_val = -2.5,
+                               cluster_rows = TRUE, cluster_cols = FALSE,
+                               coloring = color_list, plot_rownames = TRUE))
+  dev.off()
+  
   # new_meta <- meta_df %>%
   #   dplyr::select(sample, Status) %>%
   #   dplyr::distinct()
@@ -537,7 +659,8 @@ make_de_plots <- function(all_res, save_name, vsd, seurat_object){
   subset_meta$sample <- factor(subset_meta$sample, levels = sample_order)
   
   subset_meta <- subset_meta %>%
-    dplyr::arrange(Status, sample)
+    dplyr::arrange(sample)
+  
   
   pdf(file.path(fig_dir, "de_heatmaps", paste0(save_name,
                                                "_no_nd_diabetes_antigen.pdf")))
@@ -551,6 +674,22 @@ make_de_plots <- function(all_res, save_name, vsd, seurat_object){
   
   dev.off()
   
+  fig_height <- round(length(genes_plot$`NO_diabetes_antigen - ND_diabetes_antigen`) / divide_by)
+  
+  
+  pdf(file.path(fig_dir, "de_heatmaps", paste0(save_name,
+                                               "_no_nd_diabetes_antigen_name.pdf")),
+      width = 8, height = fig_height)
+  
+  print(make_corrected_heatamp(vsd = vsd, meta_ave = subset_meta,
+                               gene_list = genes_plot$`NO_diabetes_antigen - ND_diabetes_antigen`,
+                               meta_col = "meta_col", plot_meta_col = FALSE,
+                               max_val = 2.5, min_val = -2.5,
+                               cluster_rows = TRUE, cluster_cols = FALSE,
+                               coloring = color_list, plot_rownames = TRUE))
+  
+  dev.off()
+  
   # plot only the diabetes antigen genes with tet
   subset_meta <- meta_ave %>%
     dplyr::filter(test_id %in% c("Tet_antigen", "diabetes_antigen"))
@@ -559,10 +698,10 @@ make_de_plots <- function(all_res, save_name, vsd, seurat_object){
   subset_meta$test_id <- factor(subset_meta$test_id, levels = antigen_order)
   
   subset_meta <- subset_meta %>%
-    dplyr::arrange(Status, test_id, sample)
+    dplyr::arrange(test_id, sample)
   
   subset_meta2 <- subset_meta %>%
-    dplyr::arrange(Status, sample, test_id)
+    dplyr::arrange(sample, test_id)
   
   pdf(file.path(fig_dir, "de_heatmaps",
                 paste0(save_name, "_no_nd_diabetes_antigen_with_tet.pdf")))
@@ -585,25 +724,49 @@ make_de_plots <- function(all_res, save_name, vsd, seurat_object){
   
   dev.off()
   
+  fig_height <- round(length(genes_plot$`NO_diabetes_antigen - ND_diabetes_antigen`) / divide_by)
+  
+  pdf(file.path(fig_dir, "de_heatmaps",
+                paste0(save_name, "_no_nd_diabetes_antigen_with_tet_name.pdf")),
+      width = 8, height = fig_height)
+  
+  print(make_corrected_heatamp(vsd = vsd, meta_ave = subset_meta,
+                               gene_list = genes_plot$`NO_diabetes_antigen - ND_diabetes_antigen`,
+                               meta_col = "meta_col", plot_meta_col = FALSE,
+                               max_val = 2.5, min_val = -2.5,
+                               cluster_rows = TRUE, cluster_cols = FALSE,
+                               coloring = color_list, plot_rownames = TRUE))
+  
+  grid::grid.newpage()
+  
+  print(make_corrected_heatamp(vsd = vsd, meta_ave = subset_meta2,
+                               gene_list = genes_plot$`NO_diabetes_antigen - ND_diabetes_antigen`,
+                               meta_col = "meta_col", plot_meta_col = FALSE,
+                               max_val = 2.5, min_val = -2.5,
+                               cluster_rows = TRUE, cluster_cols = FALSE,
+                               coloring = color_list, plot_rownames = TRUE))
+  
+  dev.off()
+  
 }
 
 # De genes made in 07_de_analysis.R
 vsd_bcells <- readRDS(file.path(save_dir, "rda_obj", 
-                                "psuedobulk_batch_corrected_processed_date_object.rds"))
+                                "psuedobulk_capture_batch_corrected_object.rds"))
 all_res_bcells <- read.csv(file.path(save_dir, "files", 
-                                     "pseudobulk_all_bcell_de_processed_date.csv"))
+                                     "pseudobulk_all_bcell_de_capture_correct.csv"))
 
 make_de_plots(all_res = all_res_bcells, save_name = "b_cells", 
               vsd = vsd_bcells, seurat_object = seurat_data)
 
 
-vsd_bcells <- readRDS(file.path(save_dir, "rda_obj", 
-                                "psuedobulk_batch_corrected_object.rds"))
-all_res_bcells <- read.csv(file.path(save_dir, "files", 
-                                     "pseudobulk_all_bcell_de.csv"))
-
-make_de_plots(all_res = all_res_bcells, save_name = "b_cells_collection_bin", 
-              vsd = vsd_bcells, seurat_object = seurat_data)
+# vsd_bcells <- readRDS(file.path(save_dir, "rda_obj", 
+#                                 "psuedobulk_batch_corrected_object.rds"))
+# all_res_bcells <- read.csv(file.path(save_dir, "files", 
+#                                      "pseudobulk_all_bcell_de.csv"))
+# 
+# make_de_plots(all_res = all_res_bcells, save_name = "b_cells_collection_bin", 
+#               vsd = vsd_bcells, seurat_object = seurat_data)
 
 # Plots for 230524 (stacked barplots) ------------------------------------------
 # antigen_colors<- c("Negative" = "#7fc97f",
@@ -614,7 +777,7 @@ make_de_plots(all_res = all_res_bcells, save_name = "b_cells_collection_bin",
 #                    "DNA-tet" = "#f0027f")
 # 
 # # Keep only cell types of interest and non-doublets
-# seurat_sub <- subset(seurat_nd_no, subset = hash.ID != "Doublet" &
+# seurat_sub <- subset(seurat_nd_no, subset = tet_hash_id != "Doublet" &
 #                        final_celltype %in% c("Naive_1",
 #                                              "Naive_2",
 #                                              "Naive_3",
@@ -629,7 +792,7 @@ make_de_plots(all_res = all_res_bcells, save_name = "b_cells_collection_bin",
 # 
 # # Make barplots
 # new_barplots <- scAnalysisR::stacked_barplots(seurat_object = seurat_sub, 
-#                                               meta_col = "hash.ID",
+#                                               meta_col = "tet_hash_id",
 #                                               split_by = "celltype_status",
 #                                               return_values = TRUE,
 #                                               color = antigen_colors)
