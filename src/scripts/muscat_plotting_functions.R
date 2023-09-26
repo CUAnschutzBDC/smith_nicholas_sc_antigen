@@ -145,6 +145,8 @@ make_corrected_heatamp <- function(vsd, gene_list, meta_ave, meta_col,
                           heatmap_scale)
   heatmap_scale <- ifelse(heatmap_scale < min_val, min_val, 
                           heatmap_scale)
+  heatmap_scale <- heatmap_scale[!is.na(rowSums(heatmap_scale)),]
+  
   heatmap <- pheatmap::pheatmap(heatmap_scale, cluster_rows = cluster_rows, 
                                 cluster_cols = cluster_cols, 
                                 show_rownames = plot_rownames, 

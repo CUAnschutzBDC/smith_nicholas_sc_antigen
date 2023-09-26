@@ -177,7 +177,7 @@ name_mapping <- c("INS-tet" = "diabetes_antigen",
                   "Doublet" = "other",
                   "DNA-tet" = "other")
 
-seurat_data$test_id <- name_mapping[as.character(seurat_data$hash.ID)]
+seurat_data$test_id <- name_mapping[as.character(seurat_data$tet_hash_id)]
 
 Idents(seurat_data) <- "test_id"
 
@@ -652,7 +652,7 @@ vsd_objs <- lapply(names(dds_list), function(x){
   assay(vsd) <- mat
   
   saveRDS(vsd, file.path(save_dir, "rda_obj", 
-                         paste0("psuedobulk_capture_batch_corrected_",
+                         paste0("no_ts_psuedobulk_capture_batch_corrected_",
                                 x, "_object.rds")))
   
   return(vsd)

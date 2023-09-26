@@ -152,10 +152,10 @@ celltypes_keep <- c("Naive_1", "Naive_2", "Naive_3",
 seurat_data <- subset(seurat_data, subset = RNA_celltype %in% celltypes_keep)
 
 # Any diabetes antigen and no binding
-seurat_data$test_id <- ifelse(seurat_data$hash.ID %in% c("INS-tet",
+seurat_data$test_id <- ifelse(seurat_data$tet_hash_id %in% c("INS-tet",
                                                          "GAD-tet",
                                                          "IA2-tet"),
-                              "diabetes_antigen", ifelse(seurat_data$hash.ID 
+                              "diabetes_antigen", ifelse(seurat_data$tet_hash_id 
                                                          == "Negative",
                                                          "Negative", "other"))
 
@@ -174,7 +174,7 @@ name_mapping <- c("INS-tet" = "diabetes_antigen",
                   "Doublet" = "other",
                   "DNA-tet" = "other")
 
-seurat_data$test_id <- name_mapping[as.character(seurat_data$hash.ID)]
+seurat_data$test_id <- name_mapping[as.character(seurat_data$tet_hash_id)]
 
 Idents(seurat_data) <- "test_id"
 
