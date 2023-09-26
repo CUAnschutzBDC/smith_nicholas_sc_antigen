@@ -203,6 +203,10 @@ rule all:
         expand(
             "{results}/{sample}/outs/immcantation/{sample}_finished.txt",
             results = RESULTS, sample = SAMPLES
+            ),
+        expand(
+            "{results}/R_analysis/merged/define_clones/all_clones_finished.txt",
+            results = RESULTS
             )
         # expand(
         #     "{results}/logs/{sample}_velocyto_done.out",

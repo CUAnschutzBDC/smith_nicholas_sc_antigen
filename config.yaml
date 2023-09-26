@@ -187,6 +187,7 @@ MERGE_SCRIPTS:
         - "04b_UMAP.R"
         - "05_name_clusters.R"
         - "06_remove_doublets.R"
+        - "07_run_immcantation.R"
 
 # Path to the metadata for each sample that should be added to the objects.
 # Must have a column called "Sample.Name" that has the exact same pattern as
