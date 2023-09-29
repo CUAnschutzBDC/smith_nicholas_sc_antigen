@@ -15,11 +15,8 @@ src/scripts/*/*.html
 *.zip
 *.tar
 *.sif
-src/scripts/indiviual_analysis
-src/scripts/integrated_analysis
 src/scripts/full_analysis.Rmd
 src/scripts/Initial_processing.rmd
-files
 *.rds
 docker/*/*.sif
-src/scripts
+files/210825_object

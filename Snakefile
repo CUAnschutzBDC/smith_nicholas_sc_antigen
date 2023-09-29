@@ -14,24 +14,27 @@ from collections import defaultdict
 
 
 # Parameters from config.yaml
-RAW_DATA       = config["RAW_DATA"]
-SAMPLES        = config["SAMPLES"]
-RNA_SAMPLES    = config["RNA_SAMPLES"]
-ADT_SAMPLES    = config["ADT_SAMPLES"]
-VDJ_T_SAMPLES  = config["VDJ_T_SAMPLES"]
-VDJ_B_SAMPLES  = config["VDJ_B_SAMPLES"]
-RESULTS        = config["RESULTS"]
-GENOME         = config["GENOME"]
-ADT_REF        = config["ADT_REF"]
-VDJ_REF        = config["VDJ_REF"]
-MAX_JOBS       = config["MAX_JOBS"]
-LSF_TEMPLATE   = config["LSF_TEMPLATE"]
-AGGR_GROUP     = config["AGGR_SAMPLES"]
-CHEMISTRY      = config["CHEMISTRY"]
-VELOCYTO_GROUP = config["VELOCYTO_GROUP"]
-SCRIPT_PATH    = config["SCRIPT_PATH"]
-SCRIPTS_RUN    = config["SCRIPTS_RUN"]
-SAMPLE_SCRIPTS = config["SAMPLE_SCRIPTS"]
+RAW_DATA        = config["RAW_DATA"]
+SAMPLES         = config["SAMPLES"]
+RNA_SAMPLES     = config["RNA_SAMPLES"]
+ADT_SAMPLES     = config["ADT_SAMPLES"]
+VDJ_T_SAMPLES   = config["VDJ_T_SAMPLES"]
+VDJ_B_SAMPLES   = config["VDJ_B_SAMPLES"]
+RESULTS         = config["RESULTS"]
+GENOME          = config["GENOME"]
+ADT_REF         = config["ADT_REF"]
+VDJ_REF         = config["VDJ_REF"]
+MAX_JOBS        = config["MAX_JOBS"]
+LSF_TEMPLATE    = config["LSF_TEMPLATE"]
+AGGR_GROUP      = config["AGGR_SAMPLES"]
+CHEMISTRY       = config["CHEMISTRY"]
+VELOCYTO_GROUP  = config["VELOCYTO_GROUP"]
+SCRIPT_PATH     = config["SCRIPT_PATH"]
+SCRIPTS_RUN     = config["SCRIPTS_RUN"]
+SAMPLE_SCRIPTS  = config["SAMPLE_SCRIPTS"]
+MERGE_SCRIPTS   = config["MERGE_SCRIPTS"]
+SAMPLE_METADATA = config["SAMPLE_METADATA"]
+SAMPLE_INFO     = config["SAMPLE_INFO"]
 
 # Function to check paths for input files/directories
 def _check_path(path):
@@ -122,19 +125,33 @@ else:
     script_name_dict = {}
 
 if SAMPLE_SCRIPTS:
+    if SAMPLE_SCRIPTS["samples"] == "all":
+        SAMPLE_SCRIPTS["samples"] = SAMPLES
     for sample_name in SAMPLE_SCRIPTS["samples"]:
         individual_dict = OrderedDict()
         for script in SAMPLE_SCRIPTS["scripts_run"]:
             # Get key and value information
-            dict_key = sample_name + "_" + script
+            dict_key = sample_name + "__" + script
             dict_key = re.sub('\\.R', '', dict_key)
-            dict_value = os.path.join(sample_name, script)
+            dict_value = os.path.join("indiviual_analysis", script)
             # Add to an individual dict
             individual_dict[dict_key] = dict_value
             # Add the script name to all names
             script_name_dict[dict_key] = sample_name
         # Add new dict to the script dict under the sample name as the key
         script_dict[sample_name] = individual_dict
+
+if MERGE_SCRIPTS:
+    if MERGE_SCRIPTS["samples"] == "all":
+        MERGE_SCRIPTS["samples"] = SAMPLES
+    merged_dict = OrderedDict()
+    for script in MERGE_SCRIPTS["scripts_run"]:
+        dict_key = "merged__" + script
+        dict_key = re.sub('\\.R', '', dict_key)
+        dict_value = os.path.join("integrated_analysis", script)
+        merged_dict[dict_key] = dict_value
+        script_name_dict[dict_key] = "merged"
+    script_dict["merged"] = merged_dict
 
 # Check that all names were entered correctly
 for name in SAMPLES:
@@ -168,6 +185,15 @@ rule all:
             "{results}/logs/{group}_cellranger_aggr_done.txt",
             results = RESULTS, group = AGGR_GROUP
             ),
+        # Run dropkick to identify cells
+        expand(
+            "{results}/R_analysis/{sample}/files/dropkick_cells.csv",
+            results = RESULTS, sample = SAMPLES
+            ),
+        expand(
+            "{results}/R_analysis/{sample}/files/scar_denoised.csv",
+            results = RESULTS, sample = SAMPLES
+            ),
         expand(
             "{results}/run_scripts/{sample}_run.txt",
             sample = script_name_dict.keys(), results = RESULTS
@@ -177,6 +203,10 @@ rule all:
         expand(
             "{results}/{sample}/outs/immcantation/{sample}_finished.txt",
             results = RESULTS, sample = SAMPLES
+            ),
+        expand(
+            "{results}/R_analysis/merged/define_clones/all_clones_finished.txt",
+            results = RESULTS
             )
         # expand(
         #     "{results}/logs/{sample}_velocyto_done.out",

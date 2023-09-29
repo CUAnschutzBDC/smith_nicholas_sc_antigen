@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 
-#BSUB -J cellranger
+#BSUB -J sc_seq
 #BSUB -o logs/cellranger_%J.out
 #BSUB -e logs/cellranger_%J.err
 #BSUB -R "select[mem>4] rusage[mem=4]"
@@ -33,7 +33,7 @@ run_snakemake() {
         --latency-wait 60 \
         --rerun-incomplete \
         --configfile $config_file \
-        --singularity-args "--bind '/beevol/home/wellskri/Analysis/references/single_cell_references'" \
+        --singularity-args "--bind '/beevol/home/wellskri/Analysis/references/single_cell_references' --bind '/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/20230224_BND_HC_NPOD_pLN_spl_3_NO_T1D_1_FDR/files/210825_object'" \
         --use-singularity
 }
 
