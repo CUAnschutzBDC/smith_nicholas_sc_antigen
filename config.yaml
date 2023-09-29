@@ -172,6 +172,7 @@ SAMPLE_SCRIPTS:
         - "08_find_markers.R"
         - "09_demultiplex_tets.R"
         - "10_compare_dsb_clr.R"
+        - "11_remove_ambience.R"
 
 # If merging all samples, put the scripts to process them below. Under
 # samples include what samples should be merged. If merging all samples,
@@ -184,10 +185,10 @@ MERGE_SCRIPTS:
         - "02_PCA.R"
         - "03_batch_correction.R"
         - "04a_UMAP_find_resolution.R"
-        - "04b_UMAP.R"
-        - "05_name_clusters.R"
-        - "06_remove_doublets.R"
-        - "07_run_immcantation.R"
+    #     - "04b_UMAP.R"
+    #     - "05_name_clusters.R"
+    #     - "06_remove_doublets.R"
+    #     - "07_run_immcantation.R"
 
 # Path to the metadata for each sample that should be added to the objects.
 # Must have a column called "Sample.Name" that has the exact same pattern as
@@ -203,7 +204,7 @@ SAMPLE_INFO:
     "files/sample_info.tsv"
 
 RSCRIPT_CONTAINER:
-    "/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/docker/r_docker/catherine_bcells.sif"
+    "/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/docker/r_docker/catherine_bcells2.sif"
 
 DROPKICK_CONTAINER:
     "/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/docker/dropkick/dropkick.sif"

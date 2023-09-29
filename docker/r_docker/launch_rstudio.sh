@@ -17,7 +17,7 @@ USER_R_LIB=${HOME}/R/catherine/4.2
 LOCAL_PORT=8787
 
 # path to sif file on HPC
-SINGULARITY_IMAGE="catherine_bcells.sif"
+SINGULARITY_IMAGE="catherine_bcells2.sif"
 
 # add options for singularity exec
 # e.g. "--bind /path/to/some/other/user/directory"
