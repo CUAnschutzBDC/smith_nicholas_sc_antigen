@@ -38,3 +38,6 @@ library(ADTnorm) # yezhengSTAT/ADTnorm
 library(flowCore) 
 library(flowStats)
 library(EMDomics)
+library(DropletUtils)
+library(splitstackshape)
+library(data.table)

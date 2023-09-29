@@ -341,6 +341,38 @@
         "fields"
       ]
     },
+    "DropletUtils": {
+      "Package": "DropletUtils",
+      "Version": "1.18.1",
+      "Source": "Bioconductor",
+      "git_url": "https://git.bioconductor.org/packages/DropletUtils",
+      "git_branch": "RELEASE_3_16",
+      "git_last_commit": "ff37775",
+      "git_last_commit_date": "2022-11-22",
+      "Hash": "8224eeb2728f3397de3fc9bc21fa221f",
+      "Requirements": [
+        "BH",
+        "BiocGenerics",
+        "BiocParallel",
+        "DelayedArray",
+        "DelayedMatrixStats",
+        "GenomicRanges",
+        "HDF5Array",
+        "IRanges",
+        "Matrix",
+        "R.utils",
+        "Rcpp",
+        "Rhdf5lib",
+        "S4Vectors",
+        "SingleCellExperiment",
+        "SummarizedExperiment",
+        "beachmat",
+        "dqrng",
+        "edgeR",
+        "rhdf5",
+        "scuttle"
+      ]
+    },
     "EMDomics": {
       "Package": "EMDomics",
       "Version": "2.28.0",
@@ -363,7 +395,7 @@
       "Package": "FNN",
       "Version": "1.1.3.1",
       "Source": "Repository",
-      "Repository": "RSPM",
+      "Repository": "CRAN",
       "Hash": "a774898dbc05ccf03ed4ca93fa7a71f4",
       "Requirements": []
     },
@@ -448,6 +480,26 @@
       "Repository": "RSPM",
       "Hash": "c3f7b221e60c28f5f3533d74c6fef024",
       "Requirements": []
+    },
+    "HDF5Array": {
+      "Package": "HDF5Array",
+      "Version": "1.26.0",
+      "Source": "Bioconductor",
+      "git_url": "https://git.bioconductor.org/packages/HDF5Array",
+      "git_branch": "RELEASE_3_16",
+      "git_last_commit": "38b7bd6",
+      "git_last_commit_date": "2022-11-01",
+      "Hash": "47551501a292037411c49c38d236ff24",
+      "Requirements": [
+        "BiocGenerics",
+        "DelayedArray",
+        "IRanges",
+        "Matrix",
+        "Rhdf5lib",
+        "S4Vectors",
+        "rhdf5",
+        "rhdf5filters"
+      ]
     },
     "IDPmisc": {
       "Package": "IDPmisc",
@@ -579,6 +631,35 @@
       "Hash": "9dda8af6359c4b3932426430c38fa1b1",
       "Requirements": [
         "ggplot2"
+      ]
+    },
+    "R.methodsS3": {
+      "Package": "R.methodsS3",
+      "Version": "1.8.2",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "278c286fd6e9e75d0c2e8f731ea445c8",
+      "Requirements": []
+    },
+    "R.oo": {
+      "Package": "R.oo",
+      "Version": "1.25.0",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "a0900a114f4f0194cf4aa8cd4a700681",
+      "Requirements": [
+        "R.methodsS3"
+      ]
+    },
+    "R.utils": {
+      "Package": "R.utils",
+      "Version": "2.12.2",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "325f01db13da12c04d8f6e7be36ff514",
+      "Requirements": [
+        "R.methodsS3",
+        "R.oo"
       ]
     },
     "R6": {
@@ -4067,6 +4148,33 @@
         "withr"
       ]
     },
+    "rhdf5": {
+      "Package": "rhdf5",
+      "Version": "2.42.1",
+      "Source": "Bioconductor",
+      "git_url": "https://git.bioconductor.org/packages/rhdf5",
+      "git_branch": "RELEASE_3_16",
+      "git_last_commit": "8df5fc7",
+      "git_last_commit_date": "2023-04-07",
+      "Hash": "5c03978672acd1d85ce56f9d12f5fe5b",
+      "Requirements": [
+        "Rhdf5lib",
+        "rhdf5filters"
+      ]
+    },
+    "rhdf5filters": {
+      "Package": "rhdf5filters",
+      "Version": "1.10.1",
+      "Source": "Bioconductor",
+      "git_url": "https://git.bioconductor.org/packages/rhdf5filters",
+      "git_branch": "RELEASE_3_16",
+      "git_last_commit": "ccf950c",
+      "git_last_commit_date": "2023-03-24",
+      "Hash": "63806aa966d50f02b18aba6d0d34e3c8",
+      "Requirements": [
+        "Rhdf5lib"
+      ]
+    },
     "rjson": {
       "Package": "rjson",
       "Version": "0.2.21",
@@ -4213,13 +4321,14 @@
       "RemoteUsername": "CUAnschutzBDC",
       "RemoteRepo": "scAnalysisR",
       "RemoteRef": "main",
-      "RemoteSha": "dfde67ff7a8ad90a33b0c414467e664b725d813a",
-      "Hash": "a8a9f524cfd6826b0f4d74107d0c4686",
+      "RemoteSha": "53838f58dd3921c624adac320a71641774a9d7d5",
+      "Hash": "fefaa010c8a4a78b6798d547a9589192",
       "Requirements": [
         "Matrix",
         "RColorBrewer",
         "Seurat",
         "biomaRt",
+        "gridExtra",
         "openxlsx",
         "pheatmap",
         "tidyverse",
@@ -4631,6 +4740,16 @@
       "Repository": "RSPM",
       "Hash": "581b499a03253c6aeeaadf64496c726c",
       "Requirements": []
+    },
+    "splitstackshape": {
+      "Package": "splitstackshape",
+      "Version": "1.4.8",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "69b26ceb9f7976f347049b4d470c2d65",
+      "Requirements": [
+        "data.table"
+      ]
     },
     "stringi": {
       "Package": "stringi",
