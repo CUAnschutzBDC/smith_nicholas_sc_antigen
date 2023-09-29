@@ -12,6 +12,7 @@ library(batchelor)
 # Set theme
 ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
 
+remove_ambience <- TRUE
 
 normalization_method <- "log" # can be SCT or log
 
@@ -56,6 +57,17 @@ if(normalization_method == "SCT"){
   SCT <- FALSE
   seurat_assay <- "RNA"
 }
+
+
+if(remove_ambience){
+  seurat_assay <- "AMBRNA"
+  DefaultAssay(seurat_data) <- "AMBRNA"
+  seurat_data <- FindVariableFeatures(seurat_data)
+  reduction_name = "ambpca"
+} else {
+  reduction_name = "pca"
+}
+
 
 # Set directories
 save_dir <- file.path(results_dir, "R_analysis", sample)

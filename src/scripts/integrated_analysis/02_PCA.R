@@ -12,20 +12,21 @@ library(batchelor)
 # Set theme
 ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
 
+remove_ambience <- TRUE
 
 normalization_method <- "log" # can be SCT or log
 
 args <- commandArgs(trailingOnly = TRUE)
 
-sample <- args[[1]]
-sample <- gsub("__.*", "", sample)
-#sample <- "merged"
+#sample <- args[[1]]
+#sample <- gsub("__.*", "", sample)
+sample <- "merged"
 
-sample_info <- args[[4]]
-#sample_info <- here("files/sample_info.tsv")
+#sample_info <- args[[4]]
+sample_info <- here("files/sample_info.tsv")
 
-results_dir <- args[[2]]
-#results_dir <- here("results")
+#results_dir <- args[[2]]
+results_dir <- here("results")
 
 sample_info <- read.table(sample_info, fill = TRUE, header = TRUE)
 
@@ -60,19 +61,38 @@ save_dir <- file.path(results_dir, "R_analysis", sample)
 # Read in data
 seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_adtnorm.rds"))
 
-DefaultAssay(seurat_data) <- "RNA"
+
+if(remove_ambience){
+  seurat_assay <- "AMBRNA"
+  DefaultAssay(seurat_data) <- "AMBRNA"
+  seurat_data <- FindVariableFeatures(seurat_data)
+  reduction_name = "ambpca"
+} else {
+  reduction_name = "pca"
+}
+
 # PCA --------------------------------------------------------------------------
+DefaultAssay(seurat_data) <- "RNA"
+
+VariableFeatures(seurat_data) <- VariableFeatures(seurat_data)[!grepl("IG[H|L|K]",
+                                                                      VariableFeatures(seurat_data))]
+
+
+DefaultAssay(seurat_data) <- seurat_assay
+
 VariableFeatures(seurat_data) <- VariableFeatures(seurat_data)[!grepl("IG[H|L|K]",
                                                                       VariableFeatures(seurat_data))]
 
 # PCA of gene expression, weighted by cell number per sample
 seurat_data <- singlecellmethods::RunBalancedPCA(obj = seurat_data, 
                                                  weight.by = "orig.ident",
-                                                 npcs = 50)
+                                                 npcs = 50,
+                                                 assay.use = seurat_assay,
+                                                 reduction_name = reduction_name)
 
 RNA_plots <- plot_PCA(HTO = HTO, assay = seurat_assay,
                       sample_object = seurat_data,
-                      jackstraw = FALSE)
+                      jackstraw = FALSE, reduction = "pca")
 
 seurat_data$date.processed.for.scSeq <- factor(seurat_data$date.processed.for.scSeq)
 
