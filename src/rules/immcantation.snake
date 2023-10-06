@@ -85,7 +85,6 @@ rule make_clone_input2:
 rule define_clones:
 	input:
 		immcantation_file = "{results}/R_analysis/merged/files/immcantation_combined.tsv",
-		#immcantation_file = "{results}/JH310-12_AP/outs/immcantation/filtered_contig_igblast_db-pass.tsv",
 		script_file = "{results}/run_scripts/merged__07_run_immcantation_run.txt"
 	output:
 		final_output = "{results}/R_analysis/merged/define_clones/all_clones_finished.txt",

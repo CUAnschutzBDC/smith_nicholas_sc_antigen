@@ -12,6 +12,7 @@ library(batchelor)
 # Set theme
 ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
 
+remove_ambience <- TRUE
 
 normalization_method <- "log" # can be SCT or log
 
@@ -61,30 +62,43 @@ save_dir <- file.path(results_dir, "R_analysis", sample)
 # Read in data
 seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
 
+pca_list <- list("rna" = c(assay = seurat_assay, reduction_name = "pca"))
+
+if(remove_ambience){
+  pca_list <- c(pca_list,
+                list("ambience" = c(assay = "AMBRNA", 
+                                    reduction_name = "ambpca")))
+} 
 # UMAP -------------------------------------------------------------------------
-seurat_data$RNA_cluster <- NULL
+for(assay_type in names(pca_list)){
+  seurat_assay <- pca_list[[assay_type]][["assay"]]
+  reduction_name <- pca_list[[assay_type]][["reduction_name"]]
 
-# Remove previous clustering
-remove_cols <- colnames(seurat_data[[]])[grepl("res\\.[0-9]",
-                                               colnames(seurat_data[[]]))]
-
-for (i in remove_cols){
-  seurat_data[[i]] <- NULL
+  reduction_save <- paste(assay_type, batch_correction, sep = "_")
+  
+  # Remove previous clustering
+  remove_cols <- colnames(seurat_data[[]])[grepl("res\\.[0-9]",
+                                                 colnames(seurat_data[[]]))]
+  
+  for (i in remove_cols){
+    seurat_data[[i]] <- NULL
+  }
+  
+  ## Cluster --------------------------------------------------------------------
+  
+  # UMAP of gene expression
+  set.seed(0)
+  umap_data <- group_cells(seurat_data, sample, save_dir, nPCs = RNA_pcs,
+                           resolution = resolution, assay = seurat_assay,
+                           HTO = HTO,
+                           reduction = reduction_save)
+  seurat_data <- umap_data$object
+  
+  plot_type <- paste0(reduction_save, ".umap")
+  
+  seurat_data[[paste0(assay_type, "_corrected_cluster")]] <- 
+    seurat_data[[paste0(seurat_assay, "_cluster")]][[1]]
 }
-
-## Cluster --------------------------------------------------------------------
-
-# UMAP of gene expression
-set.seed(0)
-umap_data <- group_cells(seurat_data, sample, save_dir, nPCs = RNA_pcs,
-                         resolution = resolution, assay = seurat_assay,
-                         HTO = HTO,
-                         reduction = batch_correction)
-seurat_data <- umap_data$object
-
-plot_type <- paste0(batch_correction, ".umap")
-
-seurat_data$corrected_cluster <- seurat_data$RNA_cluster
 
 if(ADT & run_adt_umap){
   # UMAP of surface protein
@@ -132,5 +146,6 @@ if(ADT & run_adt_umap){
                           col_by = col_by_list, return_plot = TRUE,
                           plot_type = "wnn.umap")
 }
+
 
 saveRDS(seurat_data, file.path(save_dir, "rda_obj/seurat_processed.rds"))

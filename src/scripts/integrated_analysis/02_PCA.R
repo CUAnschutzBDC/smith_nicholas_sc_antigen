@@ -18,15 +18,15 @@ normalization_method <- "log" # can be SCT or log
 
 args <- commandArgs(trailingOnly = TRUE)
 
-#sample <- args[[1]]
-#sample <- gsub("__.*", "", sample)
-sample <- "merged"
+sample <- args[[1]]
+sample <- gsub("__.*", "", sample)
+#sample <- "merged"
 
-#sample_info <- args[[4]]
-sample_info <- here("files/sample_info.tsv")
+sample_info <- args[[4]]
+#sample_info <- here("files/sample_info.tsv")
 
-#results_dir <- args[[2]]
-results_dir <- here("results")
+results_dir <- args[[2]]
+#results_dir <- here("results")
 
 sample_info <- read.table(sample_info, fill = TRUE, header = TRUE)
 
@@ -61,55 +61,54 @@ save_dir <- file.path(results_dir, "R_analysis", sample)
 # Read in data
 seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_adtnorm.rds"))
 
+pca_list <- list("rna" = c(assay = seurat_assay, reduction_name = "pca"))
 
 if(remove_ambience){
-  seurat_assay <- "AMBRNA"
   DefaultAssay(seurat_data) <- "AMBRNA"
   seurat_data <- FindVariableFeatures(seurat_data)
-  reduction_name = "ambpca"
-} else {
-  reduction_name = "pca"
+  seurat_data <- ScaleData(seurat_data, assay = "AMBRNA")
+  pca_list <- c(pca_list,
+                list("ambience" = c(assay = "AMBRNA", 
+                                    reduction_name = "ambpca")))
+} 
+# PCA --------------------------------------------------------------------------
+for(assay_type in names(pca_list)){
+  seurat_assay <- pca_list[[assay_type]][["assay"]]
+  reduction_name <- pca_list[[assay_type]][["reduction_name"]]
+  DefaultAssay(seurat_data) <- seurat_assay
+  
+  VariableFeatures(seurat_data) <- VariableFeatures(seurat_data)[!grepl("IG[H|L|K]",
+                                                                        VariableFeatures(seurat_data))]
+  
+  # PCA of gene expression, weighted by cell number per sample
+  seurat_data <- singlecellmethods::RunBalancedPCA(obj = seurat_data, 
+                                                   weight.by = "orig.ident",
+                                                   npcs = 50,
+                                                   assay.use = seurat_assay,
+                                                   reduction.name = reduction_name)
+  
+  RNA_plots <- plot_PCA(HTO = HTO, assay = seurat_assay,
+                        sample_object = seurat_data,
+                        jackstraw = FALSE, reduction = reduction_name)
+  
+  seurat_data$date.processed.for.scSeq <- factor(seurat_data$date.processed.for.scSeq)
+  
+  all_pc_plots_raster <- plotDimRed(seurat_data, 
+                                    col_by = c("percent.mt",
+                                               "nFeature_RNA",
+                                               "nCount_RNA",
+                                               "sample",
+                                               "date.processed.for.scSeq"),
+                                    plot_type = reduction_name,
+                                    ggrastr = TRUE)
+  
+  pdf(file.path(save_dir, "images/", paste0(assay_type, "_RNA_pca.pdf")))
+  print(RNA_plots$pca_loadings)
+  print(RNA_plots$elbow)
+  print(all_pc_plots_raster)
+  dev.off()  
 }
 
-# PCA --------------------------------------------------------------------------
-DefaultAssay(seurat_data) <- "RNA"
-
-VariableFeatures(seurat_data) <- VariableFeatures(seurat_data)[!grepl("IG[H|L|K]",
-                                                                      VariableFeatures(seurat_data))]
-
-
-DefaultAssay(seurat_data) <- seurat_assay
-
-VariableFeatures(seurat_data) <- VariableFeatures(seurat_data)[!grepl("IG[H|L|K]",
-                                                                      VariableFeatures(seurat_data))]
-
-# PCA of gene expression, weighted by cell number per sample
-seurat_data <- singlecellmethods::RunBalancedPCA(obj = seurat_data, 
-                                                 weight.by = "orig.ident",
-                                                 npcs = 50,
-                                                 assay.use = seurat_assay,
-                                                 reduction_name = reduction_name)
-
-RNA_plots <- plot_PCA(HTO = HTO, assay = seurat_assay,
-                      sample_object = seurat_data,
-                      jackstraw = FALSE, reduction = "pca")
-
-seurat_data$date.processed.for.scSeq <- factor(seurat_data$date.processed.for.scSeq)
-
-all_pc_plots_raster <- plotDimRed(seurat_data, 
-                                  col_by = c("percent.mt",
-                                             "nFeature_RNA",
-                                             "nCount_RNA",
-                                             "sample",
-                                             "date.processed.for.scSeq"),
-                                  plot_type = "pca",
-                                  ggrastr = TRUE)
-
-pdf(file.path(save_dir, "images/RNA_pca.pdf"))
-print(RNA_plots$pca_loadings)
-print(RNA_plots$elbow)
-print(all_pc_plots_raster)
-dev.off()
 
 if(ADT & run_adt_umap){
   # PCA of surface protein

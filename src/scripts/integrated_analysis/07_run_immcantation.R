@@ -473,7 +473,7 @@ plot(p2)
 
 dev.off()
 write.table(immcantation_filtered,
-            file.path(save_dir, "files", "immcantation_combined.tsv"),
+            file.path(save_dir, "files", "r_immcantation_combined.tsv"),
             sep = "\t", na = "")
 
 write.table(output2@threshold,
