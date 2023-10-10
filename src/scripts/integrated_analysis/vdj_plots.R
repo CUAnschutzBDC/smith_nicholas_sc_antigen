@@ -949,8 +949,44 @@ openxlsx::saveWorkbook(wb = save_data,
 # 5. Perform a t test including the sample information
 
 # Let's start with no vs nd
-# contengency <- v_data %>%
-#   dplyr::filter(Status %in% c())
+contengency <- v_data %>%
+  dplyr::filter(Status %in% c("no", "nd"))
+
+all_res <- lapply(unique(contengency$v_gene), function(x){
+  v_gene_check <- contengency %>%
+    dplyr::filter(v_gene == x)
+
+  # Odds ratio
+  odds_data <- v_gene_check %>%
+    dplyr::select(v_gene, Status, frequency_v_within_status) %>%
+    dplyr::distinct()
+  
+  a <- as.numeric(odds_data[odds_data$Status == "no",
+                            "frequency_v_within_status"])
+  b <- as.numeric(odds_data[odds_data$Status == "nd",
+                            "frequency_v_within_status"])
+  c <- 100 - a
+  d <- 100 - b
+  
+  or <- (a*d) / (b*c)
+
+  # Fisher's exact
+  my_mat <- matrix(c(a, c, b, d), ncol = 2)
+  
+  fisher_result <- fisher.test(x = my_mat)
+  
+  # T test - use all samples
+  no_vals <- v_gene_check[v_gene_check$Status == "no",]
+  nd_vals <- v_gene_check[v_gene_check$Status == "nd",]
+  t_test_res <- t.test(x = no_vals$frequency_v_within_sample, 
+                       y = nd_vals$frequency_v_within_sample, 
+                       alternative = "two.sided")
+  
+  return(list("odds_ratio" = or,
+              "fisher_result" = fisher_result,
+              "t_test_res" = t_test_res))
+
+})
 
 # Want percent v
 # 
