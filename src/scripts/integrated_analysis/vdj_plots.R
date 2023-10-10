@@ -5,6 +5,7 @@ library(tidyverse)
 library(splitstackshape)
 library(circlize)
 library(viridis)
+library(plotly)
 
 normalization_method <- "log" # can be SCT or log
 # Set theme
@@ -755,13 +756,13 @@ test_set <- all_info_split %>%
   dplyr::add_count(name = "full_vj_count") %>%
   dplyr::ungroup() %>%
   dplyr::distinct() %>%
-  dplyr::mutate(percent_vj = sample_vj_count / sample_count * 100,
-                percent_sample = sample_vj_count / full_vj_count * 100)
+  dplyr::mutate(frequency_vj_within_sample = sample_vj_count / sample_count * 100,
+                frequency_vj_by_sample = sample_vj_count / full_vj_count * 100)
 
 
 pdf(file.path(vdj_dir, "vj_barplots_test.pdf"),
     height = 10, width = 20)
-# print(ggplot2::ggplot(test_set, ggplot2::aes(x = sample, y = percent_vj,
+# print(ggplot2::ggplot(test_set, ggplot2::aes(x = sample, y = frequency_vj_within_sample,
 #                                        fill = vj_gene)) +
 #   ggplot2::geom_bar(stat = "identity", position = "stack"))
 
@@ -780,14 +781,14 @@ print(ggplot2::ggplot(test_set, ggplot2::aes(x = vj_gene, y = sample_vj_count,
   ggplot2::ggtitle("VJ count colored by status"))
 
 
-print(ggplot2::ggplot(test_set, ggplot2::aes(x = vj_gene, y = percent_sample,
+print(ggplot2::ggplot(test_set, ggplot2::aes(x = vj_gene, y = frequency_vj_by_sample,
                                        fill = sample)) +
   ggplot2::geom_bar(stat = "identity", position = "stack") +
   ggplot2::scale_fill_manual(values = sample_colors) +
   ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   ggplot2::ggtitle("Percent of each vj gene by sample"))
 
-print(ggplot2::ggplot(test_set, ggplot2::aes(x = vj_gene, y = percent_sample,
+print(ggplot2::ggplot(test_set, ggplot2::aes(x = vj_gene, y = frequency_vj_by_sample,
                                        fill = Status)) +
   ggplot2::geom_bar(stat = "identity", position = "stack") +
   ggplot2::scale_fill_manual(values = status_colors) +
@@ -798,20 +799,20 @@ print(ggplot2::ggplot(test_set, ggplot2::aes(x = vj_gene, y = percent_sample,
 # Select any genes where one status is highly represented
 subset_data <- test_set %>%
   dplyr::group_by(Status, vj_gene) %>%
-  dplyr::mutate(percent_status = sum(percent_sample)) %>%
+  dplyr::mutate(percent_status = sum(frequency_vj_by_sample)) %>%
   dplyr::filter(percent_status > 50)
 
 subset_plot <- test_set %>%
   dplyr::filter(vj_gene %in% unique(subset_data$vj_gene))
 
-print(ggplot2::ggplot(subset_plot, ggplot2::aes(x = vj_gene, y = percent_sample,
+print(ggplot2::ggplot(subset_plot, ggplot2::aes(x = vj_gene, y = frequency_vj_by_sample,
                                        fill = sample)) +
   ggplot2::geom_bar(stat = "identity", position = "stack") +
   ggplot2::scale_fill_manual(values = sample_colors) +
   ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   ggtitle("VJ genes with at least 50% of cells from one status"))
 
-print(ggplot2::ggplot(subset_plot, ggplot2::aes(x = vj_gene, y = percent_sample,
+print(ggplot2::ggplot(subset_plot, ggplot2::aes(x = vj_gene, y = frequency_vj_by_sample,
                                        fill = Status)) +
   ggplot2::geom_bar(stat = "identity", position = "stack") +
   ggplot2::scale_fill_manual(values = status_colors) +
@@ -830,14 +831,14 @@ subset_data <- test_set %>%
 subset_plot <- test_set %>%
   dplyr::filter(vj_gene %in% unique(subset_data$vj_gene))
 
-print(ggplot2::ggplot(subset_plot, ggplot2::aes(x = vj_gene, y = percent_sample,
+print(ggplot2::ggplot(subset_plot, ggplot2::aes(x = vj_gene, y = frequency_vj_by_sample,
                                                 fill = sample)) +
         ggplot2::geom_bar(stat = "identity", position = "stack") +
         ggplot2::scale_fill_manual(values = sample_colors) +
         ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
         ggtitle("VJ genes not seen in all status"))
 
-print(ggplot2::ggplot(subset_plot, ggplot2::aes(x = vj_gene, y = percent_sample,
+print(ggplot2::ggplot(subset_plot, ggplot2::aes(x = vj_gene, y = frequency_vj_by_sample,
                                                 fill = Status)) +
         ggplot2::geom_bar(stat = "identity", position = "stack") +
         ggplot2::scale_fill_manual(values = status_colors) +
@@ -847,3 +848,298 @@ print(ggplot2::ggplot(subset_plot, ggplot2::aes(x = vj_gene, y = percent_sample,
 dev.off()
 
 
+# Make a data frame
+# Need
+# 1. Percent of the vj gene (Here, adding across samples should be 100%)
+# 2. Percent of the sample (Here adding across vj genes should be 100%)
+# 3. Number of samples
+# 4. Number of samples per status
+# Do for V and VJ
+
+vdj_data <- all_info_split %>%
+  dplyr::filter(chains %in% c("IGH")) %>% 
+  dplyr::filter(all_chains %in% keep_chains) %>%
+  dplyr::select(sample, v_gene, j_gene, Status) %>%
+  dplyr::mutate(vj_gene = paste(v_gene, j_gene, sep = "_")) %>%
+  dplyr::group_by(sample, vj_gene) %>%
+  dplyr::add_count(name = "sample_vj_count") %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(sample) %>%
+  dplyr::add_count(name = "sample_count") %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(vj_gene) %>%
+  dplyr::add_count(name = "full_vj_count") %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Status, vj_gene) %>%
+  dplyr::add_count(name = "status_vj_count") %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Status) %>%
+  dplyr::add_count(name = "status_count") %>%
+  dplyr::ungroup() %>%
+  dplyr::distinct() %>%
+  dplyr::mutate(frequency_vj_within_sample = sample_vj_count / sample_count * 100, 
+                frequency_vj_by_sample = sample_vj_count / full_vj_count * 100,
+                frequency_vj_within_status = status_vj_count / status_count * 100,
+                frequency_vj_by_status = status_vj_count / full_vj_count * 100) %>%
+  dplyr::group_by(vj_gene) %>%
+  dplyr::add_count(name = "total_samples") %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(vj_gene, Status) %>%
+  dplyr::add_count(name = "samples_per_condition")
+
+save_data <- openxlsx::createWorkbook()
+openxlsx::addWorksheet(wb = save_data, sheetName = "vj_information")
+openxlsx::writeData(wb = save_data, sheet = "vj_information", x= vdj_data)
+
+v_data <- all_info_split %>%
+  dplyr::filter(chains %in% c("IGH")) %>% 
+  dplyr::filter(all_chains %in% keep_chains) %>%
+  dplyr::select(sample, v_gene, Status) %>%
+  dplyr::group_by(sample, v_gene) %>%
+  dplyr::add_count(name = "sample_v_count") %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(sample) %>%
+  dplyr::add_count(name = "sample_count") %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(v_gene) %>%
+  dplyr::add_count(name = "full_v_count") %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Status, v_gene) %>%
+  dplyr::add_count(name = "status_v_count") %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(Status) %>%
+  dplyr::add_count(name = "status_count") %>%
+  dplyr::ungroup() %>%
+  dplyr::distinct() %>%
+  dplyr::mutate(frequency_v_within_sample = sample_v_count / sample_count * 100, 
+                frequency_v_by_sample = sample_v_count / full_v_count * 100,
+                frequency_v_within_status = status_v_count / status_count * 100,
+                frequency_v_by_status = status_v_count / full_v_count * 100) %>%
+  dplyr::group_by(v_gene) %>%
+  dplyr::add_count(name = "total_samples") %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(v_gene, Status) %>%
+  dplyr::add_count(name = "samples_per_condition")
+
+openxlsx::addWorksheet(wb = save_data, sheetName = "v_information")
+openxlsx::writeData(wb = save_data, sheet = "v_information", x= v_data)
+
+openxlsx::saveWorkbook(wb = save_data, 
+                       file = file.path(save_dir, "files", "vj_proportions.xlsx"),
+                       overwrite = TRUE)
+
+
+# frequency within sample, sum = 100 --> frequency_vj_within_sample
+# frequency within vj all combined, sum = 100 --> frequency_vj_by_sample percent 
+# of that v gene contributed by the sample
+
+# Want frequency_vj_within_sample for polar plot and stats
+
+# Think about this paper
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9377262/
+# Figure 1
+
+# For the stats
+# Try two ways
+# 1. Find proportions across status (ignoring sample)
+# 2. Use this to compute odds ratio and fisher's exact test --> here the 
+# contengency table will be x = nd no y = v present v absent
+# 3. Use the same contengency table to find an odds ratio
+# 4. Find proportions across samples
+# 5. Perform a t test including the sample information
+
+# Let's start with no vs nd
+# contengency <- v_data %>%
+#   dplyr::filter(Status %in% c())
+
+# Want percent v
+# 
+# 
+# Polar plots ------------------------------------------------------------------
+make_polar_plot <- function(starting_data, save_name,
+                            save_dir){
+  v_data <- starting_data %>%
+    dplyr::filter(chains %in% c("IGH")) %>% 
+    dplyr::filter(all_chains %in% keep_chains) %>%
+    dplyr::select(sample, v_gene, Status) %>%
+    dplyr::group_by(sample, v_gene) %>%
+    dplyr::add_count(name = "sample_v_count") %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by(sample) %>%
+    dplyr::add_count(name = "sample_count") %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by(v_gene) %>%
+    dplyr::add_count(name = "full_v_count") %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by(Status, v_gene) %>%
+    dplyr::add_count(name = "status_v_count") %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by(Status) %>%
+    dplyr::add_count(name = "status_count") %>%
+    dplyr::ungroup() %>%
+    dplyr::distinct() %>%
+    dplyr::mutate(frequency_v_within_sample = sample_v_count / sample_count * 100, 
+                  frequency_v_by_sample = sample_v_count / full_v_count * 100,
+                  frequency_v_within_status = status_v_count / status_count * 100,
+                  frequency_v_by_status = status_v_count / full_v_count * 100) %>%
+    dplyr::group_by(v_gene) %>%
+    dplyr::add_count(name = "total_samples") %>%
+    dplyr::ungroup() %>%
+    dplyr::group_by(v_gene, Status) %>%
+    dplyr::add_count(name = "samples_per_condition")
+  
+  v_data_plot <- v_data %>%
+    dplyr::select(v_gene, frequency_v_within_sample,
+                  sample, Status)
+  
+  v_order <- unique(v_data_plot$v_gene)
+  
+  fig <- plot_ly(
+    type = 'scatterpolar',
+    mode = 'lines'
+  )
+  
+  
+  for(i in unique(v_data_plot$sample)){
+    plot_data <- v_data_plot %>%
+      dplyr::filter(sample == i)
+    plot_data <- plot_data[order(match(plot_data$v_gene, v_order)),]
+    theta_vals <- c(plot_data$v_gene, plot_data$v_gene[[1]])
+    fig <- fig %>%
+      add_trace(
+        r = c(plot_data$frequency_v_within_sample, 
+              plot_data$frequency_v_within_sample[[1]]),
+        theta = theta_vals,
+        name = i,
+        line=list(color = sample_colors[i])
+      )
+    
+  }
+  
+  htmlwidgets::saveWidget(widget = fig, 
+                          file.path(save_dir, 
+                                    paste0(save_name,
+                                           "_polar_plot_sample.html")))
+  
+  fig <- plot_ly(
+    type = 'scatterpolar',
+    mode = 'lines'
+  )
+  
+  for(i in unique(v_data_plot$sample)){
+    plot_data <- v_data_plot %>%
+      dplyr::filter(sample == i)
+    status <- unique(plot_data$Status)
+    plot_data <- plot_data[order(match(plot_data$v_gene, v_order)),]
+    theta_vals <- c(plot_data$v_gene, plot_data$v_gene[[1]])
+    fig <- fig %>%
+      add_trace(
+        r = c(plot_data$frequency_v_within_sample, 
+              plot_data$frequency_v_within_sample[[1]]),
+        theta = theta_vals,
+        name = i,
+        line=list(color = status_colors[status])
+      )
+    
+  }
+
+  htmlwidgets::saveWidget(widget = fig, 
+                          file.path(save_dir, 
+                                    paste0(save_name,
+                                           "_polar_plot_status_color.html")))
+  
+  # By status
+  v_data_plot <- v_data %>%
+    dplyr::select(v_gene, frequency_v_within_status,
+                  Status) %>%
+    dplyr::distinct()
+  
+  v_order <- unique(v_data_plot$v_gene)
+  
+  fig <- plot_ly(
+    type = 'scatterpolar',
+    mode = 'lines'
+  )
+  
+  
+  for(i in unique(v_data_plot$Status)){
+    plot_data <- v_data_plot %>%
+      dplyr::filter(Status == i)
+    plot_data <- plot_data[order(match(plot_data$v_gene, v_order)),]
+    theta_vals <- c(plot_data$v_gene, plot_data$v_gene[[1]])
+    fig <- fig %>%
+      add_trace(
+        r = c(plot_data$frequency_v_within_status, 
+              plot_data$frequency_v_within_status[[1]]),
+        theta = theta_vals,
+        name = i,
+        line=list(color = status_colors[i])
+      )
+    
+  }
+  
+  htmlwidgets::saveWidget(widget = fig, 
+                          file.path(save_dir, 
+                                    paste0(save_name,
+                                           "_polar_plot_status.html")))
+  
+  return(v_data)
+  
+  
+}
+
+polar_dir <- file.path(vdj_dir, "polar_plots")
+ifelse(!dir.exists(polar_dir), dir.create(polar_dir), FALSE)
+
+
+all_b_data <- make_polar_plot(starting_data = all_info_split,
+                              save_name = "all_b",
+                              save_dir = polar_dir)
+
+# Now do it for tetramer and isotype
+tetramers_use <- c("DNA-tet", "Doublet", "GAD-tet", "IA2-tet",
+                   "INS-tet", "Negative", "TET-tet")
+tet_data <- lapply(unique(tetramers_use), function(x){
+  starting_data <- all_info_split %>%
+    dplyr::filter(tet_hash_id == x)
+  
+  make_polar_plot(starting_data = starting_data,
+                  save_name = x,
+                  save_dir = polar_dir)
+  
+})
+names(tet_data) <- tetramers_use
+
+isotypes_use <- c("IGHA", "IGHD", "IGHG", "IGHM")
+isotype_data <- lapply(unique(isotypes_use), function(x){
+  starting_data <- all_info_split %>%
+    dplyr::filter(isotype == x)
+  
+  make_polar_plot(starting_data = starting_data,
+                  save_name = x,
+                  save_dir = polar_dir)
+  
+})
+
+names(isotype_data) <- isotypes_use
+
+polar_plots <- openxlsx::createWorkbook()
+
+openxlsx::addWorksheet(wb = polar_plots, sheetName = "all_b")
+openxlsx::writeData(wb = polar_plots, sheet = "all_b", x = all_b_data)
+
+invisible(lapply(names(tet_data), function(x){
+  openxlsx::addWorksheet(wb = polar_plots, sheetName = x)
+  openxlsx::writeData(wb = polar_plots, sheet = x, x = tet_data[[x]])
+  
+}))
+
+invisible(lapply(names(isotype_data), function(x){
+  openxlsx::addWorksheet(wb = polar_plots, sheetName = x)
+  openxlsx::writeData(wb = polar_plots, sheet = x, x = isotype_data[[x]])
+  
+}))
+
+openxlsx::saveWorkbook(wb = polar_plots, 
+                       file = file.path(save_dir, "files", "polar_plot_data.xlsx"),
+                       overwrite = TRUE)
