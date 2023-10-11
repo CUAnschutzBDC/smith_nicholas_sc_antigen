@@ -152,7 +152,24 @@ all_info <- seurat_data[[]] %>%
 all_info_split <- cSplit(all_info, sep_columns, sep = ";", direction = "long") %>%
   dplyr::filter(!is.na(chains))
 
+all_v <- unique(all_info_split$v_gene)
+all_j <- unique(all_info_split$j_gene)
 
+palette1 <- colorRampPalette(colors = 
+                               RColorBrewer::brewer.pal(name = "Set1", n = 9))
+
+palette2 <- colorRampPalette(colors = 
+                               RColorBrewer::brewer.pal(name = "Set2", n = 8))
+
+v_colors <- palette1(length(all_v))
+names(v_colors) <- all_v
+
+j_colors <- palette2(length(all_j))
+names(j_colors) <- all_j
+
+all_colors <- c(v_colors, j_colors)
+
+# Analysis ---------------------------------------------------------------------
 
 # Circos plots to make
 # 1. Heavy V+J pairs
@@ -226,23 +243,6 @@ count_genes <- function(starting_df, group_by = "all",
   
   return(list("df" = return_df, "color_list" = color_values))
 }
-
-all_v <- unique(all_info_split$v_gene)
-all_j <- unique(all_info_split$j_gene)
-
-palette1 <- colorRampPalette(colors = 
-                               RColorBrewer::brewer.pal(name = "Set1", n = 9))
-
-palette2 <- colorRampPalette(colors = 
-                               RColorBrewer::brewer.pal(name = "Set2", n = 8))
-
-v_colors <- palette1(length(all_v))
-names(v_colors) <- all_v
-
-j_colors <- palette2(length(all_j))
-names(j_colors) <- all_j
-
-all_colors <- c(v_colors, j_colors)
 
 graphics.off()
 # Circos -----------------------------------------------------------------------
@@ -431,7 +431,7 @@ make_heatmap_info <- function(all_info_split, select_cols,
                               keep_chains = c("IGH", "IGH;IGK", "IGH;IGK;IGK",
                                               "IGH;IGK;IGL", "IGH;IGL", 
                                               "IGH;IGL;IGL"),
-                              chain_use = c("IGH")){
+                              chains_use = c("IGH")){
   
   if(is.null(group_cols)){
     group_cols <- select_cols
@@ -581,7 +581,7 @@ for(i in names(test_circos)){
     
     plot_heatmap(new_info = heatmap_res$heatmap_plot, sample_info = NULL,
                  save_name = file.path(directory,
-                                       paste0(x, "heavy_v_j_heatmap.pdf")),
+                                       paste0(x, "_heavy_v_j_heatmap.pdf")),
                  coloring = NULL)
     
     # Repeat by sample
@@ -598,7 +598,7 @@ for(i in names(test_circos)){
     plot_heatmap(new_info = heatmap_res$heatmap_plot,
                  sample_info = heatmap_res$sample_info,
                  save_name = file.path(directory, 
-                                       paste0(x, "heavy_v_j_heatmap_sample.pdf")),
+                                       paste0(x, "_heavy_v_j_heatmap_sample.pdf")),
                  coloring = coloring)
     
     # Repeat by status
@@ -614,7 +614,7 @@ for(i in names(test_circos)){
     plot_heatmap(new_info = heatmap_res$heatmap_plot,
                  sample_info = heatmap_res$sample_info,
                  save_name = file.path(directory,
-                                       paste0(x, "heavy_v_j_heatmap_status.pdf")),
+                                       paste0(x, "_heavy_v_j_heatmap_status.pdf")),
                  coloring = coloring)
   }))
   
@@ -634,7 +634,7 @@ for(i in names(test_circos)){
     
     plot_heatmap(new_info = heatmap_res$heatmap_plot, sample_info = NULL,
                  save_name = file.path(directory,
-                                       paste0(x, "heavy_v_j_heatmap.pdf")),
+                                       paste0(x, "_heavy_v_j_heatmap.pdf")),
                  coloring = NULL)
     
     # Repeat by sample
@@ -651,7 +651,7 @@ for(i in names(test_circos)){
     plot_heatmap(new_info = heatmap_res$heatmap_plot,
                  sample_info = heatmap_res$sample_info,
                  save_name = file.path(directory, 
-                                       paste0(x, "heavy_v_j_heatmap_sample.pdf")),
+                                       paste0(x, "_heavy_v_j_heatmap_sample.pdf")),
                  coloring = coloring)
     
     # Repeat by status
@@ -667,7 +667,7 @@ for(i in names(test_circos)){
     plot_heatmap(new_info = heatmap_res$heatmap_plot,
                  sample_info = heatmap_res$sample_info,
                  save_name = file.path(directory,
-                                       paste0(x, "heavy_v_j_heatmap_status.pdf")),
+                                       paste0(x, "_heavy_v_j_heatmap_status.pdf")),
                  coloring = coloring)
   }))
   
@@ -685,7 +685,7 @@ for(i in names(test_circos)){
     
     plot_heatmap(new_info = heatmap_res$heatmap_plot, sample_info = NULL,
                  save_name = file.path(directory,
-                                       paste0(x, "heavy_v_j_heatmap.pdf")),
+                                       paste0(x, "_heavy_v_j_heatmap.pdf")),
                  coloring = NULL)
     
     # Repeat by sample
@@ -702,7 +702,7 @@ for(i in names(test_circos)){
     plot_heatmap(new_info = heatmap_res$heatmap_plot,
                  sample_info = heatmap_res$sample_info,
                  save_name = file.path(directory, 
-                                       paste0(x, "heavy_v_j_heatmap_sample.pdf")),
+                                       paste0(x, "_heavy_v_j_heatmap_sample.pdf")),
                  coloring = coloring)
     
     # Repeat by status
@@ -718,7 +718,7 @@ for(i in names(test_circos)){
     plot_heatmap(new_info = heatmap_res$heatmap_plot,
                  sample_info = heatmap_res$sample_info,
                  save_name = file.path(directory,
-                                       paste0(x, "heavy_v_j_heatmap_status.pdf")),
+                                       paste0(x, "_heavy_v_j_heatmap_status.pdf")),
                  coloring = coloring)
   }))
   
@@ -935,6 +935,7 @@ openxlsx::saveWorkbook(wb = save_data,
 
 # Want frequency_vj_within_sample for polar plot and stats
 
+# Stats ------------------------------------------------------------------------
 # Think about this paper
 # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9377262/
 # Figure 1
@@ -948,49 +949,398 @@ openxlsx::saveWorkbook(wb = save_data,
 # 4. Find proportions across samples
 # 5. Perform a t test including the sample information
 
-# Let's start with no vs nd
-contengency <- v_data %>%
-  dplyr::filter(Status %in% c("no", "nd"))
 
-all_res <- lapply(unique(contengency$v_gene), function(x){
-  v_gene_check <- contengency %>%
-    dplyr::filter(v_gene == x)
+all_samples_no <- v_data %>%
+  ungroup() %>%
+  dplyr::filter(Status == "no")%>%
+  dplyr::select(sample) %>%
+  dplyr::distinct()
 
-  # Odds ratio
-  odds_data <- v_gene_check %>%
-    dplyr::select(v_gene, Status, frequency_v_within_status) %>%
-    dplyr::distinct()
-  
-  a <- as.numeric(odds_data[odds_data$Status == "no",
-                            "frequency_v_within_status"])
-  b <- as.numeric(odds_data[odds_data$Status == "nd",
-                            "frequency_v_within_status"])
-  c <- 100 - a
-  d <- 100 - b
-  
-  or <- (a*d) / (b*c)
+all_samples_nd <- v_data %>%
+  ungroup() %>%
+  dplyr::filter(Status == "nd")%>%
+  dplyr::select(sample) %>%
+  dplyr::distinct()
 
-  # Fisher's exact
-  my_mat <- matrix(c(a, c, b, d), ncol = 2)
-  
-  fisher_result <- fisher.test(x = my_mat)
-  
-  # T test - use all samples
-  no_vals <- v_gene_check[v_gene_check$Status == "no",]
-  nd_vals <- v_gene_check[v_gene_check$Status == "nd",]
-  t_test_res <- t.test(x = no_vals$frequency_v_within_sample, 
-                       y = nd_vals$frequency_v_within_sample, 
-                       alternative = "two.sided")
-  
-  return(list("odds_ratio" = or,
-              "fisher_result" = fisher_result,
-              "t_test_res" = t_test_res))
+all_samples_aab1 <- v_data %>%
+  ungroup() %>%
+  dplyr::filter(Status == "aab_stage_1")%>%
+  dplyr::select(sample) %>%
+  dplyr::distinct()
 
+all_samples_aab2 <- v_data %>%
+  ungroup() %>%
+  dplyr::filter(Status == "aab_stage_2")%>%
+  dplyr::select(sample) %>%
+  dplyr::distinct()
+
+add_zero_vals <- function(all_samples, t_vals, status){
+  if(all(all_samples$sample %in% t_vals$sample)){
+    return(t_vals)
+  } else {
+    # Make a data frame with zeros
+    missing_samples <- all_samples[!all_samples$sample %in% t_vals$sample,]
+    missing_df <- data.frame(sample = missing_samples$sample,
+                             Status = status,
+                             frequency_v_within_sample = 0)
+    
+    return_df <- rbind(t_vals, missing_df)
+    return(return_df)
+  }
+}
+
+add_odds_zero <- function(status_one, status_two, odds_data, v_gene,
+                          full_df){
+  if(all(c(status_one, status_two) %in% odds_data$Status)){
+    return(odds_data)
+  } else if(!status_one %in% odds_data$Status){
+    status_count_df <- full_df %>%
+      dplyr::filter(Status == status_one)
+    status_count <- unique(status_count_df$status_count)
+    if(length(status_count) != 1){
+      stop("Something went wrong with counting")
+    }
+    new_df <- data.frame(v_gene = v_gene,
+                         Status = status_one,
+                         status_v_count = 0,
+                         status_count = status_count)
+    return_df <- rbind(odds_data, new_df)
+    return(return_df)
+  } else if(!status_two %in% odds_data$Status){
+    status_count_df <- full_df %>%
+      dplyr::filter(Status == status_two)
+    status_count <- unique(status_count_df$status_count)
+    if(length(status_count) != 1){
+      stop("Something went wrong with counting")
+    }
+    new_df <- data.frame(v_gene = v_gene,
+                         Status = status_two,
+                         status_v_count = 0,
+                         status_count = status_count)
+    return_df <- rbind(odds_data, new_df)
+    return(return_df)
+  }
+}
+
+v_j_statistics <- function(v_data, status_one, status_two,
+                           all_samples_one, all_samples_two){
+  # Let's start with no vs nd
+  contengency <- v_data %>%
+    dplyr::filter(Status %in% c(status_one, status_two))
+  
+  v_gene_list <- unique(contengency$v_gene)
+  
+  all_res <- lapply(v_gene_list, function(x){
+    v_gene_check <- contengency %>%
+      dplyr::filter(v_gene == x)
+    
+    # Odds ratio
+    # change to status_v_count and status_count
+    odds_data <- v_gene_check %>%
+      dplyr::select(v_gene, Status, status_v_count, status_count) %>%
+      dplyr::distinct()
+    
+    odds_data <- add_odds_zero(status_one = status_one, status_two = status_two,
+                               odds_data = odds_data, v_gene = x,
+                               full_df = contengency)
+    
+    a <- as.numeric(odds_data[odds_data$Status == status_one,
+                              "status_v_count"])
+    b <- as.numeric(odds_data[odds_data$Status == status_two,
+                              "status_v_count"])
+    total_a <- as.numeric(odds_data[odds_data$Status == status_one,
+                                    "status_count"])
+    
+    total_b <- as.numeric(odds_data[odds_data$Status == status_two,
+                                    "status_count"])
+    c <- total_a - a
+    d <- total_b - b
+    
+    or <- (a*d) / (b*c)
+    
+    # Fisher's exact
+    my_mat <- matrix(c(a, c, b, d), ncol = 2)
+    
+    fisher_result <- fisher.test(x = my_mat)    
+    
+    # T test - use all samples
+    one_vals <- v_gene_check[v_gene_check$Status == status_one,]
+    two_vals <- v_gene_check[v_gene_check$Status == status_two,]
+    
+    one_vals <- one_vals %>%
+      ungroup() %>%
+      dplyr::select(sample, Status, frequency_v_within_sample)
+    
+    two_vals <- two_vals %>%
+      ungroup() %>% 
+      dplyr::select(sample, Status, frequency_v_within_sample)
+    
+    one_vals <- add_zero_vals(all_samples = all_samples_one,
+                             t_vals = one_vals,
+                             status = status_one)
+    
+    two_vals <- add_zero_vals(all_samples = all_samples_two,
+                             t_vals = two_vals,
+                             status = status_two)
+    
+    t_test_res <- t.test(x = one_vals$frequency_v_within_sample, 
+                         y = two_vals$frequency_v_within_sample, 
+                         alternative = "two.sided")    
+    
+    
+    one_vals <- one_vals %>%
+      ungroup() %>%
+      dplyr::select(sample, Status, frequency_v_within_sample)
+    
+    two_vals <- two_vals %>%
+      ungroup() %>% 
+      dplyr::select(sample, Status, frequency_v_within_sample)
+    
+    t_test_df <- rbind(one_vals, two_vals)
+    
+    return(list("odds_data" = odds_data, 
+                "odds_ratio" = or,
+                "fisher_result" = fisher_result,
+                "t_test_df" = t_test_df,
+                "t_test_res" = t_test_res,
+                "v_gene" = x))
+    
+  })
+  
+  names(all_res) = v_gene_list
+  
+  # Pull out t test data
+  all_t_test <- lapply(all_res, function(x){
+    v_gene <- x$v_gene
+    t_test_res <- x$t_test_res
+    
+    p_value <- t_test_res$p.value
+    t <- t_test_res$statistic
+    ci_low <- t_test_res$conf.int[[1]]
+    ci_high <- t_test_res$conf.int[[2]]
+    return_data <- data.frame("v_gene" = v_gene,
+                              "p_value" = p_value,
+                              "t_stat" = t,
+                              "95_conf_int_low" = ci_low,
+                              "95_conf_int_high" = ci_high,
+                              "status_one" = status_one,
+                              "status_two" = status_two)    
+    
+    
+    return(return_data)
+  })
+  
+  
+  all_t_test <- do.call(rbind, all_t_test)
+  
+  # Pull out t test data for box plot
+  all_t_test_plot <- lapply(all_res, function(x){
+    v_gene <- x$v_gene
+    t_test_res <- x$t_test_df
+    t_test_res$v_gene <- v_gene
+    t_test_res$status_one <- status_one
+    t_test_res$status_two <- status_two
+    
+    return(t_test_res)
+  })
+  
+  
+  all_t_test_plot <- do.call(rbind, all_t_test_plot)
+  
+  
+  # Pull out odds ratio
+  all_odds_ratio <- lapply(all_res, function(x){
+    v_gene <- x$v_gene
+    odds_ratio <- x$odds_ratio
+    fisher_p <- x$fisher_result$p.value
+    ci_low <- x$fisher_result$conf.int[[1]]
+    ci_high <- x$fisher_result$conf.int[[2]]
+    return_data <- data.frame("v_gene" = v_gene,
+                              "p_value" = fisher_p,
+                              "odds_ratio" = odds_ratio,
+                              "95_conf_int_low" = ci_low,
+                              "95_conf_int_high" = ci_high,
+                              "status_one" = status_one,
+                              "status_two" = status_two)     
+    
+    return(return_data)
+  })
+  
+  
+  all_odds_ratio <- do.call(rbind, all_odds_ratio)
+  
+  # Pull out odds ratio data for plots
+  all_or_plot <- lapply(all_res, function(x){
+    v_gene <- x$v_gene
+    odds_res <- x$odds_data
+    odds_res$v_gene <- v_gene
+    odds_res$status_one <- status_one
+    odds_res$status_two <- status_two
+    
+    return(odds_res)
+  })
+  
+  
+  all_or_plot <- do.call(rbind, all_or_plot)
+  
+  all_or_plot$fraction <- all_or_plot$status_v_count / all_or_plot$status_count
+  
+  return(list(all_t_test = all_t_test,
+              all_t_test_plot = all_t_test_plot,
+              all_odds_ratio = all_odds_ratio,
+              all_or_plot = all_or_plot))
+  
+}
+
+# Make a plot of odds ratios
+
+all_tests <- list("no_nd" = c("no", "nd"),
+                  "aab1_nd" = c("aab_stage_1", "nd"),
+                  "aab2_nd" = c("aab_stage_2", "nd"))
+
+sample_mapping <- list("nd" = all_samples_nd,
+                       "no" = all_samples_no,
+                       "aab_stage_1" = all_samples_aab1,
+                       "aab_stage_2" = all_samples_aab2)
+
+all_stats <- lapply(all_tests, function(x){
+  status_one <- x[[1]]
+  status_two <- x[[2]]
+  all_samples_one <- sample_mapping[[status_one]]
+  all_samples_two <- sample_mapping[[status_two]]
+  v_j_statistics(v_data, status_one = status_one,
+                 status_two = status_two,
+                 all_samples_one = all_samples_one,
+                 all_samples_two = all_samples_two)  
 })
 
-# Want percent v
-# 
-# 
+names(all_stats) <- names(all_tests)
+
+# Do full p-value correction for the stats tests
+all_odds <- lapply(names(all_stats), function(x){
+  return_df <- all_stats[[x]]$all_odds_ratio
+  return_df$test <- x
+  return(return_df)
+})
+
+all_odds <- do.call(rbind, all_odds)
+
+all_odds$p_adj <- p.adjust(p = all_odds$p_value,
+                           method = "bonferroni")
+
+all_t <- lapply(names(all_stats), function(x){
+  return_df <- all_stats[[x]]$all_t_test
+  return_df$test <- x
+  return(return_df)
+})
+
+all_t <- do.call(rbind, all_t)
+
+all_t$p_adj <- p.adjust(p = all_t$p_value,
+                        method = "bonferroni")
+
+save_dir_stats_files <- file.path(save_dir, "files", "stats")
+ifelse(!dir.exists(save_dir_stats_files), dir.create(save_dir_stats_files),
+       FALSE)
+
+save_dir_stats <- file.path(vdj_dir, "stats")
+ifelse(!dir.exists(save_dir_stats), dir.create(save_dir_stats),
+       FALSE)
+
+all_plots <- lapply(names(all_tests), function(x){
+  all_t_test_plot <- all_stats[[x]]$all_t_test_plot %>%
+    dplyr::arrange(v_gene)
+  # Make a plot of t-test
+  t_plot <- ggplot2::ggplot(all_t_test_plot,
+                            ggplot2::aes(x = v_gene,
+                                         y = frequency_v_within_sample,
+                                         fill = Status)) +
+    ggplot2::geom_boxplot() +
+    ggplot2::scale_fill_manual(values = status_colors) +
+    ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1))  
+  
+  # Save data
+  pdf(file.path(save_dir_stats, paste0(x, "_t_test.pdf")),
+      width = 12, height = 8)
+  print(t_plot)
+  dev.off()
+  
+  odds_data <- all_odds %>%
+    dplyr::filter(test == x)
+  
+  odds_data$padj_category <- ifelse(odds_data$p_adj < 0.05, "P<0.05",
+                                    "P>0.05")
+  col_mapping <- c("P>0.05" = "#D3D3D3",
+                   "P<0.05" = "#AA4A44")
+  
+  colors <- col_mapping[odds_data$padj_category]
+  
+  odds_plot <- ggplot2::ggplot(odds_data, 
+                               ggplot2::aes(x = odds_ratio,
+                                            y = v_gene,
+                                            color = padj_category)) +
+    ggplot2::geom_point() +
+    ggplot2::geom_errorbar(ggplot2::aes(xmin = X95_conf_int_low,
+                                        xmax = X95_conf_int_high)) +
+    ggplot2::geom_vline(xintercept = 1, linetype = "dashed") +
+    ggplot2::scale_color_manual(values = col_mapping)
+  
+  
+  # Save data
+  pdf(file.path(save_dir_stats, paste0(x, "_odds_ratio.pdf")),
+      width = 8, height = 12)
+  print(odds_plot)
+  dev.off()
+  
+  odds_heatmap_data <- all_stats[[x]]$all_or_plot %>% 
+    dplyr::select(v_gene, Status, fraction) %>%
+    tidyr::pivot_wider(names_from = Status, values_from = fraction) %>%
+    dplyr::arrange(v_gene) %>%
+    tibble::column_to_rownames("v_gene")
+  
+  
+  pdf(file.path(save_dir_stats, paste0(x, "_fraction_heatmap.pdf")),
+      width = 3, height = 12)
+  pheatmap(odds_heatmap_data, cluster_cols = FALSE, cluster_rows = FALSE,
+           color = viridis(n = 20))
+  dev.off()
+  
+  graphics.off()
+
+  # Save all data to excel files
+  # save_dir_stats_files
+  save_file <- openxlsx::createWorkbook()
+  
+  # Save data used to make the heatmap
+  openxlsx::addWorksheet(wb = save_file, sheetName = "heatmap_fraction")
+  openxlsx::writeData(wb = save_file, sheet = "heatmap_fraction",
+                      x = all_stats[[x]]$all_or_plot)
+  
+  # Save data with odds ratios and fisher exact p-value
+  openxlsx::addWorksheet(wb = save_file, sheetName = "odds_ratio")
+  openxlsx::writeData(wb = save_file, sheet = "odds_ratio",
+                      x = odds_data)
+  
+  # Save data used to make the box plot
+  openxlsx::addWorksheet(wb = save_file, sheetName = "boxplot_data")
+  openxlsx::writeData(wb = save_file, sheet = "boxplot_data",
+                      x = all_t_test_plot)
+  
+  # Save data with t test values
+  save_t <- all_t %>%
+    dplyr::filter(test == x)
+  openxlsx::addWorksheet(wb = save_file, sheetName = "t_test")
+  openxlsx::writeData(wb = save_file, sheet = "t_test",
+                      x = save_t)
+  
+  openxlsx::saveWorkbook(wb = save_file,
+                         file = file.path(save_dir_stats_files,
+                                          paste0(x, ".xlsx")),
+                         overwrite = TRUE)
+  
+})
+
+
 # Polar plots ------------------------------------------------------------------
 make_polar_plot <- function(starting_data, save_name,
                             save_dir){
