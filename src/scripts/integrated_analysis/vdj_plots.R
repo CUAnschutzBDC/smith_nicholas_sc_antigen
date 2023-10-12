@@ -1,3 +1,17 @@
+# This document makes VDJ plots
+# 1. Circos plots of V + J connections (in all B cells and separated by isotype,
+# sample and tetramer)
+# 2. Heatmaps of V + J connection (in all B cells and separated by isotype,
+# sample and tetramer)
+# 3. Barplots of the fraction of V+J pairs within samples and overall
+# 4. Statistics showing the odds ratios and fishers exact test of the counts
+# of each v gene per comparison and t test of all the proportions
+# 5. Polar plots showing the fraction of each V gene per sample (in all
+# B cells and separated by isotype, sample, and tetramer)
+# Still to add --> 
+# 1. Flow plots that show the same data as the circos plots
+# 2. All plots across light V+J pairings as well
+# 3. Flow plots, circos plots, and heatmaps showing heavy + light V pairings
 library(here)
 library(scAnalysisR)
 library(pheatmap)
@@ -51,12 +65,35 @@ if(normalization_method == "SCT"){
 # Set directories
 save_dir <- file.path(results_dir, "R_analysis", sample)
 
-vdj_dir <- file.path(save_dir, "images", "vdj_plots")
-
-ifelse(!dir.exists(vdj_dir), dir.create(vdj_dir), FALSE)
+# This can be added into the snakemake pipeline, will need to write a new
+# rule
+cells_use <- "all"
+#cells_use <- "memory"
 
 # Read in data
 seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
+
+if(cells_use == "all"){
+  vdj_dir <- file.path(save_dir, "images", "vdj_plots")
+  vdj_files <- file.path(save_dir, "files", "vdj_files")
+  seurat_data <- subset(seurat_data, 
+                        subset = RNA_combined_celltype %in% 
+                          c("Activated_memory", "Memory_IgA",
+                            "Resting_memory", "B.intermediate",
+                            "BND2", "Naive_1", "Naive_3", "Plasmablast"))
+} else {
+  vdj_dir <- file.path(save_dir, "images", "memory_vdj_plots")
+  vdj_files <- file.path(save_dir, "files", "memory_vdj_files")
+  seurat_data <- subset(seurat_data, 
+                        subset = RNA_combined_celltype %in% 
+                          c("Activated_memory", "Memory_IgA",
+                            "Resting_memory"))
+}
+
+
+ifelse(!dir.exists(vdj_dir), dir.create(vdj_dir), FALSE)
+ifelse(!dir.exists(vdj_files), dir.create(vdj_files), FALSE)
+
 
 # Colors -----------------------------------------------------------------------
 final_colors <- c("Resting_memory" = "#924bdb", # Resting memory
@@ -925,7 +962,7 @@ openxlsx::addWorksheet(wb = save_data, sheetName = "v_information")
 openxlsx::writeData(wb = save_data, sheet = "v_information", x= v_data)
 
 openxlsx::saveWorkbook(wb = save_data, 
-                       file = file.path(save_dir, "files", "vj_proportions.xlsx"),
+                       file = file.path(vdj_files, "vj_proportions.xlsx"),
                        overwrite = TRUE)
 
 
@@ -1239,7 +1276,7 @@ all_t <- do.call(rbind, all_t)
 all_t$p_adj <- p.adjust(p = all_t$p_value,
                         method = "bonferroni")
 
-save_dir_stats_files <- file.path(save_dir, "files", "stats")
+save_dir_stats_files <- file.path(vdj_files, "stats")
 ifelse(!dir.exists(save_dir_stats_files), dir.create(save_dir_stats_files),
        FALSE)
 
@@ -1527,5 +1564,5 @@ invisible(lapply(names(isotype_data), function(x){
 }))
 
 openxlsx::saveWorkbook(wb = polar_plots, 
-                       file = file.path(save_dir, "files", "polar_plot_data.xlsx"),
+                       file = file.path(vdj_files, "polar_plot_data.xlsx"),
                        overwrite = TRUE)
