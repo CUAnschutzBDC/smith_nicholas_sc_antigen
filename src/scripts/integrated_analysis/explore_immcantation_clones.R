@@ -55,14 +55,62 @@ seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
 # The clones com from Chang-o define clones
 # based only on heavy or light
 # Based on the distance found in 07_run_immcantation using shazam
-# Note, these appear to be found within samples individually
+# Note, these appear to be found on the whole dataset
 clone_info <- read.table(file.path(save_dir, "define_clones",
                                    "immcantation_combined_clone-pass.tsv"),
                          sep = "\t", header = TRUE)
 
+# These are found within samples individually
 sample_clone_info <- read.table(file.path(save_dir, "define_clones",
                                    "immcantation_combined_clone-pass_sample.tsv"),
                          sep = "\t", header = TRUE)
+
+# Colors -----------------------------------------------------------------------
+final_colors <- c("Resting_memory" = "#924bdb", # Resting memory
+                  "Naive_1" = "#69ba3d", # Naive 1
+                  "Naive_2" = "#9a43a4", # Naive 2
+                  "Memory_IgE_IgG" = "#bf9b31", # Memory IgE/IgG1
+                  "Naive_3" = "#6477ce", # Naive 3
+                  "Memory_IgA" = "#d15131", # Memory IA
+                  "Early_memory" = "#4c9e8e", # Early Memory
+                  "BND2" = "#cc4570", #Bnd2
+                  "DN2" = "#648d4f", # DN2
+                  "Activated_memory" = "#985978", # Activated memory
+                  "Activated_naive" = "#a06846", # Activated naive
+                  "B.intermediate" = "#00008b",
+                  "CD14.Mono" = "#e0205a",
+                  "pDC" = "#ffb6d3",
+                  "Plasmablast" = "#ffac14",
+                  "CD8.TEM" = "#000000") 
+
+tetramer_colors <- MetBrewer::met.brewer(name = "Juarez", n = 7,
+                                         type = "continuous")
+names(tetramer_colors) <- c("Negative", "Doublet", "INS-tet", "TET-tet",
+                            "IA2-tet", "GAD-tet", "DNA-tet")
+
+sample_colors <- MetBrewer::met.brewer(name = "Archambault", n = 16,
+                                       type = "continuous")
+
+
+all_samples <- unique(seurat_data$sample)
+
+names(sample_colors) <- all_samples
+
+antigen_colors <- MetBrewer::met.brewer(name = "Demuth", n = 4,
+                                        type = "discrete")
+
+names(antigen_colors) <- c("Negative", "Tet_antigen", "other",
+                           "diabetes_antigen")
+
+
+status_colors <- MetBrewer::met.brewer(name = "Egypt", n = 4,
+                                       type = "discrete")
+
+seurat_data$Status <- gsub(" ", "_", seurat_data$Status)
+
+names(status_colors) <- c("nd", "no", "aab_stage_1", "aab_stage_2")
+
+# Analysis ---------------------------------------------------------------------
 
 sample_clone_info <- sample_clone_info %>%
   dplyr::select(sequence_id, clone_id, locus, sample) %>%
@@ -75,7 +123,34 @@ sample_clone_info <- sample_clone_info %>%
 clone_info <- clone_info %>%
   dplyr::mutate(sequence_id_sample = paste(sequence_id,
                                              sample, sep = "_")) %>%
-  merge(sample_clone_info, by = "sequence_id_sample", all.x = TRUE)
+  merge(sample_clone_info, by = "sequence_id_sample", all.x = TRUE) %>%
+  dplyr::mutate(cell_sample = paste(cell_id, sample, sep = "_"))
+
+meta_data <- seurat_data[[]] %>% 
+  dplyr::select(sample, RNA_combined_celltype, Status, tet_hash_id, v_gene) %>%
+  tibble::rownames_to_column("barcode") %>%
+  dplyr::mutate(barcode = gsub("_[0-9]+", "", barcode)) %>%
+  dplyr::mutate(cell_sample = paste(barcode, sample, sep = "_")) %>%
+  dplyr::select(-sample)
+
+clone_info <- merge(clone_info, meta_data, by = "cell_sample", all.x = TRUE,
+                    all.y = FALSE)
+
+
+# Check number of non-b cells with v gene call
+# We see exactly the number we expect 
+table(is.na(seurat_data$v_gene), seurat_data$RNA_combined_celltype)
+clone_info_check <- clone_info %>%
+  dplyr::select(cell_sample, RNA_combined_celltype) %>%
+  dplyr::distinct()
+table(clone_info_check$RNA_combined_celltype)
+
+# Subset to only B cells
+b_cells <- c("Activated_memory", "B.intermediate", "BND2", "Memory_IgA",
+             "Naive_1", "Naive_3", "Plasmablast", "Resting_memory")
+
+clone_info <- clone_info %>%
+  dplyr::filter(RNA_combined_celltype %in% b_cells)
 
 # Find expanded clones
 clone_info_expanded <- clone_info %>%
@@ -95,33 +170,497 @@ clone_info_expanded <- clone_info %>%
 #   dplyr::group_by(clone_id) %>%
 #   dplyr::add_count(name = "locus_count") 
 
-# See how the calling works
+ifelse(!dir.exists(file.path(save_dir, "images", "immcantation_clones")),
+       dir.create(file.path(save_dir, "images", "immcantation_clones")),
+       FALSE)
+
+make_plots <- function(expanded, name, percent_keep = 25){
+  # Number of clones across samples
+  tetramer_group_across <- expanded %>%
+    dplyr::group_by(clone_id, tet_hash_id) %>%
+    dplyr::add_count(name = "tetramer_count") %>%
+    dplyr::mutate(tetramer_fraction = tetramer_count / clone_count * 100) %>%
+    dplyr::mutate(clone_name = paste0("clone_", clone_id)) %>%
+    dplyr::select(clone_id, clone_name, tet_hash_id, tetramer_count,
+                  tetramer_fraction, clone_count) %>%
+    dplyr::distinct()
+
+  plot_one <- single_plot(tetramer_group = tetramer_group_across,
+                          name = name, type = "across",
+                          percent_keep = percent_keep)
+  
+  # Number of clones within samples
+  tetramer_group_within <- expanded %>%
+    dplyr::group_by(sample_clone_id, tet_hash_id) %>%
+    dplyr::add_count(name = "tetramer_count") %>%
+    dplyr::mutate(tetramer_fraction = tetramer_count / sample_clone_count * 100) %>%
+    dplyr::mutate(sample_clone_name = paste0("clone_", sample_clone_id)) %>%
+    dplyr::select(sample_clone_id, sample_clone_name, tet_hash_id, tetramer_count,
+                  tetramer_fraction, sample_clone_count, sample) %>%
+    dplyr::distinct()
+  
+  plot_two <- single_plot(tetramer_group = tetramer_group_within,
+                          name = name, type = "within",
+                          percent_keep = percent_keep)
+  
+  return(list("across" = plot_one,
+              "within" = plot_two))
+  
+ 
+}
+
+single_plot <- function(tetramer_group, name,
+                        type, percent_keep = 25){
+  
+  if(type == "across"){
+    save_name <- paste0("All clones across ", name)
+  } else if(type == "within"){
+    save_name <- paste0("All clones within samples ", name)
+  } else {
+    stop("Type can only be across or within")
+  }
+  
+  interesting_clones <- tetramer_group %>%
+    dplyr::filter(tet_hash_id %in% c("GAD-tet", "IA2-tet",
+                                     "INS-tet")) %>%
+    dplyr::group_by(clone_name) %>%
+    dplyr::mutate(percent_diabetes = sum(tetramer_fraction)) %>%
+    dplyr::filter(percent_diabetes > percent_keep)
+  
+  plot_data <- tetramer_group %>%
+    dplyr::filter(clone_name %in% unique(interesting_clones$clone_name))
+  
+  count_data <- plot_data %>%
+    dplyr::select(clone_name, clone_count) %>%
+    dplyr::mutate(clone_count = paste0(clone_count, " cells")) %>%
+    dplyr::distinct()
+  
+  return_plot <-ggplot2::ggplot(plot_data, ggplot2::aes(x = clone_name,
+                                                        y = tetramer_fraction,
+                                                        fill = tet_hash_id)) +
+    ggplot2::geom_bar(position = "stack", stat = "identity") +
+    ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggplot2::scale_fill_manual(values = tetramer_colors) +
+    ggplot2::geom_text(
+      data = count_data, 
+      ggplot2::aes(clone_name, 50, label = clone_count),
+      show.legend = F,
+      inherit.aes = F,
+      color = "white", 
+      angle = 90
+    ) +
+    ggplot2::ggtitle(save_name)
+  
+  return(return_plot)
+}
+
+pdf(file.path(save_dir, "images", "immcantation_clones", "expansion_plots.pdf"))
+
+# Find expanded clones all samples ---------------------------------------------
 expanded <- clone_info_expanded %>%
-  dplyr::filter(locus == "IGH")
+  dplyr::filter(locus == "IGH", clone_count > 3) 
 
-# Seems like the V, J and junciton are all similar/the same
-expanded <- expanded %>%
-  dplyr::filter(clone_count == 107)
+# For each clone, bar plot of number of cells in each tetramer group
+tetramer_group <- expanded %>%
+  dplyr::group_by(clone_id, tet_hash_id) %>%
+  dplyr::add_count(name = "tetramer_count") %>%
+  dplyr::mutate(tetramer_fraction = tetramer_count / clone_count * 100) %>%
+  dplyr::mutate(clone_name = paste0("clone_", clone_id)) %>%
+  dplyr::select(clone_id, clone_name, tet_hash_id, tetramer_count,
+                tetramer_fraction, clone_count) %>%
+  dplyr::distinct()
 
-expanded_2 <- clone_info_expanded %>%
-  dplyr::filter(locus == "IGH", clone_count > 1)
+interesting_clones <- tetramer_group %>%
+  dplyr::filter(tet_hash_id %in% c("GAD-tet", "IA2-tet",
+                                   "INS-tet")) %>%
+  dplyr::group_by(clone_name) %>%
+  dplyr::mutate(percent_diabetes = sum(tetramer_fraction)) %>%
+  dplyr::filter(percent_diabetes > 25)
 
-# Add heavy and light clones separately to the seurat object
-# First make a barcode_sample column, do the same with seurat
-# metadata, merge by this, and rename the rownames as the barcodes
-# from seurat. Then add to so.
+plot_data <- tetramer_group %>%
+  dplyr::filter(clone_name %in% unique(interesting_clones$clone_name))
 
-# Find cases of shared clones across samples
-sample_clones <- clone_info %>%
-  dplyr::filter(locus == "IGH") %>%
+count_data <- plot_data %>%
+  dplyr::select(clone_name, clone_count) %>%
+  dplyr::mutate(clone_count = paste0(clone_count, " cells")) %>%
+  dplyr::distinct()
+
+print(ggplot2::ggplot(plot_data, ggplot2::aes(x = clone_name,
+                                              y = tetramer_fraction,
+                                              fill = tet_hash_id)) +
+        ggplot2::geom_bar(position = "stack", stat = "identity") +
+        ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        ggplot2::scale_fill_manual(values = tetramer_colors) +
+        ggplot2::geom_text(
+          data = count_data, 
+          ggplot2::aes(clone_name, 50, label = clone_count),
+          show.legend = F,
+          inherit.aes = F,
+          color = "white", 
+          angle = 90
+        ) +
+        ggplot2::ggtitle("All clones across all samples")
+)
+
+
+# Find expanded clones within samples ---------------------------------------------
+expanded <- clone_info_expanded %>%
+  dplyr::filter(locus == "IGH", sample_clone_count > 3) 
+
+# For each clone, bar plot of number of cells in each tetramer group
+tetramer_group <- expanded %>%
+  dplyr::group_by(sample_clone_id, tet_hash_id) %>%
+  dplyr::add_count(name = "tetramer_count") %>%
+  dplyr::mutate(tetramer_fraction = tetramer_count / sample_clone_count * 100) %>%
+  dplyr::mutate(sample_clone_name = paste0("clone_", sample_clone_id)) %>%
+  dplyr::select(sample_clone_id, sample_clone_name, tet_hash_id, tetramer_count,
+                tetramer_fraction, sample_clone_count, sample) %>%
+  dplyr::distinct()
+
+interesting_clones <- tetramer_group %>%
+  dplyr::filter(tet_hash_id %in% c("GAD-tet", "IA2-tet",
+                                   "INS-tet")) %>%
+  dplyr::group_by(sample_clone_name) %>%
+  dplyr::mutate(percent_diabetes = sum(tetramer_fraction)) %>%
+  dplyr::filter(percent_diabetes > 25)
+
+plot_data <- tetramer_group %>%
+  dplyr::filter(sample_clone_name %in% unique(interesting_clones$sample_clone_name))
+
+count_data <- plot_data %>%
+  dplyr::select(sample_clone_name, sample_clone_count,
+                sample) %>%
+  dplyr::mutate(sample_clone_count = paste0(sample_clone_count, " cells")) %>%
+  dplyr::distinct()
+
+print(ggplot2::ggplot(plot_data, ggplot2::aes(x = sample_clone_name,
+                                              y = tetramer_fraction,
+                                              fill = tet_hash_id)) +
+        ggplot2::geom_bar(position = "stack", stat = "identity") +
+        ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        ggplot2::scale_fill_manual(values = tetramer_colors) +
+        ggplot2::geom_text(
+          data = count_data, 
+          ggplot2::aes(sample_clone_name, 50, label = sample_clone_count),
+          show.legend = F,
+          inherit.aes = F,
+          color = "white", 
+          angle = 90
+        ) +
+        ggplot2::ggtitle("Clones within samples")
+)
+# Expanded clones only aab stage 1 ---------------------------------------------
+clone_info_expanded <- clone_info %>%
+  dplyr::filter(Status == "aab_stage_1") %>%
+  dplyr::group_by(clone_id) %>%
+  dplyr::add_count(name = "clone_count") %>%
+  dplyr::ungroup() %>%
   dplyr::group_by(sample_clone_id) %>%
   dplyr::add_count(name = "sample_clone_count") %>%
-  dplyr::ungroup() %>%
+  dplyr::ungroup()
+## All samples -----------------------------------------------------------------
+expanded <- clone_info_expanded %>%
+  dplyr::filter(locus == "IGH", clone_count > 3)
+
+# For each clone, bar plot of number of cells in each tetramer group
+tetramer_group <- expanded %>%
+  dplyr::group_by(clone_id, tet_hash_id) %>%
+  dplyr::add_count(name = "tetramer_count") %>%
+  dplyr::mutate(tetramer_fraction = tetramer_count / clone_count * 100) %>%
+  dplyr::mutate(clone_name = paste0("clone_", clone_id)) %>%
+  dplyr::select(clone_id, clone_name, tet_hash_id, tetramer_count,
+                tetramer_fraction, clone_count) %>%
+  dplyr::distinct()
+
+interesting_clones <- tetramer_group %>%
+  dplyr::filter(tet_hash_id %in% c("GAD-tet", "IA2-tet",
+                                   "INS-tet")) %>%
+  dplyr::group_by(clone_name) %>%
+  dplyr::mutate(percent_diabetes = sum(tetramer_fraction)) %>%
+  dplyr::filter(percent_diabetes > 25)
+
+plot_data <- tetramer_group %>%
+  dplyr::filter(clone_name %in% unique(interesting_clones$clone_name))
+
+count_data <- plot_data %>%
+  dplyr::select(clone_name, clone_count) %>%
+  dplyr::mutate(clone_count = paste0(clone_count, " cells")) %>%
+  dplyr::distinct()
+
+print(
+  ggplot2::ggplot(plot_data, ggplot2::aes(x = clone_name,
+                                          y = tetramer_fraction,
+                                          fill = tet_hash_id)) +
+    ggplot2::geom_bar(position = "stack", stat = "identity") +
+    ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggplot2::scale_fill_manual(values = tetramer_colors) +
+    ggplot2::geom_text(
+      data = count_data, 
+      ggplot2::aes(clone_name, 50, label = clone_count),
+      show.legend = F,
+      inherit.aes = F,
+      color = "white", 
+      angle = 90
+    ) +
+    ggplot2::ggtitle("All clones across only AAB stage 1 samples")
+  
+)
+
+## Within samples --------------------------------------------------------------
+expanded <- clone_info_expanded %>%
+  dplyr::filter(locus == "IGH", sample_clone_count > 3) 
+
+# For each clone, bar plot of number of cells in each tetramer group
+tetramer_group <- expanded %>%
+  dplyr::group_by(sample_clone_id, tet_hash_id) %>%
+  dplyr::add_count(name = "tetramer_count") %>%
+  dplyr::mutate(tetramer_fraction = tetramer_count / sample_clone_count * 100) %>%
+  dplyr::mutate(sample_clone_name = paste0("clone_", sample_clone_id)) %>%
+  dplyr::select(sample_clone_id, sample_clone_name, tet_hash_id, tetramer_count,
+                tetramer_fraction, sample_clone_count, sample) %>%
+  dplyr::distinct()
+
+interesting_clones <- tetramer_group %>%
+  dplyr::filter(tet_hash_id %in% c("GAD-tet", "IA2-tet",
+                                   "INS-tet")) %>%
+  dplyr::group_by(sample_clone_name) %>%
+  dplyr::mutate(percent_diabetes = sum(tetramer_fraction)) %>%
+  dplyr::filter(percent_diabetes > 25)
+
+plot_data <- tetramer_group %>%
+  dplyr::filter(sample_clone_name %in% unique(interesting_clones$sample_clone_name))
+
+count_data <- plot_data %>%
+  dplyr::select(sample_clone_name, sample_clone_count,
+                sample) %>%
+  dplyr::mutate(sample_clone_count = paste0(sample_clone_count, " cells")) %>%
+  dplyr::distinct()
+
+print(
+  ggplot2::ggplot(plot_data, ggplot2::aes(x = sample_clone_name,
+                                          y = tetramer_fraction,
+                                          fill = tet_hash_id)) +
+    ggplot2::geom_bar(position = "stack", stat = "identity") +
+    ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggplot2::scale_fill_manual(values = tetramer_colors) +
+    ggplot2::geom_text(
+      data = count_data, 
+      ggplot2::aes(sample_clone_name, 50, label = sample_clone_count),
+      show.legend = F,
+      inherit.aes = F,
+      color = "white", 
+      angle = 90
+    ) +
+    ggplot2::ggtitle("Clones within only AAB stage 1 samples")
+)
+# Expanded clones only aab stage 2 ---------------------------------------------
+clone_info_expanded <- clone_info %>%
+  dplyr::filter(Status == "aab_stage_2") %>%
   dplyr::group_by(clone_id) %>%
-  dplyr::add_count(name= "clone_count") %>%
+  dplyr::add_count(name = "clone_count") %>%
   dplyr::ungroup() %>%
-  dplyr::select(sample, clone_id, sample_clone_count, clone_count) %>%
-  dplyr::distinct() %>%
+  dplyr::group_by(sample_clone_id) %>%
+  dplyr::add_count(name = "sample_clone_count") %>%
+  dplyr::ungroup()
+## All samples -----------------------------------------------------------------
+expanded <- clone_info_expanded %>%
+  dplyr::filter(locus == "IGH", clone_count > 3)
+
+# For each clone, bar plot of number of cells in each tetramer group
+tetramer_group <- expanded %>%
+  dplyr::group_by(clone_id, tet_hash_id) %>%
+  dplyr::add_count(name = "tetramer_count") %>%
+  dplyr::mutate(tetramer_fraction = tetramer_count / clone_count * 100) %>%
+  dplyr::mutate(clone_name = paste0("clone_", clone_id)) %>%
+  dplyr::select(clone_id, clone_name, tet_hash_id, tetramer_count,
+                tetramer_fraction, clone_count) %>%
+  dplyr::distinct()
+
+interesting_clones <- tetramer_group %>%
+  dplyr::filter(tet_hash_id %in% c("GAD-tet", "IA2-tet",
+                                   "INS-tet")) %>%
+  dplyr::group_by(clone_name) %>%
+  dplyr::mutate(percent_diabetes = sum(tetramer_fraction)) %>%
+  dplyr::filter(percent_diabetes > 25)
+
+plot_data <- tetramer_group %>%
+  dplyr::filter(clone_name %in% unique(interesting_clones$clone_name))
+
+count_data <- plot_data %>%
+  dplyr::select(clone_name, clone_count) %>%
+  dplyr::mutate(clone_count = paste0(clone_count, " cells")) %>%
+  dplyr::distinct()
+
+print(
+  ggplot2::ggplot(plot_data, ggplot2::aes(x = clone_name,
+                                          y = tetramer_fraction,
+                                          fill = tet_hash_id)) +
+    ggplot2::geom_bar(position = "stack", stat = "identity") +
+    ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggplot2::scale_fill_manual(values = tetramer_colors) +
+    ggplot2::geom_text(
+      data = count_data, 
+      ggplot2::aes(clone_name, 50, label = clone_count),
+      show.legend = F,
+      inherit.aes = F,
+      color = "white", 
+      angle = 90
+    ) +
+    ggplot2::ggtitle("All clones across only AAB stage 2 samples")
+  
+)
+
+## Within samples --------------------------------------------------------------
+expanded <- clone_info_expanded %>%
+  dplyr::filter(locus == "IGH", sample_clone_count > 3) 
+
+# For each clone, bar plot of number of cells in each tetramer group
+tetramer_group <- expanded %>%
+  dplyr::group_by(sample_clone_id, tet_hash_id) %>%
+  dplyr::add_count(name = "tetramer_count") %>%
+  dplyr::mutate(tetramer_fraction = tetramer_count / sample_clone_count * 100) %>%
+  dplyr::mutate(sample_clone_name = paste0("clone_", sample_clone_id)) %>%
+  dplyr::select(sample_clone_id, sample_clone_name, tet_hash_id, tetramer_count,
+                tetramer_fraction, sample_clone_count, sample) %>%
+  dplyr::distinct()
+
+interesting_clones <- tetramer_group %>%
+  dplyr::filter(tet_hash_id %in% c("GAD-tet", "IA2-tet",
+                                   "INS-tet")) %>%
+  dplyr::group_by(sample_clone_name) %>%
+  dplyr::mutate(percent_diabetes = sum(tetramer_fraction)) %>%
+  dplyr::filter(percent_diabetes > 25)
+
+plot_data <- tetramer_group %>%
+  dplyr::filter(sample_clone_name %in% unique(interesting_clones$sample_clone_name))
+
+count_data <- plot_data %>%
+  dplyr::select(sample_clone_name, sample_clone_count,
+                sample) %>%
+  dplyr::mutate(sample_clone_count = paste0(sample_clone_count, " cells")) %>%
+  dplyr::distinct()
+
+print(
+  ggplot2::ggplot(plot_data, ggplot2::aes(x = sample_clone_name,
+                                          y = tetramer_fraction,
+                                          fill = tet_hash_id)) +
+    ggplot2::geom_bar(position = "stack", stat = "identity") +
+    ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggplot2::scale_fill_manual(values = tetramer_colors) +
+    ggplot2::geom_text(
+      data = count_data, 
+      ggplot2::aes(sample_clone_name, 50, label = sample_clone_count),
+      show.legend = F,
+      inherit.aes = F,
+      color = "white", 
+      angle = 90
+    ) +
+    ggplot2::ggtitle("Clones within only AAB stage 2 samples")
+)
+# Expanded clones only no ------------------------------------------------------
+clone_info_expanded <- clone_info %>%
+  dplyr::filter(Status == "no") %>%
   dplyr::group_by(clone_id) %>%
-  dplyr::add_count(name = "sample_count") %>%
-  dplyr::filter(sample_count > 1)
+  dplyr::add_count(name = "clone_count") %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(sample_clone_id) %>%
+  dplyr::add_count(name = "sample_clone_count") %>%
+  dplyr::ungroup()
+## All samples -----------------------------------------------------------------
+expanded <- clone_info_expanded %>%
+  dplyr::filter(locus == "IGH", clone_count > 3)
+
+# For each clone, bar plot of number of cells in each tetramer group
+tetramer_group <- expanded %>%
+  dplyr::group_by(clone_id, tet_hash_id) %>%
+  dplyr::add_count(name = "tetramer_count") %>%
+  dplyr::mutate(tetramer_fraction = tetramer_count / clone_count * 100) %>%
+  dplyr::mutate(clone_name = paste0("clone_", clone_id)) %>%
+  dplyr::select(clone_id, clone_name, tet_hash_id, tetramer_count,
+                tetramer_fraction, clone_count) %>%
+  dplyr::distinct()
+
+interesting_clones <- tetramer_group %>%
+  dplyr::filter(tet_hash_id %in% c("GAD-tet", "IA2-tet",
+                                   "INS-tet")) %>%
+  dplyr::group_by(clone_name) %>%
+  dplyr::mutate(percent_diabetes = sum(tetramer_fraction)) %>%
+  dplyr::filter(percent_diabetes > 25)
+
+plot_data <- tetramer_group %>%
+  dplyr::filter(clone_name %in% unique(interesting_clones$clone_name))
+
+count_data <- plot_data %>%
+  dplyr::select(clone_name, clone_count) %>%
+  dplyr::mutate(clone_count = paste0(clone_count, " cells")) %>%
+  dplyr::distinct()
+
+print(
+  ggplot2::ggplot(plot_data, ggplot2::aes(x = clone_name,
+                                          y = tetramer_fraction,
+                                          fill = tet_hash_id)) +
+    ggplot2::geom_bar(position = "stack", stat = "identity") +
+    ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggplot2::scale_fill_manual(values = tetramer_colors) +
+    ggplot2::geom_text(
+      data = count_data, 
+      ggplot2::aes(clone_name, 50, label = clone_count),
+      show.legend = F,
+      inherit.aes = F,
+      color = "white", 
+      angle = 90
+    ) +
+    ggplot2::ggtitle("All clones across only new onset samples")
+  
+)
+
+## Within samples --------------------------------------------------------------
+expanded <- clone_info_expanded %>%
+  dplyr::filter(locus == "IGH", sample_clone_count > 3) 
+
+# For each clone, bar plot of number of cells in each tetramer group
+tetramer_group <- expanded %>%
+  dplyr::group_by(sample_clone_id, tet_hash_id) %>%
+  dplyr::add_count(name = "tetramer_count") %>%
+  dplyr::mutate(tetramer_fraction = tetramer_count / sample_clone_count * 100) %>%
+  dplyr::mutate(sample_clone_name = paste0("clone_", sample_clone_id)) %>%
+  dplyr::select(sample_clone_id, sample_clone_name, tet_hash_id, tetramer_count,
+                tetramer_fraction, sample_clone_count, sample) %>%
+  dplyr::distinct()
+
+interesting_clones <- tetramer_group %>%
+  dplyr::filter(tet_hash_id %in% c("GAD-tet", "IA2-tet",
+                                   "INS-tet")) %>%
+  dplyr::group_by(sample_clone_name) %>%
+  dplyr::mutate(percent_diabetes = sum(tetramer_fraction)) %>%
+  dplyr::filter(percent_diabetes > 25)
+
+plot_data <- tetramer_group %>%
+  dplyr::filter(sample_clone_name %in% unique(interesting_clones$sample_clone_name))
+
+count_data <- plot_data %>%
+  dplyr::select(sample_clone_name, sample_clone_count,
+                sample) %>%
+  dplyr::mutate(sample_clone_count = paste0(sample_clone_count, " cells")) %>%
+  dplyr::distinct()
+
+print(
+  ggplot2::ggplot(plot_data, ggplot2::aes(x = sample_clone_name,
+                                          y = tetramer_fraction,
+                                          fill = tet_hash_id)) +
+    ggplot2::geom_bar(position = "stack", stat = "identity") +
+    ggplot2::theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    ggplot2::scale_fill_manual(values = tetramer_colors) +
+    ggplot2::geom_text(
+      data = count_data, 
+      ggplot2::aes(sample_clone_name, 50, label = sample_clone_count),
+      show.legend = F,
+      inherit.aes = F,
+      color = "white", 
+      angle = 90
+    ) +
+    ggplot2::ggtitle("Clones within only new onset samples")
+)
+
+
+dev.off()
