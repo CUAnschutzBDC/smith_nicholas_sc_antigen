@@ -49,7 +49,7 @@ rule run_rscript:
 		"{results}/run_scripts/{sample}_run.txt"
 	params:
 		job_name        = "{sample}_run_rscript",
-		memory          = "select[mem>100] rusage[mem=100]",
+		memory          = "select[mem>200] rusage[mem=200]",
 		scripts         = _get_scripts,
 		sample_metadata = SAMPLE_METADATA,
 		sample_info     = SAMPLE_INFO
