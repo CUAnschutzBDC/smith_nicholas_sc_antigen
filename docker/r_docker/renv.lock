@@ -4787,6 +4787,14 @@
         "data.table"
       ]
     },
+    "stringdist": {
+      "Package": "stringdist",
+      "Version": "0.9.10",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "d68492ba784c0797d9e49f8182bc98d4",
+      "Requirements": []
+    },
     "stringi": {
       "Package": "stringi",
       "Version": "1.7.12",
