@@ -138,11 +138,50 @@ platypus_all <- VDJ_GEX_matrix(VDJ.out.directory.list = vdj_out_directory,
 saveRDS(platypus_all,
         file.path(save_dir, "rda_obj", "platypus_obj.rds"))
 
+vdj_data <- platypus_all$VDJ
+
 # Map sample name back to my sample name
+all_samples <- unique(seurat_data$sample)
+names(all_samples) <- paste0("s", rep(1:length(all_samples)))
+vdj_data$sample <- all_samples[vdj_data$sample_id]
+
+vdj_data$sample_barcode <- gsub("s[0-9]+_", "", vdj_data$barcode)
+vdj_data$sample_barcode <- paste(vdj_data$sample, vdj_data$sample_barcode,
+                                 sep = "_")
+
+meta_data <- seurat_data[[]] %>%
+  dplyr::select(sample, Status, tet_hash_id, cdr3, n_chains, isotype, v_gene,
+                c_gene, j_gene, d_gene) %>%
+  tibble::rownames_to_column("barcode") %>% 
+  dplyr::mutate(sample_barcode = gsub("-.*", "", barcode)) %>%
+  dplyr::mutate(sample_barcode = paste(sample, sample_barcode, sep = "_")) %>%
+  dplyr::select(-barcode, -sample)
+
+colnames(meta_data) <- c("Status", "tet_hash_id",
+                         "tenx_cdr3", "tenx_nchains", "tenx_isotype",
+                         "tenx_vgene", "tenx_cgene",
+                         "tenx_jgene", "tenx_dgene", "sample_barcode")
 
 # Subset to only cells that are in the seurat object
+use_vdj <- vdj_data %>%
+  dplyr::filter(sample_barcode %in% meta_data$sample_barcode)
 
-# new_clones <- VDJ_clonotype(VDJ = all_info_split,
-#                             VDJ.VJ.1chain = F, #Keeping cells with aberrant chain numbers
-#                             clone.strategy = "VDJcdr3.homology",
-#                             homology.threshold = 0.2) # corresponds to 80% sequence similarity
+# Needed to install stringdist
+new_clones <- VDJ_clonotype(VDJ = use_vdj,
+                            VDJ.VJ.1chain = F, #Keeping cells with aberrant chain numbers
+                            clone.strategy = "VDJcdr3.homology",
+                            homology.threshold = 0.2, # corresponds to 80% sequence similarity
+                            global.clonotype = FALSE) # Clonotype can't occur across samples  
+
+new_clones_sample <- VDJ_clonotype(VDJ = use_vdj,
+                                   VDJ.VJ.1chain = F, #Keeping cells with aberrant chain numbers
+                                   clone.strategy = "VDJcdr3.homology",
+                                   homology.threshold = 0.2, # corresponds to 80% sequence similarity
+                                   global.clonotype = TRUE) # Clonotype can occur across samples  
+
+save_list <- list("within_samples" = new_clones,
+                  "across_samples" = new_clones_sample)
+
+
+saveRDS(save_list,
+        file.path(save_dir, "rda_obj", "platypus_clones.rds"))
