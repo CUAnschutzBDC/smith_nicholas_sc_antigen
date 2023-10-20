@@ -189,7 +189,8 @@ MERGE_SCRIPTS:
         - "05_name_clusters.R"
         - "06_remove_doublets.R"
         - "07_run_immcantation.R"
-        - "08_create_platypus_object.R"
+        - "08_reprocess_data.R"
+        #- "09_create_platypus_object.R"
 
 # Path to the metadata for each sample that should be added to the objects.
 # Must have a column called "Sample.Name" that has the exact same pattern as

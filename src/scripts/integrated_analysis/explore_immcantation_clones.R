@@ -1,3 +1,5 @@
+# CONSIDER REPEATING WITH SCAR CLONES, they may look a little better
+
 library(here)
 library(scAnalysisR)
 library(pheatmap)
