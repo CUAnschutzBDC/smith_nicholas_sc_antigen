@@ -111,6 +111,17 @@ immcantation_docs <- lapply(unique(seurat_data$sample), function(x){
   
 })
 
+all_meta <- seurat_data[[]]
+
+all_meta$cell_id <- gsub("_[0-9]+", "", rownames(all_meta))
+all_meta$full_id <- rownames(all_meta)
+
+all_meta <- all_meta %>%
+  dplyr::select(cell_id, sample, full_id)
+
+# Merge with immcantation based on cell id and sample,
+# Add meta data to SO
+
 immcantation_docs <- do.call(rbind, immcantation_docs)
 
 immcantation_docs$vj_call <- paste(immcantation_docs$v_call,
