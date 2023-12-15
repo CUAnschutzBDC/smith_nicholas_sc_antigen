@@ -66,6 +66,19 @@ if(normalization_method == "SCT"){
 # Set directories
 save_dir <- file.path(results_dir, "R_analysis", sample)
 
+# This can be added into the snakemake pipeline, will need to write a new
+# rule
+#all_groups <- c("smh", "significant_v", "smh_significant_v")
+#all_groups <- c("all", "memory", "smh", "significant_v")
+
+all_groups <- c("smh_3_plus", "odds_significant_all",
+                "odds_significant_no", "odds_significant_aab1",
+                "odds_significant_aab2", "smh_significant_v_all",
+                "smh_significant_v_no", "smh_significant_v_aab1",
+                "smh_significant_v_aab2")   
+
+
+#cells_use <- "memory"
 get_smh <- function(seurat_data){
   # Pull out v_gene information
   sep_columns <- c("chains", "cdr3", "cdr3_length",
@@ -126,31 +139,18 @@ get_sig_v <- function(seurat_data, tests_use, save_dir){
   
 }
 
-# This can be added into the snakemake pipeline, will need to write a new
-# rule
-#cells_use <- "all"
-#all_groups <- c("all", "memory", "smh", "significant_v")
-all_groups <- c("smh_3_plus", "odds_significant_all",
-                "odds_significant_no", "odds_significant_aab1",
-                "odds_significant_aab2", "smh_significant_v_all",
-                "smh_significant_v_no", "smh_significant_v_aab1",
-                "smh_significant_v_aab2")   
-             
-
 image_save_dir <- file.path(save_dir, "images",
-                            "heavy_light_analysis")
+                            "vdj_analysis")
 
 file_save_dir <- file.path(save_dir, "files",
-                           "heavy_light_analysis")
+                           "vdj_analysis")
 
 ifelse(!dir.exists(image_save_dir), dir.create(image_save_dir), FALSE)
 
 ifelse(!dir.exists(file_save_dir), dir.create(file_save_dir), FALSE)
 
 
-for(cells_use in all_groups){
-  
-  print(cells_use)
+for(cells_use in c(all_groups)){
   
   # Read in data
   seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
@@ -184,7 +184,7 @@ for(cells_use in all_groups){
     seurat_data <- get_sig_v(seurat_data = seurat_data,
                              tests_use = tests_use,
                              save_dir = save_dir)
-
+    
   } else if(cells_use == "smh_3_plus") {
     vdj_dir <- file.path(image_save_dir, 
                          paste0(cells_use, "_vdj_plots"))
@@ -192,7 +192,7 @@ for(cells_use in all_groups){
                            paste0(cells_use, "_vdj_files"))
     
     seurat_data <- get_smh(seurat_data)
-   
+    
     
   } else if(grepl("smh_significant_v", cells_use)) {
     vdj_dir <- file.path(image_save_dir, 
@@ -206,11 +206,13 @@ for(cells_use in all_groups){
     if(tests_use == "all"){
       tests_use <- c("no_nd", "aab1_nd", "aab2_nd")
     }
-
+    
     seurat_data <- get_sig_v(seurat_data = seurat_data,
                              tests_use = tests_use,
                              save_dir = save_dir)
   }
+  
+  
   
   
   ifelse(!dir.exists(vdj_dir), dir.create(vdj_dir), FALSE)
@@ -311,8 +313,8 @@ for(cells_use in all_groups){
   all_info_split <- cSplit(all_info, sep_columns, sep = ";", direction = "long") %>%
     dplyr::filter(!is.na(chains))
   
-  heavy <- unique(all_info_split[all_info_split$chains == "IGH",]$v_gene)
-  light <- unique(all_info_split[all_info_split$chains %in% c("IGL", "IGK"),]$v_gene)
+  all_v <- unique(all_info_split$v_gene)
+  all_j <- unique(all_info_split$j_gene)
   
   palette1 <- colorRampPalette(colors = 
                                  RColorBrewer::brewer.pal(name = "Set1", n = 9))
@@ -320,13 +322,13 @@ for(cells_use in all_groups){
   palette2 <- colorRampPalette(colors = 
                                  RColorBrewer::brewer.pal(name = "Set2", n = 8))
   
-  heavy_colors <- palette1(length(heavy))
-  names(heavy_colors) <- heavy
+  v_colors <- palette1(length(all_v))
+  names(v_colors) <- all_v
   
-  light_colors <- palette2(length(light))
-  names(light_colors) <- light
+  j_colors <- palette2(length(all_j))
+  names(j_colors) <- all_j
   
-  all_colors <- c(heavy_colors, light_colors)
+  all_colors <- c(v_colors, j_colors)
   
   # Analysis ---------------------------------------------------------------------
   
@@ -377,37 +379,37 @@ for(cells_use in all_groups){
       }
       
       alluvial_df <- alluvial_df %>%
-        dplyr::group_by(heavy) %>%
-        dplyr::mutate(total_heavy = sum(value)) %>%
-        dplyr::group_by(light) %>%
-        dplyr::mutate(total_light = sum(value)) %>%
+        dplyr::group_by(v_gene) %>%
+        dplyr::mutate(total_v = sum(value)) %>%
+        dplyr::group_by(j_gene) %>%
+        dplyr::mutate(total_j = sum(value)) %>%
         dplyr::ungroup()
       
-      heavy_levels <- alluvial_df %>%
-        dplyr::select(heavy, total_heavy) %>%
+      v_levels <- alluvial_df %>%
+        dplyr::select(v_gene, total_v) %>%
         dplyr::distinct() %>%
-        dplyr::arrange(desc(total_heavy))
+        dplyr::arrange(desc(total_v))
       
-      light_levels <- alluvial_df %>%
-        dplyr::select(light, total_light) %>%
+      j_levels <- alluvial_df %>%
+        dplyr::select(j_gene, total_j) %>%
         dplyr::distinct() %>%
-        dplyr::arrange(desc(total_light))
+        dplyr::arrange(desc(total_j))
       
-      alluvial_df$heavy <- factor(alluvial_df$heavy, levels = heavy_levels$heavy)
-      alluvial_df$light <- factor(alluvial_df$light, levels = light_levels$light)
+      alluvial_df$v_gene <- factor(alluvial_df$v_gene, levels = v_levels$v_gene)
+      alluvial_df$j_gene <- factor(alluvial_df$j_gene, levels = j_levels$j_gene)
       
       pdf(save_name, height = 17, width = 17)
       
       save_plot <- ggplot2::ggplot(alluvial_df, ggplot2::aes(y = value,
-                                                             axis1 = heavy,
-                                                             axis2 = light, 
+                                                             axis1 = v_gene,
+                                                             axis2 = j_gene, 
                                                              fill = col_by)) +
         ggalluvial::geom_flow(width = 1/12) +
         ggalluvial::geom_stratum(width = 1/12, fill = "black", color = "grey") +
         ggplot2::geom_text(stat = "stratum", 
                            ggplot2::aes(label = ggplot2::after_stat(stratum)),
                            size = 4, min.y = min_label, color = "white") +
-        ggplot2::scale_x_discrete(limits = c("heavy", "light"),
+        ggplot2::scale_x_discrete(limits = c("v_gene", "j_gene"),
                                   expand = c(.05, .05)) +
         ggplot2::scale_fill_manual(values = color) 
       
@@ -421,26 +423,68 @@ for(cells_use in all_groups){
           color <- c(color, "other" = "#FFFFFF")
           
           return_plot <- ggplot2::ggplot(alluvial_df, ggplot2::aes(y = value,
-                                                                   axis1 = heavy,
-                                                                   axis2 = light, 
+                                                                   axis1 = v_gene,
+                                                                   axis2 = j_gene, 
                                                                    fill = new_color)) +
             ggalluvial::geom_flow(width = 1/12) +
             ggalluvial::geom_stratum(width = 1/12, fill = "black", color = "grey") +
             ggplot2::geom_text(stat = "stratum", 
                                ggplot2::aes(label = ggplot2::after_stat(stratum)),
                                size = 4, min.y = min_label, color = "white") +
-            ggplot2::scale_x_discrete(limits = c("heavy", "light"),
+            ggplot2::scale_x_discrete(limits = c("v_gene", "j_gene"),
                                       expand = c(.05, .05)) +
             ggplot2::scale_fill_manual(values = color) 
         })
         
         print(cowplot::plot_grid(plotlist = save_plot_2))
+        
       }
       
       dev.off()
       
     }
     
+  }
+  
+  
+  count_genes <- function(starting_df, group_by = "all",
+                          chain = "IGH",
+                          keep_chains = c("IGH", "IGH;IGK",
+                                          "IGH;IGK;IGK", "IGH;IGK;IGL",
+                                          "IGH;IGL", "IGH;IGL;IGL"),
+                          color_list = NULL, subset_counts = 0){
+    if(group_by == "all"){
+      select_cols <- c("v_gene", "j_gene")
+    } else if (group_by == "sample") {
+      select_cols <- c("v_gene", "j_gene", "sample")
+    } else if (group_by == "Status") {
+      select_cols <- c("v_gene", "j_gene", "Status")
+    } else {
+      stop("group_by must be 'all', 'sample', or 'Status'")
+    }
+    
+    return_df <- starting_df %>%
+      dplyr::filter(all_chains %in% keep_chains) %>%
+      dplyr::filter(chains == chain) %>%
+      dplyr::select(dplyr::all_of(select_cols))
+    
+    return_df <- return_df %>%
+      dplyr::group_by(dplyr::across(dplyr::all_of(select_cols))) %>% 
+      dplyr::add_count(name = "value") %>%
+      dplyr::distinct() %>%
+      dplyr::ungroup() %>%
+      dplyr::filter(value >= subset_counts)
+    
+    if(group_by != "all"){
+      return_df$color <- color_list[return_df[[group_by]]]
+      color_values <- return_df$color
+      return_df <- return_df %>%
+        dplyr::select(-dplyr::all_of(group_by), -color)
+    } else{
+      color_values <- NULL
+    }
+    
+    return(list("df" = return_df, "color_list" = color_values))
   }
   
   count_genes_heavy_light <- function(starting_df, group_by = "all",
@@ -473,10 +517,10 @@ for(cells_use in all_groups){
       test_chain <- "IGK_IGL"
     } else {
       return_df <- return_df %>%
-        dplyr::select(dplyr::all_of(c(select_cols, "IGH", chain))) %>%
-        dplyr::filter(!is.na(!!as.name(chain)))
+        dplyr::select(dplyr::all_of(c(select_cols, "IGH", chain)))
       test_chain <- chain
     }
+    
     
     return_df <- return_df %>%
       dplyr::group_by(dplyr::across(dplyr::all_of(c(select_cols, test_chain, "IGH")))) %>% 
@@ -484,9 +528,6 @@ for(cells_use in all_groups){
       dplyr::distinct() %>%
       dplyr::ungroup() %>%
       dplyr::filter(value >= subset_counts)
-    
-    colnames(return_df) <- c(select_cols, "heavy", "light", "value")
-    
     
     if(group_by != "all"){
       return_df$color <- color_list[return_df[[group_by]]]
@@ -503,59 +544,45 @@ for(cells_use in all_groups){
   graphics.off()
   # Circos -----------------------------------------------------------------------
   
-  test_circos <- list("all_IGK" = list(directory = file.path(vdj_dir, "IGK_IGH_all"),
-                                       subset_counts = 0, chain = "IGK"),
-                      "10_plus_IGK" = list(directory = file.path(vdj_dir, 
-                                                                 "IGK_IGH_10_plus"),
-                                           subset_counts = 10, chain = "IGK"),
-                      "all_IGL" = list(directory = file.path(vdj_dir, "IGL_IGH_all"),
-                                       subset_counts = 0, chain = "IGL"),
-                      "10_plus_IGL" = list(directory = file.path(vdj_dir, 
-                                                                 "IGL_IGH_10_plus"),
-                                           subset_counts = 10, chain = "IGL"),
-                      "all_IGK_IGL" = list(directory = file.path(vdj_dir, "IGK_IGL_IGH_all"),
-                                           subset_counts = 0, chain = c("IGK", "IGL")),
-                      "10_plus_IGK_IGL" = list(directory = file.path(vdj_dir, 
-                                                                     "IGK_IGL_IGH_10_plus"),
-                                               subset_counts = 10, chain = c("IGK", "IGL")))
+  test_circos <- list("all" = list(directory = file.path(vdj_dir, "all_pairs"),
+                                   subset_counts = 0),
+                      "10_plus" = list(directory = file.path(vdj_dir, 
+                                                             "vj_counts_10_plus"),
+                                       subset_counts = 10))
   
   for(i in names(test_circos)){
     directory <- test_circos[[i]]$directory
     subset_counts <- test_circos[[i]]$subset_counts
-    test_chain <- test_circos[[i]]$chain
     
     ifelse(!dir.exists(directory), dir.create(directory), FALSE)
     
     ## Heavy V+J pairs -------------------------------------------------------------
     # I'll start with 10x
-    all_data <- count_genes_heavy_light(starting_df = all_info_split,
-                                        group_by = "all",
-                                        subset_counts = subset_counts,
-                                        chain = test_chain)
+    all_data <- count_genes(starting_df = all_info_split,
+                            group_by = "all",
+                            subset_counts = subset_counts)
     
     make_circos_plot(save_name = file.path(directory,
-                                           "heavy_light_circos.pdf"),
+                                           "heavy_v_j_circos.pdf"),
                      circos_df = all_data$df,
                      color = all_data$color_list, 
                      grid_color = all_colors)
     
     alluvial_df <- all_data$df
-    alluvial_df$col_by <- alluvial_df$heavy
+    alluvial_df$col_by <- alluvial_df$v_gene
     
     make_alluvial_plot(save_name = file.path(directory,
-                                             "heavy_light_flow.pdf"),
+                                             "heavy_v_j_flow.pdf"),
                        alluvial_df = alluvial_df,
                        color = all_colors)
     
     ### Repeat by sample ---------------------------------------------------------
-    sample_data <- count_genes_heavy_light(starting_df = all_info_split,
-                                           group_by = "sample", 
-                                           color_list = sample_colors,
-                                           subset_counts = subset_counts,
-                                           chain = test_chain)
+    sample_data <- count_genes(starting_df = all_info_split,
+                               group_by = "sample", color_list = sample_colors,
+                               subset_counts = subset_counts)
     
     make_circos_plot(save_name = file.path(directory,
-                                           "heavy_light_circos_sample_color.pdf"),
+                                           "heavy_v_j_circos_sample_color.pdf"),
                      circos_df = sample_data$df,
                      color = sample_data$color_list, 
                      grid_color = all_colors)
@@ -565,20 +592,18 @@ for(cells_use in all_groups){
     alluvial_df$col_by <- names(sample_data$color_list)
     
     make_alluvial_plot(save_name = file.path(directory,
-                                             "heavy_light_flow_sample_color.pdf"),
+                                             "heavy_v_j_flow_sample_color.pdf"),
                        alluvial_df = alluvial_df,
                        color =  sample_data$color_list[!duplicated(names(sample_data$color_list))],
                        plot_facet = TRUE)
     
     ### Repeat by status ---------------------------------------------------------
-    status_data <- count_genes_heavy_light(starting_df = all_info_split,
-                                           group_by = "Status", 
-                                           color_list = status_colors,
-                                           subset_counts = subset_counts,
-                                           chain = test_chain)
+    status_data <- count_genes(starting_df = all_info_split,
+                               group_by = "Status", color_list = status_colors,
+                               subset_counts = subset_counts)
     
     make_circos_plot(save_name = file.path(directory,
-                                           "heavy_light_circos_status_color.pdf"),
+                                           "heavy_v_j_circos_status_color.pdf"),
                      circos_df = status_data$df,
                      color = status_data$color_list, 
                      grid_color = all_colors)
@@ -589,7 +614,7 @@ for(cells_use in all_groups){
     alluvial_df$col_by <- names(status_data$color_list)
     
     make_alluvial_plot(save_name = file.path(directory,
-                                             "heavy_light_flow_status_color.pdf"),
+                                             "heavy_v_j_flow_status_color.pdf"),
                        alluvial_df = alluvial_df,
                        color =  status_data$color_list[!duplicated(names(status_data$color_list))],
                        plot_facet = TRUE)
@@ -601,34 +626,31 @@ for(cells_use in all_groups){
         dplyr::filter(Status == x)
       
       ## All samples
-      all_data <- count_genes_heavy_light(starting_df = test_data,
-                                          group_by = "all",
-                                          subset_counts = subset_counts,
-                                          chain = test_chain)
+      all_data <- count_genes(starting_df = test_data,
+                              group_by = "all",
+                              subset_counts = subset_counts)
       
       make_circos_plot(save_name = file.path(directory,
-                                             paste0(x, "_heavy_light_circos.pdf")),
+                                             paste0(x, "_heavy_v_j_circos.pdf")),
                        circos_df = all_data$df,
                        color = all_data$color_list, 
                        grid_color = all_colors)
       
       alluvial_df <- all_data$df
-      alluvial_df$col_by <- alluvial_df$heavy
+      alluvial_df$col_by <- alluvial_df$v_gene
       
       make_alluvial_plot(save_name = file.path(directory,
-                                               paste0(x, "heavy_light_flow.pdf")),
+                                               paste0(x, "heavy_v_j_flow.pdf")),
                          alluvial_df = alluvial_df,
                          color = all_colors)
       
       # Repeat by sample
-      sample_data <- count_genes_heavy_light(starting_df = test_data,
-                                             group_by = "sample", 
-                                             color_list = sample_colors,
-                                             subset_counts = subset_counts,
-                                             chain = test_chain)
+      sample_data <- count_genes(starting_df = test_data,
+                                 group_by = "sample", color_list = sample_colors,
+                                 subset_counts = subset_counts)
       
       make_circos_plot(save_name = file.path(directory,
-                                             paste0(x, "_heavy_light_circos_sample_color.pdf")),
+                                             paste0(x, "_heavy_v_j_circos_sample_color.pdf")),
                        circos_df = sample_data$df,
                        color = sample_data$color_list, 
                        grid_color = all_colors)
@@ -638,19 +660,18 @@ for(cells_use in all_groups){
       alluvial_df$col_by <- names(sample_data$color_list)
       
       make_alluvial_plot(save_name = file.path(directory,
-                                               paste0(x, "heavy_light_flow_sample_color.pdf")),
+                                               paste0(x, "heavy_v_j_flow_sample_color.pdf")),
                          alluvial_df = alluvial_df,
                          color =  sample_data$color_list[!duplicated(names(sample_data$color_list))],
                          plot_facet = TRUE)
       
       # Repeat by status
-      sample_data <- count_genes_heavy_light(starting_df = test_data,
-                                             group_by = "Status", color_list = status_colors,
-                                             subset_counts = subset_counts,
-                                             chain = test_chain)
+      sample_data <- count_genes(starting_df = test_data,
+                                 group_by = "Status", color_list = status_colors,
+                                 subset_counts = subset_counts)
       
       make_circos_plot(save_name = file.path(directory,
-                                             paste0(x, "_heavy_light_circos_status_color.pdf")),
+                                             paste0(x, "_heavy_v_j_circos_status_color.pdf")),
                        circos_df = alluvial_df,
                        color = sample_data$color_list, 
                        grid_color = all_colors)
@@ -660,7 +681,7 @@ for(cells_use in all_groups){
       alluvial_df$col_by <- names(sample_data$color_list)
       
       make_alluvial_plot(save_name = file.path(directory,
-                                               paste0(x, "heavy_light_flow_status_color.pdf")),
+                                               paste0(x, "heavy_v_j_flow_status_color.pdf")),
                          alluvial_df = alluvial_df,
                          color =  sample_data$color_list[!duplicated(names(sample_data$color_list))],
                          plot_facet = TRUE)
@@ -673,25 +694,25 @@ for(cells_use in all_groups){
       isotypes_use <-  c("IGHA", "IGHD", "IGHG") 
     } else {
       isotypes_use <- c("IGHA", "IGHD", "IGHG", "IGHM")
-    }    
+    }
+    
     invisible(lapply(isotypes_use, function(x){
       test_data <- all_info_split %>%
         dplyr::filter(isotype == x)
       
       ## All samples
-      all_data <- count_genes_heavy_light(starting_df = test_data,
-                                          group_by = "all",
-                                          subset_counts = subset_counts,
-                                          chain = test_chain)
+      all_data <- count_genes(starting_df = test_data,
+                              group_by = "all",
+                              subset_counts = subset_counts)
       
       make_circos_plot(save_name = file.path(directory,
-                                             paste0(x, "_heavy_light_circos.pdf")),
+                                             paste0(x, "_heavy_v_j_circos.pdf")),
                        circos_df = all_data$df,
                        color = all_data$color_list, 
                        grid_color = all_colors)
       
       alluvial_df <- all_data$df
-      alluvial_df$col_by <- alluvial_df$heavy
+      alluvial_df$col_by <- alluvial_df$v_gene
       
       make_alluvial_plot(save_name = file.path(directory,
                                                paste0(x, "heavy_v_j_flow.pdf")),
@@ -700,14 +721,12 @@ for(cells_use in all_groups){
       
       
       # Repeat by sample
-      sample_data <- count_genes_heavy_light(starting_df = test_data,
-                                             group_by = "sample",
-                                             color_list = sample_colors,
-                                             subset_counts = subset_counts,
-                                             chain = test_chain)
+      sample_data <- count_genes(starting_df = test_data,
+                                 group_by = "sample", color_list = sample_colors,
+                                 subset_counts = subset_counts)
       
       make_circos_plot(save_name = file.path(directory,
-                                             paste0(x, "_heavy_light_circos_sample_color.pdf")),
+                                             paste0(x, "_heavy_v_j_circos_sample_color.pdf")),
                        circos_df = sample_data$df,
                        color = sample_data$color_list, 
                        grid_color = all_colors)
@@ -717,20 +736,18 @@ for(cells_use in all_groups){
       alluvial_df$col_by <- names(sample_data$color_list)
       
       make_alluvial_plot(save_name = file.path(directory,
-                                               paste0(x, "heavy_light_flow_sample_color.pdf")),
+                                               paste0(x, "heavy_v_j_flow_sample_color.pdf")),
                          alluvial_df = alluvial_df,
                          color =  sample_data$color_list[!duplicated(names(sample_data$color_list))],
                          plot_facet = TRUE)
       
       # Repeat by status
-      sample_data <- count_genes_heavy_light(starting_df = test_data,
-                                             group_by = "Status", 
-                                             color_list = status_colors,
-                                             subset_counts = subset_counts,
-                                             chain = test_chain)
+      sample_data <- count_genes(starting_df = test_data,
+                                 group_by = "Status", color_list = status_colors,
+                                 subset_counts = subset_counts)
       
       make_circos_plot(save_name = file.path(directory,
-                                             paste0(x, "_heavy_light_circos_status_color.pdf")),
+                                             paste0(x, "_heavy_v_j_circos_status_color.pdf")),
                        circos_df = sample_data$df,
                        color = sample_data$color_list, 
                        grid_color = all_colors)
@@ -740,7 +757,7 @@ for(cells_use in all_groups){
       alluvial_df$col_by <- names(sample_data$color_list)
       
       make_alluvial_plot(save_name = file.path(directory,
-                                               paste0(x, "heavy_light_flow_status_color.pdf")),
+                                               paste0(x, "heavy_v_j_flow_status_color.pdf")),
                          alluvial_df = alluvial_df,
                          color =  sample_data$color_list[!duplicated(names(sample_data$color_list))],
                          plot_facet = TRUE)
@@ -754,35 +771,32 @@ for(cells_use in all_groups){
         dplyr::filter(tet_hash_id == x)
       
       ## All samples
-      all_data <- count_genes_heavy_light(starting_df = test_data,
-                                          group_by = "all",
-                                          subset_counts = subset_counts,
-                                          chain = test_chain)
+      all_data <- count_genes(starting_df = test_data,
+                              group_by = "all",
+                              subset_counts = subset_counts)
       
       make_circos_plot(save_name = file.path(directory,
-                                             paste0(x, "_heavy_light_circos.pdf")),
+                                             paste0(x, "_heavy_v_j_circos.pdf")),
                        circos_df = all_data$df,
                        color = all_data$color_list, 
                        grid_color = all_colors)
       
       alluvial_df <- all_data$df
-      alluvial_df$col_by <- alluvial_df$heavy
+      alluvial_df$col_by <- alluvial_df$v_gene
       
       make_alluvial_plot(save_name = file.path(directory,
-                                               paste0(x, "heavy_light_flow.pdf")),
+                                               paste0(x, "heavy_v_j_flow.pdf")),
                          alluvial_df = alluvial_df,
                          color = all_colors)
       
       
       # Repeat by sample
-      sample_data <- count_genes_heavy_light(starting_df = test_data,
-                                             group_by = "sample",
-                                             color_list = sample_colors,
-                                             subset_counts = subset_counts,
-                                             chain = test_chain)
+      sample_data <- count_genes(starting_df = test_data,
+                                 group_by = "sample", color_list = sample_colors,
+                                 subset_counts = subset_counts)
       
       make_circos_plot(save_name = file.path(directory,
-                                             paste0(x, "_heavy_light_circos_sample_color.pdf")),
+                                             paste0(x, "_heavy_v_j_circos_sample_color.pdf")),
                        circos_df = sample_data$df,
                        color = sample_data$color_list, 
                        grid_color = all_colors)
@@ -792,20 +806,18 @@ for(cells_use in all_groups){
       alluvial_df$col_by <- names(sample_data$color_list)
       
       make_alluvial_plot(save_name = file.path(directory,
-                                               paste0(x, "heavy_light_flow_sample_color.pdf")),
+                                               paste0(x, "heavy_v_j_flow_sample_color.pdf")),
                          alluvial_df = alluvial_df,
                          color =  sample_data$color_list[!duplicated(names(sample_data$color_list))],
                          plot_facet = TRUE)
       
       # Repeat by status
-      sample_data <- count_genes_heavy_light(starting_df = test_data,
-                                             group_by = "Status",
-                                             color_list = status_colors,
-                                             subset_counts = subset_counts,
-                                             chain = test_chain)
+      sample_data <- count_genes(starting_df = test_data,
+                                 group_by = "Status", color_list = status_colors,
+                                 subset_counts = subset_counts)
       
       make_circos_plot(save_name = file.path(directory,
-                                             paste0(x, "_heavy_light_circos_status_color.pdf")),
+                                             paste0(x, "_heavy_v_j_circos_status_color.pdf")),
                        circos_df = sample_data$df,
                        color = sample_data$color_list, 
                        grid_color = all_colors)
@@ -815,7 +827,7 @@ for(cells_use in all_groups){
       alluvial_df$col_by <- names(sample_data$color_list)
       
       make_alluvial_plot(save_name = file.path(directory,
-                                               paste0(x, "heavy_light_flow_status_color.pdf")),
+                                               paste0(x, "heavy_v_j_flow_status_color.pdf")),
                          alluvial_df = alluvial_df,
                          color =  sample_data$color_list[!duplicated(names(sample_data$color_list))],
                          plot_facet = TRUE)
@@ -826,40 +838,21 @@ for(cells_use in all_groups){
   
   
   # Heatmap ----------------------------------------------------------------------
-  make_heatmap_info <- function(all_info_split, select_cols = NULL,
+  make_heatmap_info <- function(all_info_split, select_cols,
                                 group_cols = NULL, type = NULL,
                                 subset_counts = 0,
-                                chain = c("IGK", "IGL")){
-    
-    # Hard coding this because the function won't work if there are multiple
-    # heavy and light chains.
-    keep_chains <- c("IGH;IGK", "IGH;IGL")
-    
-    all_info_split_heatmap <- all_info_split %>%
-      dplyr::filter(all_chains %in% keep_chains) %>%
-      dplyr::select(dplyr::all_of(c(group_cols, select_cols)),
-                    chains, barcode, v_gene) %>%
-      tidyr::pivot_wider(names_from = chains, values_from = v_gene)
-    
-    if(identical(sort(chain), sort(c("IGK", "IGL")))){
-      all_info_split_heatmap <- all_info_split_heatmap %>%
-        dplyr::mutate(IGK_IGL = ifelse(!is.na(IGK), IGK, IGL)) %>%
-        dplyr::select(dplyr::all_of(c(group_cols, select_cols)), IGH, IGK_IGL)
-      test_chain <- "IGK_IGL"
-    } else {
-      all_info_split_heatmap <- all_info_split_heatmap %>%
-        dplyr::select(dplyr::all_of(c(group_cols, select_cols, "IGH", chain))) %>%
-        dplyr::filter(!is.na(!!as.name(chain)))
-      test_chain <- chain
-    }
-    
-    select_cols <- c(select_cols, "IGH", test_chain)
+                                keep_chains = c("IGH", "IGH;IGK", "IGH;IGK;IGK",
+                                                "IGH;IGK;IGL", "IGH;IGL", 
+                                                "IGH;IGL;IGL"),
+                                chains_use = c("IGH")){
     
     if(is.null(group_cols)){
       group_cols <- select_cols
     }
-    
-    group_cols <- c(group_cols, "IGH", test_chain)
+    all_info_split_heatmap <- all_info_split %>%
+      dplyr::filter(all_chains %in% keep_chains) %>%
+      dplyr::filter(chains %in% chains_use) %>%
+      dplyr::select(dplyr::all_of(select_cols))
     
     all_info_split_heatmap <- all_info_split_heatmap %>%
       dplyr::group_by(dplyr::across(dplyr::all_of(group_cols))) %>% 
@@ -868,26 +861,24 @@ for(cells_use in all_groups){
     
     if(is.null(type)){
       all_info_split_heatmap <- all_info_split_heatmap %>%
-        dplyr::mutate(light_group = !!as.name(test_chain)) %>%
+        dplyr::mutate(j_group = j_gene) %>%
         ungroup()
     } else if(type == "sample"){
       all_info_split_heatmap <- all_info_split_heatmap %>%
-        dplyr::mutate(light_group = paste(!!as.name(test_chain), 
-                                          sample, sep = "_")) %>%
+        dplyr::mutate(j_group = paste(j_gene, sample, sep = "_")) %>%
         ungroup()
     } else if (type == "status") {
       all_info_split_heatmap <- all_info_split_heatmap %>%
-        dplyr::mutate(light_group = paste(!!as.name(test_chain), 
-                                          Status, sep = "_")) %>%
+        dplyr::mutate(j_group = paste(j_gene, Status, sep = "_")) %>%
         ungroup()
     } else {
       stop("type arugment only excepts NULL, status or sample")
     }
     
     new_info <- all_info_split_heatmap %>%
-      dplyr::select(IGH, light_group, value) %>%
-      tidyr::pivot_wider(names_from = light_group, values_from = value) %>%
-      tibble::column_to_rownames("IGH")
+      dplyr::select(v_gene, j_group, value) %>%
+      tidyr::pivot_wider(names_from = j_group, values_from = value) %>%
+      tibble::column_to_rownames("v_gene")
     
     new_info[is.na(new_info)] <- 0
     
@@ -899,13 +890,13 @@ for(cells_use in all_groups){
     if (is.null(type)){
       sample_info <- NULL
     } else if(type %in% c("sample", "status")){
-      select_cols_sample_info <- c("light_group", select_cols)
+      select_cols_sample_info <- c("j_group", select_cols)
       select_cols_sample_info <- 
-        select_cols_sample_info[select_cols_sample_info != "IGH"]
+        select_cols_sample_info[select_cols_sample_info != "v_gene"]
       sample_info <- all_info_split_heatmap %>%
         dplyr::select(dplyr::all_of(select_cols_sample_info)) %>%
         dplyr::distinct() %>%
-        tibble::column_to_rownames("light_group")
+        tibble::column_to_rownames("j_group")
       
       if(!identical(rownames(sample_info), colnames(new_info))){
         new_info <- new_info[ , rownames(sample_info)]
@@ -923,6 +914,7 @@ for(cells_use in all_groups){
     
     if(nrow(new_info) > 1){
       color_function <- colorRampPalette(c("white", "pink", "red"))
+      
       if(is_null(sample_info)){
         pheatmap(new_info, color = color_function(100),
                  show_colnames = show_colnames)
@@ -934,15 +926,13 @@ for(cells_use in all_groups){
                  show_colnames = show_colnames)    
       } else {
         pheatmap(new_info, color = color_function(100), annotation_col = sample_info,
-                 annotation_colors = coloring,
-                 show_colnames = show_colnames)
+                 annotation_colors = coloring, show_colnames = show_colnames)
         
         grid::grid.newpage()
         new_info <- t(scale(t(new_info)))
         
         pheatmap(new_info, color = color_function(100), annotation_col = sample_info,
-                 annotation_colors = coloring,
-                 show_colnames = show_colnames)
+                 annotation_colors = coloring, show_colnames = show_colnames)
       }
       
     } else {
@@ -956,56 +946,45 @@ for(cells_use in all_groups){
   for(i in names(test_circos)){
     directory <- test_circos[[i]]$directory
     subset_counts <- test_circos[[i]]$subset_counts
-    test_chain <- test_circos[[i]]$chain
     
     heatmap_res <- make_heatmap_info(all_info_split, 
-                                     subset_counts = subset_counts,
-                                     chain = test_chain)
+                                     select_cols = c("v_gene", "j_gene"),
+                                     subset_counts = subset_counts)
     
     plot_heatmap(new_info = heatmap_res$heatmap_plot, sample_info = NULL,
-                 save_name = file.path(directory, "heavy_light_heatmap.pdf"),
+                 save_name = file.path(directory, "heavy_v_j_heatmap.pdf"),
                  coloring = NULL, show_colnames = TRUE)
     
     ## Heatmap by sample ---------------------------------------------------------
     
-    if(identical(sort(test_chain), sort(c("IGK", "IGL")))){
-      chain_name <- "IGK_IGL"
-    } else {
-      chain_name <- test_chain
-    }
-    
     coloring <- list(sample = sample_colors,
-                     chain_name = light_colors,
+                     j_gene = j_colors,
                      Status = status_colors)
     
-    names(coloring) <- c("sample", chain_name, "Status")
-    
     heatmap_res <- make_heatmap_info(all_info_split, 
-                                     select_cols = c("Status"),
-                                     group_cols = c("sample"),
-                                     type = "sample",
-                                     chain = test_chain)
+                                     select_cols = c("v_gene", "j_gene",
+                                                     "sample", "Status"),
+                                     group_cols = c("v_gene", "j_gene", "sample"),
+                                     type = "sample")
     
     plot_heatmap(new_info = heatmap_res$heatmap_plot,
                  sample_info = heatmap_res$sample_info,
-                 save_name = file.path(directory, "heavy_light_heatmap_sample.pdf"),
+                 save_name = file.path(directory, "heavy_v_j_heatmap_sample.pdf"),
                  coloring = coloring)
     
     ## Heatmap by status ---------------------------------------------------------
-    coloring <- list(chain_name = light_colors,
+    coloring <- list(j_gene = j_colors,
                      Status = status_colors)
     
-    names(coloring) <- c(chain_name, "Status")
-    
     heatmap_res <- make_heatmap_info(all_info_split, 
-                                     select_cols = c("Status"),
-                                     type = "status",
-                                     chain = test_chain)
+                                     select_cols = c("v_gene", "j_gene", "Status"),
+                                     group_cols = c("v_gene", "j_gene", "Status"),
+                                     type = "status")
     
     
     plot_heatmap(new_info = heatmap_res$heatmap_plot,
                  sample_info = heatmap_res$sample_info,
-                 save_name = file.path(directory, "heavy_light_heatmap_status.pdf"),
+                 save_name = file.path(directory, "heavy_v_j_heatmap_status.pdf"),
                  coloring = coloring)
     
     ## Separate by Status --------------------------------------------------------
@@ -1015,43 +994,39 @@ for(cells_use in all_groups){
       
       ## All samples
       heatmap_res <- make_heatmap_info(test_data, 
-                                       subset_counts = subset_counts,
-                                       chain = test_chain)
+                                       select_cols = c("v_gene", "j_gene"),
+                                       subset_counts = subset_counts)
       
       plot_heatmap(new_info = heatmap_res$heatmap_plot, sample_info = NULL,
                    save_name = file.path(directory,
-                                         paste0(x, "_heavy_light_heatmap.pdf")),
-                   coloring = NULL)
+                                         paste0(x, "_heavy_v_j_heatmap.pdf")),
+                   coloring = NULL, show_colnames = TRUE)
       
       # Repeat by sample
       coloring <- list(sample = sample_colors,
-                       chain_name = light_colors,
+                       j_gene = j_colors,
                        Status = status_colors)
       
-      names(coloring) <- c("sample", chain_name, "Status")
-      
       heatmap_res <- make_heatmap_info(test_data, 
-                                       select_cols = c("Status"),
-                                       group_cols = c("sample"),
-                                       type = "sample",
-                                       chain = test_chain)
+                                       select_cols = c("v_gene", "j_gene",
+                                                       "sample", "Status"),
+                                       group_cols = c("v_gene", "j_gene", "sample"),
+                                       type = "sample")
       
       plot_heatmap(new_info = heatmap_res$heatmap_plot,
                    sample_info = heatmap_res$sample_info,
                    save_name = file.path(directory, 
-                                         paste0(x, "_heavy_light_heatmap_sample.pdf")),
+                                         paste0(x, "_heavy_v_j_heatmap_sample.pdf")),
                    coloring = coloring)
       
       # Repeat by status
-      coloring <- list(chain_name = light_colors,
+      coloring <- list(j_gene = j_colors,
                        Status = status_colors)
       
-      names(coloring) <- c(chain_name, "Status")
-      
       heatmap_res <- make_heatmap_info(test_data, 
-                                       select_cols = c("Status"),
-                                       type = "status",
-                                       chain = test_chain)
+                                       select_cols = c("v_gene", "j_gene", "Status"),
+                                       group_cols = c("v_gene", "j_gene", "Status"),
+                                       type = "status")
       
       
       plot_heatmap(new_info = heatmap_res$heatmap_plot,
@@ -1075,49 +1050,46 @@ for(cells_use in all_groups){
       
       ## All samples
       heatmap_res <- make_heatmap_info(test_data, 
-                                       subset_counts = subset_counts,
-                                       chain = test_chain)
+                                       select_cols = c("v_gene", "j_gene"),
+                                       subset_counts = subset_counts)
       
       plot_heatmap(new_info = heatmap_res$heatmap_plot, sample_info = NULL,
                    save_name = file.path(directory,
-                                         paste0(x, "_heavy_light_heatmap.pdf")),
-                   coloring = NULL)
+                                         paste0(x, "_heavy_v_j_heatmap.pdf")),
+                   coloring = NULL,
+                   show_colnames = TRUE)
       
       # Repeat by sample
       coloring <- list(sample = sample_colors,
-                       chain_name = light_colors,
+                       j_gene = j_colors,
                        Status = status_colors)
       
-      names(coloring) <- c("sample", chain_name, "Status")
-      
       heatmap_res <- make_heatmap_info(test_data, 
-                                       select_cols = c("Status"),
-                                       group_cols = c("sample"),
-                                       type = "sample",
-                                       chain = test_chain)
+                                       select_cols = c("v_gene", "j_gene",
+                                                       "sample", "Status"),
+                                       group_cols = c("v_gene", "j_gene", "sample"),
+                                       type = "sample")
       
       plot_heatmap(new_info = heatmap_res$heatmap_plot,
                    sample_info = heatmap_res$sample_info,
                    save_name = file.path(directory, 
-                                         paste0(x, "_heavy_light_heatmap_sample.pdf")),
+                                         paste0(x, "_heavy_v_j_heatmap_sample.pdf")),
                    coloring = coloring)
       
       # Repeat by status
-      coloring <- list(chain_name = light_colors,
+      coloring <- list(j_gene = j_colors,
                        Status = status_colors)
       
-      names(coloring) <- c(chain_name, "Status")
-      
       heatmap_res <- make_heatmap_info(test_data, 
-                                       select_cols = c("Status"),
-                                       type = "status",
-                                       chain = test_chain)
+                                       select_cols = c("v_gene", "j_gene", "Status"),
+                                       group_cols = c("v_gene", "j_gene", "Status"),
+                                       type = "status")
       
       
       plot_heatmap(new_info = heatmap_res$heatmap_plot,
                    sample_info = heatmap_res$sample_info,
                    save_name = file.path(directory,
-                                         paste0(x, "_heavy_light_heatmap_status.pdf")),
+                                         paste0(x, "_heavy_v_j_heatmap_status.pdf")),
                    coloring = coloring)
     }))
     
@@ -1130,53 +1102,50 @@ for(cells_use in all_groups){
       
       ## All samples
       heatmap_res <- make_heatmap_info(test_data, 
-                                       subset_counts = subset_counts,
-                                       chain = test_chain)
+                                       select_cols = c("v_gene", "j_gene"),
+                                       subset_counts = subset_counts)
       
       plot_heatmap(new_info = heatmap_res$heatmap_plot, sample_info = NULL,
                    save_name = file.path(directory,
-                                         paste0(x, "_heavy_light_heatmap.pdf")),
-                   coloring = NULL)
+                                         paste0(x, "_heavy_v_j_heatmap.pdf")),
+                   coloring = NULL, show_colnames = TRUE)
       
       # Repeat by sample
       coloring <- list(sample = sample_colors,
-                       chain_name = light_colors,
+                       j_gene = j_colors,
                        Status = status_colors)
       
-      names(coloring) <- c("sample", chain_name, "Status")
-      
       heatmap_res <- make_heatmap_info(test_data, 
-                                       select_cols = c("Status"),
-                                       group_cols = c("sample"),
-                                       type = "sample",
-                                       chain = test_chain)
+                                       select_cols = c("v_gene", "j_gene",
+                                                       "sample", "Status"),
+                                       group_cols = c("v_gene", "j_gene", "sample"),
+                                       type = "sample")
       
       plot_heatmap(new_info = heatmap_res$heatmap_plot,
                    sample_info = heatmap_res$sample_info,
                    save_name = file.path(directory, 
-                                         paste0(x, "_heavy_light_heatmap_sample.pdf")),
+                                         paste0(x, "_heavy_v_j_heatmap_sample.pdf")),
                    coloring = coloring)
       
       # Repeat by status
-      coloring <- list(chain_name = light_colors,
+      coloring <- list(j_gene = j_colors,
                        Status = status_colors)
       
-      names(coloring) <- c(chain_name, "Status")
-      
       heatmap_res <- make_heatmap_info(test_data, 
-                                       select_cols = c("Status"),
-                                       type = "status",
-                                       chain = test_chain)
+                                       select_cols = c("v_gene", "j_gene", "Status"),
+                                       group_cols = c("v_gene", "j_gene", "Status"),
+                                       type = "status")
       
       
       plot_heatmap(new_info = heatmap_res$heatmap_plot,
                    sample_info = heatmap_res$sample_info,
                    save_name = file.path(directory,
-                                         paste0(x, "_heavy_light_heatmap_status.pdf")),
+                                         paste0(x, "_heavy_v_j_heatmap_status.pdf")),
                    coloring = coloring)
     }))
     
   }
   graphics.off()
+  
   
 }
