@@ -93,7 +93,8 @@ rule define_clones:
 	params:
 		job_name    = "call_clones",
 		memory      = "select[mem>100] rusage[mem=100]",
-		outdir      = "{results}/R_analysis/merged/define_clones"
+		outdir      = "{results}/R_analysis/merged/define_clones",
+		distance    = 0.15
 	singularity:
 		config["IMMCANTATION_CONTAINER"]
 	log:
@@ -110,7 +111,7 @@ rule define_clones:
 			--gf sample \
 			--model ham \
 			--norm len \
-			--dist 0.11 
+			--dist {params.distance}
 		
 		# Run on samples combined
 		DefineClones.py \
@@ -119,7 +120,7 @@ rule define_clones:
 			--nproc 10 \
 			--model ham \
 			--norm len \
-			--dist 0.11 
+			--dist {params.distance} 
 
 		echo "Finished define clones" > {output}
 		"""
