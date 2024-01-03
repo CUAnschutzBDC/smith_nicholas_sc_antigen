@@ -111,7 +111,7 @@ HTODemuxUpdate <- function(object, assay = "HTO", positive.quantile = 0.99,
   })
   
   hash.second <- apply(X = proportion, MARGIN = 2, FUN = function(x) {
-    sorted_values <- sort(unique(x), decreasing = TRUE)
+    sorted_values <- sort(x, decreasing = TRUE)
     if (length(sorted_values) > 1) {
       second_max <- sorted_values[2] # Get the second highest value
       return(second_max)
@@ -124,7 +124,7 @@ HTODemuxUpdate <- function(object, assay = "HTO", positive.quantile = 0.99,
     idx <- which(proportion[, x] == hash.second[x])
     if (length(idx) > 1) {
       # If there are multiple indices for the second highest value, choose the one not equal to hash.maxID
-      idx <- idx[which(idx != hash.maxID[x])]
+      idx <- idx[which(names(idx) != hash.maxID[x])]
     }
     return(donor.id[idx[1]])
   })
@@ -174,3 +174,19 @@ all_counts <- GetAssayData(seurat_object, assay = "SCAR_TET",
 meta_data <- seurat_object[[]] %>%
   dplyr::select(SCAR_TET_classification, hash.ID) %>%
   merge(all_counts, by = "row.names")
+
+table(meta_data$SCAR_TET_classification, meta_data$INS.tet > 54)
+table(meta_data$SCAR_TET_classification, meta_data$TET.tet > 13)
+table(meta_data$SCAR_TET_classification, meta_data$IA2.tet > 7)
+table(meta_data$SCAR_TET_classification, meta_data$DNA.tet > 6)
+table(meta_data$SCAR_TET_classification, meta_data$GAD.tet > 13)
+
+
+meta_data[meta_data$SCAR_TET_classification == "DNA-tet_GAD-tet" & 
+            meta_data$INS.tet > 54,]
+
+
+meta_data[meta_data$SCAR_TET_classification == "INS-tet_TET-tet" & 
+            meta_data$INS.tet <= 54,]
+
+
