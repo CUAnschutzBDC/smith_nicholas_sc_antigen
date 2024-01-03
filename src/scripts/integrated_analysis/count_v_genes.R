@@ -314,7 +314,7 @@ count_clones <- clone_info %>%
 
 # Add in counts for individuals --> how many individuals are seen?
 count_clones <- count_clones %>%
-  dplyr::group_by(clone_id) %>%
+  dplyr::group_by(clone_id, v_gene, j_gene) %>%
   dplyr::mutate(number_of_samples = length(unique(sample)))
 
 # Add in counts for isotype, cell type and binding
@@ -334,7 +334,10 @@ count_clones <- count_clones %>%
   dplyr::mutate(isotype_percent = isotype_count / clone_count * 100,
                 cell_type_percent = cell_type_count / clone_count * 100,
                 tet_binding_percent = tet_binding_count / clone_count * 100,
-                status_percent = status_count / clone_count * 100)
+                status_percent = status_count / clone_count * 100) %>%
+  dplyr::group_by(clone_id) %>%
+  dplyr::mutate(final_clone = paste(clone_id, cumsum(!duplicated(v_gene, j_gene)),
+                                    sep = "_"))
 
 
 count_clones %>%
