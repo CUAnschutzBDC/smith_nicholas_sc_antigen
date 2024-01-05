@@ -414,6 +414,29 @@ HTODemuxUpdate <- function(object, assay = "HTO", positive.quantile = 0.99,
   return(list(object = object, proportions = proportion))
 }
 
+find_hash_id <- function(proportions){
+  new_hash_id <- apply(proportions, MARGIN = 2, FUN = function(x){
+    positive_hits <- x[x > 1]
+    if(length(positive_hits) == 0){
+      return(data.frame("new_hash_id" = "Negative", "full_hash_id" = "Negative"))
+    } else if (length(positive_hits) == 1){
+      return(data.frame("new_hash_id" = names(positive_hits),
+                        "full_hash_id" = names(positive_hits)))
+    } else if(any(grepl("DNA-|TET-", names(positive_hits)))) {
+      return(data.frame("new_hash_id" = "other_doublet",
+                        "full_hash_id" = paste(names(positive_hits),
+                                               collapse = "_")))
+    } else {
+      return(data.frame("new_hash_id" = "islet_reactive_doublet",
+                        "full_hash_id" = paste(names(positive_hits),
+                                               collapse = "_")))
+    }
+  })
+  
+  new_hash_id <- do.call(rbind, new_hash_id)
+  
+  return(new_hash_id)
+}
 
 positive_quantile <- 0.90
 
@@ -450,6 +473,15 @@ return_res <- HTODemuxUpdate(seurat_object, assay = "TET",
 seurat_object <- return_res$object
 proportions <- return_res$proportions
 
+# Based on these proporitions, add a new column that is
+# "islet doublet" if there is more than 2 > 1 and all > 1 are islet reactive
+# "other dobulet" if there is more than 2 > 1 and not all > 1 are islet reactive
+# singlet based on name if there is 1 > 1
+# negative based on name if there is 0 > 1
+new_hash_id <- find_hash_id(proportions)
+
+seurat_object <- AddMetaData(seurat_object, metadata = new_hash_id)
+
 
 # Make an assay for the proportions
 seurat_object[["TET_PROPORTIONS"]] <- CreateAssayObject(data = proportions)
@@ -463,13 +495,22 @@ return_res <- HTODemuxUpdate(seurat_object, assay = "SCAR_TET",
 seurat_object <- return_res$object
 proportions <- return_res$proportions
 
+# Based on these proporitions, add a new column that is
+# "islet doublet" if there is more than 2 > 1 and all > 1 are islet reactive
+# "other dobulet" if there is more than 2 > 1 and not all > 1 are islet reactive
+# singlet based on name if there is 1 > 1
+# negative based on name if there is 0 > 1
+new_hash_id <- find_hash_id(proportions)
+
+colnames(new_hash_id) = paste0("scar_", colnames(new_hash_id))
+
+seurat_object <- AddMetaData(seurat_object, metadata = new_hash_id)
 
 # Make an assay for the proportions
 seurat_object[["SCAR_TET_PROPORTIONS"]] <- CreateAssayObject(data = proportions)
 
 
 seurat_object$scar_hash_id <- seurat_object$hash.ID
-
 
 
 
