@@ -18,7 +18,7 @@ args <- commandArgs(trailingOnly = TRUE)
 
 sample <- args[[1]]
 sample <- gsub("__.*", "", sample)
-#sample <- "JH310-12_NG"
+#sample <- "JH310-12_EB"
 
 sample_info <- args[[4]]
 #sample_info <- here("files/sample_info.tsv")
@@ -203,6 +203,8 @@ full_seurat <- subset(full_seurat, subset = cell_labels != "no_cell")
 barplot_two <- scAnalysisR::stacked_barplots(full_seurat, 
                                              meta_col = "cell_labels")
 
+graphics.off()
+
 pdf(file.path(save_dir, "images", "dropkick_vs_cellqc.pdf"))
 
 print(barplot_one)
@@ -269,8 +271,10 @@ rownames(scar_counts) <- gsub("INS_tet[a|b]", "INS_tet", rownames(scar_counts))
 
 seurat_object[["SCAR_ADT_LOG"]] <- CreateAssayObject(counts = scar_counts)
 
-seurat_object <- NormalizeData(seurat_object, assay = "SCAR_ADT_LOG",
-                               normalization.method = "LogNormalize")
+norm_data <- log1p(scar_counts)
+
+seurat_object <- SetAssayData(object = seurat_object, slot = "data", 
+                              assay = "SCAR_ADT_LOG", new.data = norm_data)
 
 seurat_object[["SCAR_ADT"]] <- CreateAssayObject(counts = scar_counts)
 
@@ -289,8 +293,10 @@ seurat_object <- NormalizeData(seurat_object, assay = "SCAR_TET",
 
 seurat_object[["SCAR_TET_LOG"]] <- CreateAssayObject(counts = all_tetramers)
 
-seurat_object <- NormalizeData(seurat_object, assay = "SCAR_TET_LOG",
-                               normalization.method = "LogNormalize")
+norm_data <- log1p(all_tetramers)
+
+seurat_object <- SetAssayData(object = seurat_object, slot = "data", 
+                              assay = "SCAR_TET_LOG", new.data = norm_data)
 
 
 # HTO demux --------------------------------------------------------------------
@@ -337,8 +343,13 @@ HTODemuxUpdate <- function(object, assay = "HTO", positive.quantile = 0.99,
       message(paste0("Cutoff for ", iter, " : ", cutoff, 
                      " reads"))
     }
+    if(cutoff == 0){
+      div_by <- 0.1
+    } else {
+      div_by <- cutoff
+    }
     
-    proportion[iter,] <- values / cutoff
+    proportion[iter,] <- values / div_by
   }
   npositive <- colSums(x = discrete)
   classification.global <- npositive
@@ -400,25 +411,80 @@ HTODemuxUpdate <- function(object, assay = "HTO", positive.quantile = 0.99,
   object$hash.ID <- Idents(object = object)
   
   
-  return(object)
+  return(list(object = object, proportions = proportion))
 }
 
 
-seurat_object <- HTODemuxUpdate(seurat_object, assay = "TET", 
-                                positive.quantile = 0.90)
+positive_quantile <- 0.90
+
+# Run with the old demux and save the output
+test_object <- seurat_object
+
+test_object <- HTODemux(test_object, assay = "TET", 
+                        positive.quantile = positive_quantile,
+                        kfunc = "kmeans")
+
+test_object$tet_hash_id <- test_object$hash.ID
+
+test_object <- HTODemux(test_object, assay = "SCAR_TET", 
+                        positive.quantile = positive_quantile,
+                        kfunc = "kmeans")
+
+test_object$scar_hash_id <- test_object$hash.ID
+
+test_meta <- test_object[[]] %>%
+  dplyr::select(dplyr::contains("TET_"), dplyr::contains("SCAR_TET_"),
+                dplyr::contains("hash_id"))
+
+write.csv(test_meta, file.path(save_dir, "files", "previous_htodemux_res.csv"))
+
+
+rm(test_object)
+rm(test_meta)
+
+# Run with the new demux and save the object
+return_res <- HTODemuxUpdate(seurat_object, assay = "TET", 
+                             positive.quantile = positive_quantile,
+                             kfunc = "kmeans")
+
+seurat_object <- return_res$object
+proportions <- return_res$proportions
+
+
+# Make an assay for the proportions
+seurat_object[["TET_PROPORTIONS"]] <- CreateAssayObject(data = proportions)
 
 seurat_object$tet_hash_id <- seurat_object$hash.ID
 
-seurat_object <- HTODemuxUpdate(seurat_object, assay = "SCAR_TET", 
-                                positive.quantile = 0.90,
+return_res <- HTODemuxUpdate(seurat_object, assay = "SCAR_TET", 
+                                positive.quantile = positive_quantile,
                                 kfunc = "kmeans")
 
+seurat_object <- return_res$object
+proportions <- return_res$proportions
+
+
+# Make an assay for the proportions
+seurat_object[["SCAR_TET_PROPORTIONS"]] <- CreateAssayObject(data = proportions)
+
+
 seurat_object$scar_hash_id <- seurat_object$hash.ID
+
+
+
+
+# seurat_object <- HTODemux(seurat_object, assay = "SCAR_TET",
+#                           positive.quantile = 0.90,
+#                           kfunc = "kmeans")
+# 
+# table(seurat_object$scar_hash_id, seurat_object$hash.ID)
 
 cm <- confusionMatrix(seurat_object$tet_hash_id,
                       seurat_object$scar_hash_id)
 
 cm <- cm / rowSums(cm)
+
+graphics.off()
 
 pdf(file.path(save_dir, "images", "hto_demux_heatmap.pdf"))
 
