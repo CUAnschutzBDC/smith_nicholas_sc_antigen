@@ -423,11 +423,11 @@ find_hash_id <- function(proportions){
       return(data.frame("new_hash_id" = names(positive_hits),
                         "full_hash_id" = names(positive_hits)))
     } else if(any(grepl("DNA-|TET-", names(positive_hits)))) {
-      return(data.frame("new_hash_id" = "other_doublet",
+      return(data.frame("new_hash_id" = "other_multibinder",
                         "full_hash_id" = paste(names(positive_hits),
                                                collapse = "_")))
     } else {
-      return(data.frame("new_hash_id" = "islet_reactive_doublet",
+      return(data.frame("new_hash_id" = "islet_reactive_multibinder",
                         "full_hash_id" = paste(names(positive_hits),
                                                collapse = "_")))
     }
