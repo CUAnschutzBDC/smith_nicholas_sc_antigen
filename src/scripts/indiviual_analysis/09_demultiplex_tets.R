@@ -67,7 +67,7 @@ ifelse(!dir.exists(image_dir), dir.create(image_dir, recursive = TRUE), FALSE)
 # Have the function also return plots of all members of the assay and the
 # clustering, these should be violin + umap plots returned as a cowplot
 adt_dim_red <- function(seurat_object, assay, reduction_name,
-                        sample_name, resolution = 0.8){
+                        sample_name, resolution = 0.8, hash_id_col = "tet_hash_id"){
   DefaultAssay(seurat_object) <- assay
   # hack seurat to use normalized protein values as a dimensionality reduction object.
   VariableFeatures(seurat_object) <- rownames(seurat_object)
@@ -134,13 +134,13 @@ adt_dim_red <- function(seurat_object, assay, reduction_name,
   
   # Test against the hto demux
   cM <- confusionMatrix(seurat_object[[cluster_col]][[1]],
-                        seurat_object$hash.ID)
+                        seurat_object[[hash_id_col]][[1]])
   
   cM <- cM /rowSums(cM)
   
   heatmap1 <- pheatmap::pheatmap(cM, silent = TRUE)
   
-  cM <- confusionMatrix(seurat_object$hash.ID,
+  cM <- confusionMatrix(seurat_object[[hash_id_col]][[1]],
                         seurat_object[[cluster_col]][[1]])
   
   cM <- cM /rowSums(cM)
@@ -202,7 +202,7 @@ dev.off()
 
 umap_res <- adt_dim_red(seurat_object = seurat_data, assay = "SCAR_ADT",
                         reduction_name = "adtscar", sample_name = sample,
-                        resolution = 0.8)
+                        resolution = 0.8, hash_id_col = "scar_hash_id")
 
 seurat_data <- umap_res$object
 
@@ -244,7 +244,7 @@ dev.off()
 
 umap_res <- adt_dim_red(seurat_object = seurat_data, assay = "SCAR_TET",
                         reduction_name = "tetscar", sample_name = sample,
-                        resolution = 0.8)
+                        resolution = 0.8, hash_id_col = "scar_hash_id")
 
 seurat_data <- umap_res$object
 
@@ -258,7 +258,7 @@ dev.off()
 
 umap_res <- adt_dim_red(seurat_object = seurat_data, assay = "SCAR_TET_LOG",
                         reduction_name = "tetscarlog", sample_name = sample,
-                        resolution = 0.8)
+                        resolution = 0.8, hash_id_col = "scar_hash_id")
 
 seurat_data <- umap_res$object
 
@@ -271,7 +271,7 @@ print(umap_res$heatmap2)
 dev.off()
 
 # Try again without doublets, only on the DSB
-seurat_no_doub <- subset(seurat_data, subset = hash.ID != "Doublet")
+seurat_no_doub <- subset(seurat_data, subset = tet_hash_id != "Doublet")
 
 umap_res <- adt_dim_red(seurat_object = seurat_no_doub, assay = "DSB_TET",
                         reduction_name = "tetdsb_nd", sample_name = sample,

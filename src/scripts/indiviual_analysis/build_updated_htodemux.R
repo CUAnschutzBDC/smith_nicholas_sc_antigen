@@ -91,8 +91,13 @@ HTODemuxUpdate <- function(object, assay = "HTO", positive.quantile = 0.99,
       message(paste0("Cutoff for ", iter, " : ", cutoff, 
                      " reads"))
     }
+    if(cutoff == 0){
+      div_by <- 0.1
+    } else {
+      div_by <- cutoff
+    }
     
-    proportion[iter,] <- values / cutoff
+    proportion[iter,] <- values / div_by
   }
   npositive <- colSums(x = discrete)
   classification.global <- npositive
@@ -154,24 +159,66 @@ HTODemuxUpdate <- function(object, assay = "HTO", positive.quantile = 0.99,
   object$hash.ID <- Idents(object = object)
   
   
-  return(object)
+  return(list(object = object, proportions = proportion))
 }
 
 
-seurat_object <- HTODemuxUpdate(seurat_data, assay = "SCAR_TET", 
-                                positive.quantile = 0.90,
-                                kfunc = "kmeans")
+positive_quantile <- 0.90
+
+return_res <- HTODemuxUpdate(seurat_data, assay = "TET", 
+                             positive.quantile = positive_quantile,
+                             kfunc = "kmeans")
+
+seurat_data <- return_res$object
+proportions <- return_res$proportions
+
+seurat_data[["TET_PROPORTIONS"]] <- CreateAssayObject(counts = proportions)
+
+seurat_data$tet_hash_id <- seurat_data$hash.ID
+
+return_res <- HTODemuxUpdate(seurat_data, assay = "SCAR_TET", 
+                             positive.quantile = positive_quantile,
+                             kfunc = "kmeans")
+
+seurat_data <- return_res$object
+proportions <- return_res$proportions
+
+seurat_data[["SCAR_TET_PROPORTIONS"]] <- CreateAssayObject(counts = proportions)
 
 
+seurat_data$scar_hash_id <- seurat_data$hash.ID
 
 
-all_counts <- GetAssayData(seurat_object, assay = "SCAR_TET",
+featDistPlot(seurat_data, "INS-tet", assay = "SCAR_TET_LOG",
+             sep_by = "scar_hash_id", combine = FALSE, col_by = "scar_hash_id")
+
+featDistPlot(seurat_data, "INS-tet", assay = "SCAR_TET",
+             sep_by = "scar_hash_id", combine = FALSE, col_by = "scar_hash_id")
+
+featDistPlot(seurat_data, "INS-tet", assay = "SCAR_TET_PROPORTIONS",
+             sep_by = "scar_hash_id", combine = FALSE, col_by = "scar_hash_id")
+
+
+all_counts <- GetAssayData(seurat_data, assay = "SCAR_TET",
                            slot = "counts") %>%
   as.matrix() %>%
   t() %>%
   data.frame
 
-meta_data <- seurat_object[[]] %>%
+log_counts <- GetAssayData(seurat_data, assay = "SCAR_TET_LOG",
+                           slot = "data") %>%
+  as.matrix() %>%
+  t() %>%
+  data.frame
+
+colnames(log_counts) <- paste0("log_", colnames(log_counts))
+
+all_counts <- merge(all_counts, log_counts, by = "row.names")
+
+rownames(all_counts) <- all_counts$Row.names
+all_counts$Row.names <- NULL
+
+meta_data <- seurat_data[[]] %>%
   dplyr::select(SCAR_TET_classification, hash.ID) %>%
   merge(all_counts, by = "row.names")
 
@@ -189,4 +236,14 @@ meta_data[meta_data$SCAR_TET_classification == "DNA-tet_GAD-tet" &
 meta_data[meta_data$SCAR_TET_classification == "INS-tet_TET-tet" & 
             meta_data$INS.tet <= 54,]
 
+
+summary_data <- meta_data %>%
+  dplyr::group_by(SCAR_TET_classification) %>%
+  dplyr::mutate(mean = mean(INS.tet), max = max(INS.tet),
+                min = min(INS.tet),
+                Q1 = quantile(INS.tet, probs = 0.25),
+                median = median(INS.tet),
+                Q3 = quantile(INS.tet, probs = 0.75)) %>%
+  dplyr::select(SCAR_TET_classification, min, Q1, median, mean, Q3, max) %>%
+  dplyr::distinct()
 
