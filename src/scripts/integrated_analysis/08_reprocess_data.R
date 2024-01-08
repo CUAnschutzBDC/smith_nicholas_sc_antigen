@@ -85,28 +85,18 @@ if(remove_ambience){
 } 
 # Colors -----------------------------------------------------------------------
 
-new_colors <- c("Resting_memory" = "#924bdb", # Resting memory
-                "Naive_1" = "#69ba3d", # Naive 1
-                "Naive_2" = "#9a43a4", # Naive 2
-                "Memory_IgE_IgG" = "#bf9b31", # Memory IgE/IgG1
-                "Naive_3" = "#6477ce", # Naive 3
-                "Memory_IgA" = "#d15131", # Memory IA
-                "Early_memory" = "#4c9e8e", # Early Memory
-                "BND2" = "#cc4570", #Bnd2
-                "DN2" = "#648d4f", # DN2
-                "Activated_memory" = "#985978", # Activated memory
-                "Activated_naive" = "#a06846") # Activated naive
+all_colors <- readRDS(file = file.path("files/all_colors.rds"))
 
-all_celltypes <- unique(seurat_data$RNA_celltype)
-other_celltypes <- all_celltypes[!all_celltypes %in% names(new_colors)]
 
-set_one_brewer <- grDevices::colorRampPalette(RColorBrewer::brewer.pal(n = 9,
-                                                                       name = "Set1"))
-other_colors <- set_one_brewer(length(other_celltypes))
+final_colors <- all_colors$cell_type_colors
 
-names(other_colors) <- other_celltypes
+tetramer_colors <- all_colors$tetramer_colors
 
-celltype_colors <- readRDS(file = file.path(save_dir, "color_palette.rds"))
+sample_colors <- all_colors$sample_colors
+
+
+status_colors <- all_colors$status_colors
+
 
 
 # PCA --------------------------------------------------------------------------

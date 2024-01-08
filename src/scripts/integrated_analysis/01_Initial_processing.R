@@ -75,9 +75,20 @@ all_objs <- lapply(samples_use, function(x){
 # Merge Seurat objects
 seurat_data <- merge(all_objs[[1]], all_objs[2:length(all_objs)])
 
+seurat_data$old_status <- seurat_data$Status
+
+status_mapping <- c("no" = "T1D",
+                    "nd" = "ND",
+                    "aab stage 1" = "AAB",
+                    "aab stage 2" = "AAB")
+
+seurat_data$Status <- status_mapping[seurat_data$old_status]
+
 rm(all_objs)
 
 seurat_data$sample <- seurat_data$orig.ident
+
+seurat_data$sample <- factor(seurat_data$sample)
 
 DefaultAssay(seurat_data) <- "RNA"
 
@@ -205,3 +216,52 @@ DefaultAssay(seurat_data) <- "RNA"
 saveRDS(seurat_data, file = file.path(save_dir, "rda_obj",
                                       "seurat_adtnorm.rds"))
 
+# Colors -----------------------------------------------------------------------
+final_colors <- c("Resting_memory" = "#924bdb", # Resting memory
+                  "Naive_1" = "#69ba3d", # Naive 1
+                  "Naive_2" = "#9a43a4", # Naive 2
+                  "Memory_IgE_IgG" = "#bf9b31", # Memory IgE/IgG1
+                  "Naive_3" = "#6477ce", # Naive 3
+                  "Memory_IgA" = "#d15131", # Memory IA
+                  "Early_memory" = "#4c9e8e", # Early Memory
+                  "BND2" = "#cc4570", #Bnd2
+                  "DN2" = "#648d4f", # DN2
+                  "Activated_memory" = "#985978", # Activated memory
+                  "Activated_naive" = "#a06846", # Activated naive
+                  "B.intermediate" = "#00008b",
+                  "CD14.Mono" = "#e0205a",
+                  "pDC" = "#ffb6d3",
+                  "Plasmablast" = "#ffac14",
+                  "CD8.TEM" = "#000000") 
+
+tetramer_full_colors <- MetBrewer::met.brewer(name = "Monet", n = 12,
+                                         type = "continuous")
+
+tetramer_full_colors <- tetramer_full_colors[c(1:9)]
+
+names(tetramer_full_colors) <- c("INS-tet", "GAD-tet", "IA2-tet",
+                                 "Islet_Reactive", "Negative",
+                                 "DNA-tet", "TET-tet", "Other_Multi_Reactive",
+                                 "Islet_Multi_Reactive")
+
+
+sample_colors <- MetBrewer::met.brewer(name = "Archambault", n = 16,
+                                       type = "continuous")
+
+
+all_samples <- unique(seurat_data$sample)
+
+names(sample_colors) <- all_samples
+
+
+status_colors <- c("ND" = "#0f7ba2",
+                   "AAB" = "#fab255",
+                   "T1D" = "#dd5129")
+
+
+all_colors <- list("cell_type_colors" = final_colors,
+                   "tetramer_colors" = tetramer_full_colors,
+                   "sample_colors" = sample_colors,
+                   "status_colors" = status_colors)
+
+saveRDS(all_colors, file = file.path("files/all_colors.rds"))

@@ -73,6 +73,8 @@ cells_use <- "all"
 
 for(cells_use in c("all", "memory")){
   
+  print(cells_use)
+  
   # Read in data
   seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
   
@@ -429,7 +431,10 @@ for(cells_use in c("all", "memory")){
                                                              "vj_counts_10_plus"),
                                        subset_counts = 10))
   
+  print("circos")
+  print("")
   for(i in names(test_circos)){
+    print(i)
     directory <- test_circos[[i]]$directory
     subset_counts <- test_circos[[i]]$subset_counts
     
@@ -713,6 +718,8 @@ for(cells_use in c("all", "memory")){
   
   
   # Heatmap ----------------------------------------------------------------------
+  print("")
+  print("heatmap")
   make_heatmap_info <- function(all_info_split, select_cols,
                                 group_cols = NULL, type = NULL,
                                 subset_counts = 0,
@@ -819,6 +826,7 @@ for(cells_use in c("all", "memory")){
   }
   
   for(i in names(test_circos)){
+    print(i)
     directory <- test_circos[[i]]$directory
     subset_counts <- test_circos[[i]]$subset_counts
     

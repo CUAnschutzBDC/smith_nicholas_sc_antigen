@@ -190,9 +190,9 @@ MERGE_SCRIPTS:
         - "06_remove_doublets.R"
         - "07_run_immcantation.R"
         - "08_reprocess_data.R"
-        - "vdj_plots.R"
-        - "heavy_light_plots.R"
-        - "vdj_flow_circos.R"
+        #- "vdj_plots.R"
+        #- "heavy_light_plots.R"
+        #- "vdj_flow_circos.R"
         #- "09_create_platypus_object.R"
 
 # Path to the metadata for each sample that should be added to the objects.

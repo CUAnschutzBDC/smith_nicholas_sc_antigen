@@ -38,6 +38,8 @@ sample_info <- read.table(sample_info, fill = TRUE, header = TRUE)
 
 sample_info <- sample_info[sample_info$sample == sample,]
 
+save_sample <- sample_metadata$ID
+
 HTO <- sample_info$HTO
 ADT <- sample_info$ADT
 hash_ident <- sample_info$hash_ident
@@ -84,6 +86,8 @@ seurat_object[["percent.mt"]] <- PercentageFeatureSet(seurat_object,
 sample_vect <- sample_metadata[1,,drop = TRUE]
 
 seurat_object <- AddMetaData(seurat_object, metadata = sample_vect)
+
+seurat_object$orig.ident <- seurat_object$ID
 
 # Use scuttle for cutoffs ------------------------------------------------------
 se <- as.SingleCellExperiment(seurat_object)
@@ -423,11 +427,11 @@ find_hash_id <- function(proportions){
       return(data.frame("new_hash_id" = names(positive_hits),
                         "full_hash_id" = names(positive_hits)))
     } else if(any(grepl("DNA-|TET-", names(positive_hits)))) {
-      return(data.frame("new_hash_id" = "other_multibinder",
+      return(data.frame("new_hash_id" = "Other_Multi_Reactive",
                         "full_hash_id" = paste(names(positive_hits),
                                                collapse = "_")))
     } else {
-      return(data.frame("new_hash_id" = "islet_reactive_multibinder",
+      return(data.frame("new_hash_id" = "Islet_Multi_Reactive",
                         "full_hash_id" = paste(names(positive_hits),
                                                collapse = "_")))
     }
@@ -447,13 +451,18 @@ test_object <- HTODemux(test_object, assay = "TET",
                         positive.quantile = positive_quantile,
                         kfunc = "kmeans")
 
-test_object$tet_hash_id <- test_object$hash.ID
+test_object$tet_hash_id <- as.character(test_object$hash.ID)
+
+test_object$tet_hash_id[test_object$tet_hash_id == "Doublet"] = "Mulit_Reactive"
 
 test_object <- HTODemux(test_object, assay = "SCAR_TET", 
                         positive.quantile = positive_quantile,
                         kfunc = "kmeans")
 
-test_object$scar_hash_id <- test_object$hash.ID
+test_object$scar_hash_id <- as.character(test_object$hash.ID)
+
+test_object$scar_hash_id[test_object$scar_hash_id == "Doublet"] = "Mulit_Reactive"
+
 
 test_meta <- test_object[[]] %>%
   dplyr::select(dplyr::contains("TET_"), dplyr::contains("SCAR_TET_"),
@@ -480,13 +489,14 @@ proportions <- return_res$proportions
 # negative based on name if there is 0 > 1
 new_hash_id <- find_hash_id(proportions)
 
-seurat_object <- AddMetaData(seurat_object, metadata = new_hash_id)
+colnames(new_hash_id) <- c("tet_hash_id", "full_hash_id")
 
+seurat_object <- AddMetaData(seurat_object, metadata = new_hash_id)
 
 # Make an assay for the proportions
 seurat_object[["TET_PROPORTIONS"]] <- CreateAssayObject(data = proportions)
 
-seurat_object$tet_hash_id <- seurat_object$hash.ID
+seurat_object$old_hash_id <- seurat_object$hash.ID
 
 return_res <- HTODemuxUpdate(seurat_object, assay = "SCAR_TET", 
                                 positive.quantile = positive_quantile,
@@ -502,7 +512,7 @@ proportions <- return_res$proportions
 # negative based on name if there is 0 > 1
 new_hash_id <- find_hash_id(proportions)
 
-colnames(new_hash_id) = paste0("scar_", colnames(new_hash_id))
+colnames(new_hash_id) <- c("scar_hash_id", "full_scar_hash_id")
 
 seurat_object <- AddMetaData(seurat_object, metadata = new_hash_id)
 
@@ -510,7 +520,7 @@ seurat_object <- AddMetaData(seurat_object, metadata = new_hash_id)
 seurat_object[["SCAR_TET_PROPORTIONS"]] <- CreateAssayObject(data = proportions)
 
 
-seurat_object$scar_hash_id <- seurat_object$hash.ID
+seurat_object$old_scar_hash_id <- seurat_object$hash.ID
 
 
 

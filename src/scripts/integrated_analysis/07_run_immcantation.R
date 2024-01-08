@@ -57,49 +57,17 @@ ifelse(!dir.exists(file.path(save_dir, "images", "vdj_analysis")),
        FALSE)
 
 # Colors -----------------------------------------------------------------------
-final_colors <- c("Resting_memory" = "#924bdb", # Resting memory
-                  "Naive_1" = "#69ba3d", # Naive 1
-                  "Naive_2" = "#9a43a4", # Naive 2
-                  "Memory_IgE_IgG" = "#bf9b31", # Memory IgE/IgG1
-                  "Naive_3" = "#6477ce", # Naive 3
-                  "Memory_IgA" = "#d15131", # Memory IA
-                  "Early_memory" = "#4c9e8e", # Early Memory
-                  "BND2" = "#cc4570", #Bnd2
-                  "DN2" = "#648d4f", # DN2
-                  "Activated_memory" = "#985978", # Activated memory
-                  "Activated_naive" = "#a06846", # Activated naive
-                  "B.intermediate" = "#00008b",
-                  "CD14.Mono" = "#e0205a",
-                  "pDC" = "#ffb6d3",
-                  "Plasmablast" = "#ffac14",
-                  "CD8.TEM" = "#000000") 
-
-tetramer_colors <- MetBrewer::met.brewer(name = "Juarez", n = 7,
-                                         type = "continuous")
-names(tetramer_colors) <- c("Negative", "Doublet", "INS-tet", "TET-tet",
-                            "IA2-tet", "GAD-tet", "DNA-tet")
-
-sample_colors <- MetBrewer::met.brewer(name = "Archambault", n = 16,
-                                       type = "continuous")
+all_colors <- readRDS(file = file.path("files/all_colors.rds"))
 
 
-all_samples <- unique(seurat_data$sample)
+final_colors <- all_colors$cell_type_colors
 
-names(sample_colors) <- all_samples
+tetramer_colors <- all_colors$tetramer_colors
 
-antigen_colors <- MetBrewer::met.brewer(name = "Demuth", n = 4,
-                                        type = "discrete")
-
-names(antigen_colors) <- c("Negative", "Tet_antigen", "other",
-                           "diabetes_antigen")
+sample_colors <- all_colors$sample_colors
 
 
-status_colors <- MetBrewer::met.brewer(name = "Egypt", n = 4,
-                                       type = "discrete")
-
-seurat_data$Status <- gsub(" ", "_", seurat_data$Status)
-
-names(status_colors) <- c("nd", "no", "aab_stage_1", "aab_stage_2")
+status_colors <- all_colors$status_colors
 
 celltypes_keep <- c("Naive_1", "Naive_3",
                      "BND2", "B.intermediate",
