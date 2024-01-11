@@ -53,7 +53,7 @@ gene_lists <- lapply(gene_lists, function(x){
   return(x$V1)
 })
 
-seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
+seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed_no_doublet.rds"))
 all_human_chemokines <- read.csv(here("files/all_human_chemokines.csv"))
 
 gene_lists$chemokines <- all_human_chemokines$Systemic.name

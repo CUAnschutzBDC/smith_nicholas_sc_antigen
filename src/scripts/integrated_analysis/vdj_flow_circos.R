@@ -153,7 +153,7 @@ ifelse(!dir.exists(file_save_dir), dir.create(file_save_dir), FALSE)
 for(cells_use in c(all_groups)){
   
   # Read in data
-  seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
+  seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed_no_doublet.rds"))
   
   if(cells_use == "all"){
     vdj_dir <- file.path(image_save_dir, "heavy_light_plots")

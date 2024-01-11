@@ -50,7 +50,7 @@ fig_dir <- file.path(save_dir, "images", "202310_grant_figures")
 ifelse(!dir.exists(fig_dir), dir.create(fig_dir), FALSE)
 
 # Read in the data
-seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_reprocessed.rds"))
+seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed_no_doublet.rds"))
 
 plot_tetramers <- c("INS-tet", "TET-tet", "IA2-tet", "GAD-tet", "DNA-tet")
 

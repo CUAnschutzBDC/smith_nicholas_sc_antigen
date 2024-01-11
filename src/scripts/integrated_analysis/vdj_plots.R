@@ -76,7 +76,7 @@ for(cells_use in c("all", "memory")){
   print(cells_use)
   
   # Read in data
-  seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
+  seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed_no_doublet.rds"))
   
   if(cells_use == "all"){
     vdj_dir <- file.path(save_dir, "images", "vdj_plots")

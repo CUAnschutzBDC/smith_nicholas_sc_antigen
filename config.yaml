@@ -189,11 +189,11 @@ MERGE_SCRIPTS:
         - "05_name_clusters.R"
         - "06_remove_doublets.R"
         - "07_run_immcantation.R"
-        - "08_reprocess_data.R"
+        - "08_run_vdj_stats.R"
+        - "09_count_v_genes.R"
         #- "vdj_plots.R"
         #- "heavy_light_plots.R"
         #- "vdj_flow_circos.R"
-        #- "09_create_platypus_object.R"
 
 # Path to the metadata for each sample that should be added to the objects.
 # Must have a column called "Sample.Name" that has the exact same pattern as

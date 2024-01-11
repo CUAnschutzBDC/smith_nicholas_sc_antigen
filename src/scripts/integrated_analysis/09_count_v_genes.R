@@ -54,11 +54,11 @@ if(normalization_method == "SCT"){
 save_dir <- file.path(results_dir, "R_analysis", sample)
 
 # Read in data
-seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
+seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed_no_doublet.rds"))
 
 # Get mean and sd of insulin, gad and ia2
 
-assay_data <- GetAssayData(seurat_data, slot = "data", assay = "SCAR_TET_LOG") %>%
+assay_data <- GetAssayData(seurat_data, slot = "data", assay = "SCAR_TET_PROPORTIONS") %>%
   as.matrix() %>%
   t() %>%
   data.frame
@@ -76,8 +76,9 @@ sep_columns <- c("chains", "cdr3", "cdr3_length",
                  "dj_del", "v_mis_freq", "d_mis_freq", "j_mis_freq",
                  "c_mis_freq", "all_mis_freq")
 keep_columns <- c("isotype", "RNA_combined_celltype", "sample", "paired",
-                  "clonotype_id", "Status", "scar_hash_id", "all_chains",
-                  "INS.tet", "TET.tet", "GAD.tet", "IA2.tet", "DNA.tet")
+                  "clonotype_id", "Status", "scar_hash_id", "full_scar_hash_id",
+                  "all_chains", "INS.tet", "TET.tet", "GAD.tet", "IA2.tet",
+                  "DNA.tet")
 
 all_info <- seurat_data[[]] %>%
   dplyr::mutate(all_chains = chains) %>%
@@ -104,7 +105,7 @@ v_counting_dir <- file.path(save_dir, "files", "v_gene_counting")
 
 ifelse(!dir.exists(v_counting_dir), dir.create(v_counting_dir), FALSE)
 
-tests_use <- c("no_nd", "aab1_nd", "aab2_nd")
+tests_use <- c("all_t1d_nd", "all_aab_nd")
 all_v_genes <- lapply(tests_use, function(x){
   
   # Keep only genes that were used significantly more highly in 
@@ -118,6 +119,7 @@ all_v_genes <- lapply(tests_use, function(x){
   return(odds_data)
   
 })
+
 
 all_v_genes <- do.call(rbind, all_v_genes)
 
@@ -154,7 +156,8 @@ count_v_j_gene <- lapply(unique(all_v_genes$v_gene), function(x){
     dplyr::group_by(j_gene, Status) %>%
     dplyr::add_count(name = "j_status_frequency") %>%
     dplyr::select(v_gene, j_gene, isotype, RNA_combined_celltype, scar_hash_id,
-                  Status, dplyr::contains("frequency"), dplyr::contains("mean"),
+                  full_scar_hash_id, Status, dplyr::contains("frequency"), 
+                  dplyr::contains("mean"),
                   dplyr::contains("sd")) %>%
     dplyr::distinct() %>%
     dplyr::arrange(desc(j_frequency), desc(j_tetramer_frequency),
@@ -182,12 +185,13 @@ keep_chains <- c("IGH;IGK", "IGH;IGL")
 
 all_info_split_hl <- all_info_split %>%
   dplyr::filter(all_chains %in% keep_chains) %>%
-  dplyr::select(isotype, RNA_combined_celltype, scar_hash_id, Status,
+  dplyr::select(isotype, RNA_combined_celltype, scar_hash_id,
+                full_scar_hash_id, Status,
                 chains, barcode, v_gene, dplyr::contains("tet")) %>%
   tidyr::pivot_wider(names_from = chains, values_from = v_gene) %>%
   dplyr::mutate(IGK_IGL = ifelse(!is.na(IGK), IGK, IGL)) %>%
   dplyr::select(IGH, IGK_IGL, isotype, RNA_combined_celltype, scar_hash_id,
-                Status, dplyr::contains("tet"))
+                full_scar_hash_id, Status, dplyr::contains("tet"))
 
 save_wb <- openxlsx::createWorkbook()
 
@@ -216,7 +220,8 @@ count_v_hl_gene <- lapply(unique(all_v_genes$v_gene), function(x){
     dplyr::group_by(IGK_IGL, Status) %>%
     dplyr::add_count(name = "light_status_frequency") %>%
     dplyr::select(IGH, IGK_IGL, isotype, RNA_combined_celltype, scar_hash_id,
-                  Status,dplyr::contains("frequency"), dplyr::contains("mean"),
+                  full_scar_hash_id, Status,
+                  dplyr::contains("frequency"), dplyr::contains("mean"),
                   dplyr::contains("sd")) %>%
     dplyr::distinct() %>%
     dplyr::arrange(desc(light_frequency), desc(light_tetramer_frequency),
@@ -229,6 +234,7 @@ count_v_hl_gene <- lapply(unique(all_v_genes$v_gene), function(x){
     dplyr::select(-v_gene)
   
   short_info <- cbind(short_info, short_odds)
+  
   
   openxlsx::addWorksheet(wb = save_wb, sheetName = x)
   openxlsx::writeData(wb = save_wb, sheet = x, x = short_info)
@@ -266,16 +272,17 @@ clone_info <- clone_info %>%
   dplyr::mutate(sequence_id_sample = paste(sequence_id,
                                            sample, sep = "_")) %>%
   merge(sample_clone_info, by = "sequence_id_sample", all.x = TRUE) %>%
-  dplyr::mutate(cell_sample = paste(cell_id, sample, sep = "_"))
+  dplyr::mutate(cell_sample = paste(cell_id, sample, sep = "_")) %>%
+  dplyr::select(-sample)
 
 meta_data <- seurat_data[[]] %>% 
   dplyr::select(sample, RNA_combined_celltype, Status, scar_hash_id, v_gene,
                 j_gene, chains, INS.tet, GAD.tet, IA2.tet, TET.tet, DNA.tet,
-                isotype, SCAR_TET_classification) %>%
+                isotype, full_scar_hash_id, Sample.Name) %>%
   tibble::rownames_to_column("barcode") %>%
   dplyr::mutate(barcode = gsub("_[0-9]+", "", barcode)) %>%
-  dplyr::mutate(cell_sample = paste(barcode, sample, sep = "_")) %>%
-  dplyr::select(-sample)
+  dplyr::mutate(cell_sample = paste(barcode, Sample.Name, sep = "_")) %>%
+  dplyr::select(-Sample.Name)
 
 clone_info <- merge(clone_info, meta_data, by = "cell_sample", all.x = TRUE,
                     all.y = FALSE)
@@ -301,6 +308,9 @@ clone_info <- clone_info %>%
 # within samples
 
 count_clones <- clone_info %>%
+  dplyr::group_by(cell_sample) %>%
+  dplyr::mutate(sequences = paste(sequence, collapse = ";"),
+                   alignment_sequences = paste(sequence_alignment, collapse = ";")) %>%
   dplyr::filter(locus == "IGH") %>%
   dplyr::group_by(clone_id, v_gene, j_gene) %>%
   dplyr::add_count(name = "clone_count") %>%
@@ -309,7 +319,8 @@ count_clones <- clone_info %>%
                 cdr3, clone_id, sample, RNA_combined_celltype,
                 Status, scar_hash_id, chains, isotype,
                 INS.tet, GAD.tet, IA2.tet, TET.tet, DNA.tet,
-                clone_count, SCAR_TET_classification)
+                clone_count, full_scar_hash_id,
+                sequences, alignment_sequences)
 
 
 # Add in counts for individuals --> how many individuals are seen?
@@ -345,13 +356,25 @@ count_clones %>%
   data.frame()
 
 # Break up into clones that are shared between individuals and those that are now
+column_order <- c("clone_id", "final_clone", "v_gene", "j_gene", "cdr3",
+                  "chains", "isotype", "productive", "sample", 
+                  "RNA_combined_celltype",  "Status", "scar_hash_id",
+                  "full_scar_hash_id", "INS.tet", "GAD.tet", "IA2.tet",
+                  "TET.tet", "DNA.tet", "clone_count", "number_of_samples",
+                  "isotype_count", "isotype_percent", "cell_type_count",
+                  "cell_type_percent", "tet_binding_count", "tet_binding_percent",
+                  "status_count", "status_percent", "sequences", 
+                  "alignment_sequences")
+
 shared_clones <- count_clones %>%
   dplyr::filter(number_of_samples > 1) %>%
-  dplyr::arrange(desc(clone_count))
+  dplyr::arrange(desc(clone_count)) %>%
+  dplyr::select(dplyr::all_of(column_order))
 
 expanded_clones <- count_clones %>%
   dplyr::filter(number_of_samples == 1) %>%
-  dplyr::arrange(desc(clone_count))
+  dplyr::arrange(desc(clone_count)) %>%
+  dplyr::select(dplyr::all_of(column_order))
 
 
 new_wb <- openxlsx::createWorkbook() 

@@ -1,0 +1,72 @@
+ID,Initials,LN2 location,Sample Name,Sex,Race,Ethnicity,Sex,Collection Date,Birthdate,Age at Collection (years),Age at Collection (Months),Status,Date of Diagnosis,Days post onset,millions of cells frozen,HLA type,Autoantibodies,MIAA titer,GADA titer,IA2 titer,ZNT8 titer,Plasma Collected?,date processed for scSeq,# thawed cells for staining,AM or PM sort and capture,# PE+ sorted cells loaded on 10X,# PE- sorted cells loaded on 10X,# cells identified by sequencing,Notes (FDR relationship),EBV IgG,EBV IgM,*Key
+101,CB,-,JH307-9_CB,M,,,Male,2/2/23,12/16/08,14,169,new-onset,12/19/22,45,39,DR4-DQ8/DR3-DQ2,none detected,,,,,Y,2/7/23,,capture 0,,,,"T2D grandma, RA grandma/grandpa",,,aab: aoutoantibody positive
+102,FD,-,JH307-9_FD,M,,,Male,2/1/23,12/3/10,12,145,new-onset,12/19/22,44,77.75,DR4-DQ8/DR3-DQ2,"GADA+, IA-2+, MIAA+, ZNT8+",,,,,Y,2/7/23,,capture 0,,,,,,,no: new onset T1D
+103,AS,-,JH307-9_AS,M,,,Male,1/25/23,11/23/18,4,50,new-onset,12/1/22,55,16.2,DR4-DQ8 het,"GADA+, IA-2+, MIAA+, ZNT8+",,,,,Y,2/7/23,,capture 0,,,,T1D paternal great great grandma,,,fdr: first degree relative
+104,PT,-,JH307-9_PT,F,,,Female,1/19/23,7/8/16,6,78,healthy control,n/a,-,,n/a,n/a,,,,,,2/7/23,,capture 0,,,,FDR to T1D sibling with HLA DR4-DQ8/DR3-DQ2 (not part of our cohort),,,nd: non-diabetic
+D,BH,-,JH310-12_BH,F,White,Unknown,Female,2/10/23,5/25/12,10,128,aab stage 2,n/a,-,40,DR4-DQ8/DQ*0602,"GADA+, MIAA+, IA-2+",0.001,10,0,0,,3/27/23,1.40E+07,capture 1,3260,10000,5871,FDR to brother & sister with T1D,Pos (A),Neg,AAB 2
+107,MV,-,JH310-12_MV,F,White,Hispanic or Latino,Female,2/8/23,9/8/13,9,113,healthy control,n/a,-,10.2,n/a,n/a,0,0,0,0,,3/27/23,4.00E+06,capture 2,13500,3000,5574,FDR half sister to FG and NG,untested,untested,ND
+108,NG,-,JH310-12_NG,F,White,Hispanic or Latino,Female,2/8/23,2/7/17,6,72,healthy control,n/a,-,2.8,n/a,n/a,0,0,0,0,,3/27/23,1.60E+07,capture 2,3590,13500,5537,"FDR twin sister to FG, half sister to nd MV",untested,untested,ND
+109,FG,-,JH310-12_FG,F,White,Hispanic or Latino,Female,2/8/23,2/7/17,6,72,new-onset,11/2/22,98,5.6,DR4-DQ8 homo,"IA-2+, MIAA+",0.065,4,248,0.024,Y,3/27/23,9.00E+06,capture 2,9420,9500,6535,"no twin sister to NG, half sister to MV",Pos (A),Neg,NO
+110,AP,-,JH310-12_AP,F,White,Not Hispanic or Latino,Female,3/2/23,5/23/07,15,189,healthy control,n/a,-,12,DR4-DQ8 het,n/a,0,0,0,0,Y,3/27/23,6.00E+06,capture 1,20000,0,2886,FDR sister to CP,Pos (A),Neg,ND
+111,CP,-,JH310-12_CP,M,White,Not Hispanic or Latino,Male,3/2/23,11/9/09,13,159,new-onset,1/31/23,30,27,DR4-DQ8 het,"GADA+, IA-2+, MIAA+, ZNT8+",0.09,187,413,0.663,Y,3/27/23,1.40E+07,capture 1,20000,0,14219,,Neg,Neg,NO
+112,EB,A1,JH310-12_EB,F,White,Not Hispanic or Latino,Female,3/9/23,7/4/01,21,260,new-onset,2/14/23,23,,DR4-DQ8/DR3-DQ2,ZNT8+,0,0,0,0.022,Y,3/27/23,2.00E+07,capture 2,20000,0,14283,,Pos (A),Neg,NO
+113,TS,-,JH310-12_TS,M,White,Not Hispanic or Latino,Male,2/23/23,11/29/93,29,350,healthy control,n/a,-,,DR4-DQ8 het,n/a,0,0,0,0,Y,3/27/23,1.15E+07,capture 1,2930,9000,4167,FDR (parent or sibling w/ T1D),Neg,Neg,ND
+102,FD *SAME AS ABOVE - REPEAT*,-,JH313-15_FD,M,White,Not Hispanic or Latino,Male,2/1/23,12/3/10,12,145,new-onset,12/19/22,44,77.75,DR4-DQ8/DR3-DQ2,"GADA+, IA-2+, MIAA+, ZNT8+",0.054,435,44,0.055,Y,4/12/23,3.00E+07,capture 3,16600,6000,11794,,Neg,Neg,NO
+105,PH,-,JH313-15_PH,M,White,Not Hispanic or Latino,Male,1/20/23,1/24/83,39,479,aab stage 2,n/a,-,55,DR4-DQ8 homo,"GADA+, IA-2+, ZNT8+",0,456,0.001,0.014,Y,4/12/23,4.60E+07,capture 3,20000,7000,11162,FDR - has T1D child (not part of our cohort),Pos (A),Neg,AAB 2
+114,AG,-,JH313-15_AG,F,White,Hispanic or Latino,Female,3/27/23,12/4/07,15,183,aab stage 2,n/a,-,,pending,"GADA+, MIAA+, IA-2+",0.011,885,0,0.002,Y,4/12/23,3.60E+07,capture 3,14100,5000,11322,Aunt and Grandma T1D,Neg,Neg,AAB 2
+115,NF,-,JH313-15_NF,M,White,Not Hispanic or Latino,Male,3/28/23,7/27/08,14,176,aab stage 2,n/a,-,,DR4-DQ8 het,"GADA+, MIAA+, IA-2+",0.029,67,20,0,Y,4/12/23,2.00E+07,capture 4,15000,5000,9810,Stage 2 multiple Aab; 2nd cousin w/ T1D,Neg,Neg,AAB 2
+116,OF,-,JH313-15_OF,M,White,Not Hispanic or Latino,Male,4/4/23,5/10/10,12,154,healthy control,n/a,-,,DR3-DQ2/DQ*0602,n/a,0,0,0,0,Y,4/12/23,2.10E+07,capture 4,7500,2500,4935,FDR has sibling with T1D,Neg,Neg,ND
+117,DB,-,JH313-15_DB,M,White,Not Hispanic or Latino,Male,4/10/23,5/27/09,13,166,aab stage 1,n/a,-,,DR7-DQ2/DQ*0602,GADA+,77,0,0,0,Y,4/12/23,2.00E+07,capture 4,16000,5000,9372,"FDR, has parent with T1D",Pos (A),Neg,AAB 1
+118,MH,"E1, F1",JH313-15_MH,F,White,Not Hispanic or Latino,Female,4/10/23,5/17/03,19,238,aab stage 1,n/a,-,,DR4-DQ8 homo,GADA+,0,???,0,0,Y,4/12/23,4.60E+07,capture 3,20000,7000,11111,extended family autoimmunity,Neg,Neg,AAB 1
+119,JBM,-,JH313-15_JBM,M,White,Not Hispanic or Latino,Male,4/11/23,7/8/95,27,333,new-onset,3/15/23,27,,pending,"GADA+, IA-2+",0.004,253,321,0.029,Y,4/12/23,1.30E+07,capture 4,20000,7000,13798,,Pos (A),Neg,NO
+120,MD,???,,M,White,Not Hispanic or Latino,Male,2/21/23,10/9/08,14,172,healthy control,n/a,-,21,other,n/a,,,,,,,,,,,,FDR brother to FD,,,
+121,MK,"E6, F6",,M,White,Not Hispanic or Latino,Male,4/26/23,6/19/74,48,586,new-onset,1/23/23,93,32,DR4-DQ8 het,"GADA+, IA-2+",,,,,Y,,,,,,,,,,
+122,CP,"D5, E5, F5",,M,White,Not Hispanic or Latino,Male,5/10/23,4/9/12,11,133,new-onset,3/9/23,62,,pending,"ZNT8RW,MIAA,GADA, and IA-2",,,,,Y,,,,,,,,,,
+123,MR,"A6, B6, C6, D6",,F,White,Not Hispanic or Latino,Female,5/10/23,6/4/03,19,239,new-onset,4/24/23,16,46,pending,"MIAA, GADA,IA-2, and ZNT8RW",,,,,Y,,,,,,,,,,
+124,BA,"B1, C1, D1",,F,White,Not Hispanic or Latino,Female,4/25/23,1/11/16,7,87,new-onset,1/19/23,96,67.5,DR4-DQ8/DR3-DQ2,"GADA+, ZnT8+",,,,,Y,,,,,,,,,,
+125,PB,"A4, B4, C4",,M,White,Not Hispanic or Latino,Male,4/14/23,5/3/08,14,179,new-onset,3/6/23,39,38,DR3-DQ2/DQ*0602,"ZNT8RW,GADA,and IA-2",,,,,Y,,,,,,,,,,
+126,BM,"I2, J2",,M,White,Not Hispanic or Latino,Male,4/27/23,9/21/86,36,439,new-onset,4/4/23,23,14,pending,Not Listed in EPIC,,,,,,,,,,,,,,,
+127,TF,"I5, J5",,M,White,Not Hispanic or Latino,Male,5/23/23,1/31/09,14,171,new-onset,4/3/23,50,40,pending,"ZNT8RW,MIAA,GADA, and IA-2",,,,,,,,,,,,,,,
+128,HH,"G5, H5",,F,White,Not Hispanic or Latino,Female,5/17/23,3/23/90,33,397,healthy control,n/a,-,14,pending,n/a,,,,,Y,,,,,,,,,,
+129,NH,"I3, J3",,M,White,Not Hispanic or Latino,Male,5/17/23,10/21/93,29,354,healthy control,n/a,-,24,pending,n/a,,,,,Y,,,,,,,,,,
+130,CR,"F4, G4, H4",,M,White,Not Hispanic or Latino,Male,5/19/23,9/11/09,13,164,new-onset,2/13/23,95,60,pending,"ZNT8RW,GADA",,,,,Y,,,,,,,,,,
+131,AG,"D4, E4",,M,White,Not Hispanic or Latino,Male,6/20/23,8/8/95,27,334,new-onset,5/30/23,21,26,pending,Not Listed in EPIC,,,,,Y,,,,,,,,,,
+132,SDP,"A3, B3, C3, D3",,F,White,Hispanic or Latino,Female,6/27/23,09/18/03,19,237,healthy control,n/a,-,92,pending,n/a,,,,,Y,,,,,,,,,,
+133,KT (*not in database!!!),"G1, H1",,F,Unknown,Unknown,Female,6/27/23,10/8/92,30,368,aab stage ?,n/a,n/a,,pending,GADA,,,,,,,,,,,,,,,
+134,AM,"E3, F3, G3, H3",,M,White,Hispanic or Latino,Male,7/10/23,4/4/12,11,135,new-onset,6/1/23,39,44,pending,"ZNT8RW,GAD,MIAA,IA-2",,,,,,,,,,,,,,,
+135,AW,"I4, J4",,M,White,Not Hispanic or Latino,Male,7/14/23,9/20/04,18,225,new-onset,4/3/23,102,44,pending,"ZNT8RW,IA-2, and GAD",,,,,,,,,,,,,,,
+136,BE,"D2, E2, F2, G2, H2",,M,Unknown,Unknown,Male,7/16/23,6/26/13,10,120,new-onset,5/20/23,57,70,pending,"GAD,MIAA, and IA-2",,,,,Y,,,,,,,,,,
+137,CK,"A5, B5, C5",,M,White,Not Hispanic or Latino,Male,7/20/23,5/26/17,6,73,healthy control,n/a,-,,pending,n/a,,,,,,,,,,,,"FDR to brother with T1D, sister with celiac",,,
+138,CD,A2,,M,White,Not Hispanic or Latino,Male,7/20/23,4/27/14,9,110,new-onset,5/24/23,57,,pending,?,,,,,Y,,,,,,,"Grandma with RA; Mom gluten sensitive, possibly celiac",,,
+139,MS,USED,,F,White,Not Hispanic or Latino,Female,7/24/23,12/30/83,39,474,healthy control,n/a,n/a,66,pending,n/a,,,,,,,,,,,,,,,
+140,WP,"B2, C2",,M,White,Not Hispanic or Latino,Male,7/26/23,2/3/19,4,53,aab stage ?,n/a,n/a,30,pending,n/a,,,,,Y,,,,,,,FDR,,,
+141,VT,used,,F,-,-,Female,8/1/23,1/2/98,25,306,healthy control,n/a,n/a,,pending,n/a,,,,,Y,,,,,,,,,,
+142,BPL,used,,F,-,-,Female,8/1/23,5/24/99,24,290,healthy control,n/a,n/a,,pending,n/a,,,,,Y,,,,,,,,,,
+143,RK,used,,F,-,-,Female,8/2/23,5/5/95,28,338,healthy control,n/a,n/a,,pending,n/a,,,,,Y,,,,,,,,,,
+144,LL,used,,F,-,-,Female,8/8/23,8/14/99,23,287,healthy control,n/a,n/a,42,pending,n/a,,,,,,,,,,,,,,,
+145,AG,used,,F,-,-,Female,8/10/23,11/5/96,26,321,healthy control,n/a,n/a,,pending,n/a,,,,,,,,,,,,,,,
+146,LP,"H6, I6",,F,White,Not Hispanic or Latino,Female,8/21/23,7/14/94,29,349,healthy control,n/a,n/a,30,pending,n/a,,,,,,,,,,,,"scoliosis, RA, endometriosis on mother's side of family",,,
+147,JH,J6,,F,White,Hispanic or Latino,Female,8/22/23,9/14/11,11,143,new-onset,6/9/23,74,21,pending,?,,,,,Y,,,,,,,uncle with T1D,,,
+148,CG ,G6,,F,White,Not Hispanic or Latino,Female,8/28/23,4/18/06,17,208,aab stage?,n/a,n/a,5,NOT COLLECTED,?,,,,,,,,,,,,,,,
+149,BH,A7,,F,White,Not Hispanic or Latino,Female,9/13/23,8/10/13,10,121,aab stage ?,n/a,n/a,24,pending,,,,,,Y,,,,,,,FDR T1D sister,,,
+150,SB,"B7, C7",,F,White,Not Hispanic or Latino,Female,9/19/23,8/8/10,13,157,new-onset,8/18/23,32,74,pending,,,,,,Y,,,,,,,T1D triplet sibling (sister),,,
+151,OM (*not in database!!! maybe DM 10/23/23???),"D7, E7",,M,Unknown,Unknown,Male,9/22/23,5/8/14,9,112,aab stage ?,n/a,n/a,36,pending,,,,,,Y,,,,,,,"T1D sister, Grandpa RA",,,
+152,JA,"F7, G7",,F,White,Not Hispanic or Latino,Female,9/25/23,5/11/96,27,328,aab stage ?,n/a,n/a,31,pending,,,,,,Y,,,,,,,mom celiac and lupus,,,
+153,DR,???,,M,White,Not Hispanic or Latino,Male,9/26/23,5/8/96,27,328,new-onset,8/30/23,27,27,pending,?,,,,,Y,,,,,,,,,,
+154,OH,"H7, I7",,M,White,Not Hispanic or Latino,Male,9/18/23,9/12/15,8,96,healthy control; 1 aab pos,n/a,n/a,36,pending,one,,,,,,,,,,,,,,,
+155,RB *Rocky wants 20e6,"A9, B9",,F,White,Not Hispanic or Latino,Female,10/2/23,7/19/97,26,314,new-onset,8/21/23,42,,pending,,,,,,Y,,,,,,,dad T1D,,,
+156,WK,F8,,M,White,Not Hispanic or Latino,Male,10/5/23,2/17/12,11,139,new-onset,8/21/23,45,33,pending,,,,,,,,,,,,,,,,
+157,MB,G8,,F,White,Not Hispanic or Latino,Female,10/9/23,12/7/90,32,394,new-onset,8/15/23,55,21,pending,,,,,,,,,,,,,,,,
+158,NS,"H8, I8, J8",,F,White,Not Hispanic or Latino,Female,10/10/23,10/2/16,7,84,new-onset,9/1/23,39,46,pending,,,,,,,,,,,,,,,,
+159,AT,E9,,M,White,Not Hispanic or Latino,Male,10/16/23,8/8/06,17,206,aab stage ?,n/a,n/a,20,pending,,,,,,,,,,,,,"T1D brother, ulcerative collitis/celiacs brother, sjogorens grandma",,,
+160,AF,C9,,M,White,Not Hispanic or Latino,Male,10/23/23,12/17/02,20,250,aab stage ?,n/a,n/a,17,pending,,,,,,,,,,,,,,,,
+161,"AG **REPEAT DRAW, PREVIOUSLY SEQUENCED",D9,,F,White,Hispanic or Latino,Female,10/19/23,12/4/07,15,190,aab stage 2,n/a,n/a,38,pending,"GADA+, MIAA+, IA-2+",,,,,y,,,,,,,,,,
+162,AS,F9,,M,Asian,Not Hispanic or Latino,Male,11/6/23,8/15/14,9,110,aab stage ?,n/a,n/a,32,pending,,,,,,y,,,,,,,,,,
+163,AD,"G9, H9",,F,White,Not Hispanic or Latino,Female,11/8/23,3/1/13,10,128,healthy control,n/a,n/a,46,pending,n/a,,,,,y,,,,,,,FDR to sister with T1D,,,
+164,MD,"I9, J9",,M,White,Not Hispanic or Latino,Male,11/8/23,6/22/10,13,160,healthy control,n/a,n/a,39,pending,n/a,,,,,y,,,,,,,FDR to sister with T1D,,,
+165,LC,"C10, D10",,M,Unknown,Hispanic or Latino,Male,10/27/23,8/3/14,9,110,new-onset,?,?,43,pending,,,,,,,,,,,,,,,,
+166,TE,E10,,M,White,Not Hispanic or Latino,Male,10/31/23,11/19/08,14,179,new-onset,9/5/23,56,34.5,pending,,,,,,,,,,,,,,,,
+167,JM,G10,,M,White,Not Hispanic or Latino,Male,11/20/23,4/17/12,11,139,healthy control,n/a,n/a,,NOT COLLECTED,,,,,,,,,,,,,,,,
+168,CB,H10,,M,White,Not Hispanic or Latino,Male,11/28/23,8/1/05,18,219,aab stage ?,n/a,n/a,28,pending,,,,,,,,,,,,,,,,
+168,NF (*sequenced previously),I10,,M,White,Not Hispanic or Latino,Male,12/18/23,7/22/08,15,184,aab stage 2,n/a,n/a,25.5,pending,,,,,,,,,,,,,,,,
+170,AF,J10,,F,White,Not Hispanic or Latino,Female,12/18/23,8/21/06,17,207,healthy control,n/a,n/a,28.5,pending,,,,,,,,,,,,,,,,

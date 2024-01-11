@@ -136,7 +136,7 @@ for(assay_type in names(pca_list)){
 
   # PCA of gene expression, weighted by cell number per sample
   seurat_data <- singlecellmethods::RunBalancedPCA(obj = seurat_data, 
-                                                   weight.by = "orig.ident",
+                                                   weight.by = "Sample.Name",
                                                    npcs = 50,
                                                    assay.use = seurat_assay,
                                                    reduction.name = reduction_name)
