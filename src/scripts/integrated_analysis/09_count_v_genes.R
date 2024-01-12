@@ -17,15 +17,15 @@ normalization_method <- "log" # can be SCT or log
 
 args <- commandArgs(trailingOnly = TRUE)
 
-#sample <- args[[1]]
-#sample <- gsub("__.*", "", sample)
-sample <- "merged"
+sample <- args[[1]]
+sample <- gsub("__.*", "", sample)
+#sample <- "merged"
 
-#results_dir <- args[[2]]
-results_dir <- here("results")
+results_dir <- args[[2]]
+#results_dir <- here("results")
 
-#sample_info <- args[[4]]
-sample_info <- here("files/sample_info.tsv")
+sample_info <- args[[4]]
+#sample_info <- here("files/sample_info.tsv")
 
 sample_info <- read.table(sample_info, fill = TRUE, header = TRUE)
 
@@ -342,14 +342,17 @@ count_clones <- count_clones %>%
   dplyr::group_by(clone_id, v_gene, j_gene, Status) %>%
   dplyr::add_count(name = "status_count") %>%
   dplyr::ungroup() %>%
+  dplyr::group_by(clone_id, v_gene, j_gene, sample) %>%
+  dplyr::add_count(name = "sample_count") %>%
+  dplyr::ungroup() %>%
   dplyr::mutate(isotype_percent = isotype_count / clone_count * 100,
                 cell_type_percent = cell_type_count / clone_count * 100,
                 tet_binding_percent = tet_binding_count / clone_count * 100,
                 status_percent = status_count / clone_count * 100) %>%
   dplyr::group_by(clone_id) %>%
+  dplyr::arrange(v_gene, j_gene) %>%
   dplyr::mutate(final_clone = paste(clone_id, cumsum(!duplicated(v_gene, j_gene)),
                                     sep = "_"))
-
 
 count_clones %>%
   dplyr::filter(clone_id == "19880") %>%
@@ -360,11 +363,11 @@ column_order <- c("clone_id", "final_clone", "v_gene", "j_gene", "cdr3",
                   "chains", "isotype", "productive", "sample", 
                   "RNA_combined_celltype",  "Status", "scar_hash_id",
                   "full_scar_hash_id", "INS.tet", "GAD.tet", "IA2.tet",
-                  "TET.tet", "DNA.tet", "clone_count", "number_of_samples",
-                  "isotype_count", "isotype_percent", "cell_type_count",
-                  "cell_type_percent", "tet_binding_count", "tet_binding_percent",
-                  "status_count", "status_percent", "sequences", 
-                  "alignment_sequences")
+                  "TET.tet", "DNA.tet", "clone_count", "sample_count",
+                  "number_of_samples", "isotype_count", "isotype_percent", 
+                  "cell_type_count", "cell_type_percent", "tet_binding_count", 
+                  "tet_binding_percent", "status_count", "status_percent",
+                  "sequences", "alignment_sequences")
 
 shared_clones <- count_clones %>%
   dplyr::filter(number_of_samples > 1) %>%
@@ -372,7 +375,7 @@ shared_clones <- count_clones %>%
   dplyr::select(dplyr::all_of(column_order))
 
 expanded_clones <- count_clones %>%
-  dplyr::filter(number_of_samples == 1) %>%
+  dplyr::filter(sample_count > 1) %>%
   dplyr::arrange(desc(clone_count)) %>%
   dplyr::select(dplyr::all_of(column_order))
 

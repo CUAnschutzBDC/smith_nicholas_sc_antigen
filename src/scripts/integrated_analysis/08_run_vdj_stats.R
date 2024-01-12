@@ -110,7 +110,7 @@ for(cells_use in c("all", "memory")){
 
   
   # Analysis ---------------------------------------------------------------------
-    sep_columns <- c("chains", "cdr3", "cdr3_length",
+  sep_columns <- c("chains", "cdr3", "cdr3_length",
                    "cdr3_nt_length", "v_gene", "d_gene", "j_gene", "c_gene",
                    "reads", "umis", "productive", "full_length",
                    "v_ins", "v_del", "v_mis", "d_ins", "d_del",
@@ -119,7 +119,8 @@ for(cells_use in c("all", "memory")){
                    "dj_del", "v_mis_freq", "d_mis_freq", "j_mis_freq",
                    "c_mis_freq", "all_mis_freq")
   keep_columns <- c("isotype", "RNA_combined_celltype", "sample", "paired",
-                    "clonotype_id", "Status", "tet_hash_id", "all_chains")
+                    "clonotype_id", "Status", "tet_hash_id", "all_chains", 
+                    "scar_hash_id")
   
   all_info <- seurat_data[[]] %>%
     dplyr::mutate(all_chains = chains) %>%
@@ -579,21 +580,22 @@ for(cells_use in c("all", "memory")){
                          "AAB" = all_samples_aab)
   
   build_tests <- lapply(c("all", "antigen", "isotype"), function(x){
+    print(x)
     if(x == "all"){
       v_df <- list(comparison_builder(starting_df = all_info_split))
       names(v_df) <- "all"
     } else if(x == "antigen") {
-      v_df <- lapply(unique(all_info_split$scar_hash_id), function(x){
+      v_df <- lapply(unique(all_info_split$scar_hash_id), function(y){
         subset_df <- all_info_split %>%
-          dplyr::filter(scar_hash_id == x)
+          dplyr::filter(scar_hash_id == y)
         return(comparison_builder(starting_df = subset_df))
       })
       names(v_df) <- unique(all_info_split$scar_hash_id)
     } else if(x == "isotype"){
       isotype_use <- c("IGHA", "IGHD", "IGHG", "IGHM")
-      v_df <- lapply(isotype_use, function(x){
+      v_df <- lapply(isotype_use, function(y){
         subset_df <- all_info_split %>%
-          dplyr::filter(isotype == x)
+          dplyr::filter(isotype == y)
         return(comparison_builder(starting_df = subset_df))
       })
       names(v_df) <- isotype_use
@@ -625,9 +627,9 @@ for(cells_use in c("all", "memory")){
     #names(all_stats) <- names(all_tests)
     
     # Do full p-value correction for the stats tests
-    all_odds <- lapply(names(all_stats), function(x){
-      return_df <- all_stats[[x]]$all_odds_ratio
-      return_df$test <- x
+    all_odds <- lapply(names(all_stats), function(res){
+      return_df <- all_stats[[res]]$all_odds_ratio
+      return_df$test <- res
       return(return_df)
     })
     
@@ -636,9 +638,9 @@ for(cells_use in c("all", "memory")){
     all_odds$p_adj <- p.adjust(p = all_odds$p_value,
                                method = "bonferroni")
     
-    all_t <- lapply(names(all_stats), function(x){
-      return_df <- all_stats[[x]]$all_t_test
-      return_df$test <- x
+    all_t <- lapply(names(all_stats), function(res){
+      return_df <- all_stats[[res]]$all_t_test
+      return_df$test <- res
       return(return_df)
     })
     
@@ -747,6 +749,91 @@ for(cells_use in c("all", "memory")){
                              overwrite = TRUE)
       
     })
+  
+    # Make combined odds plot
+    all_odds$padj_category <- ifelse(all_odds$p_adj < 0.05, "P<0.05",
+                                      "P>0.05")
+    
+    # all_odds$status <- ifelse(all_odds$p_adj < 0.05, all_odds$status_one,
+    #                           "not_sig")
+
+    # plot_colors <- c(status_colors[c("T1D", "AAB")], "not_sig" = "#d3d3d3")
+  
+    # all_odds$status <- ifelse(all_odds$p_adj < 0.05, all_odds$status_one,
+    #                           paste0("not_sig_", all_odds$status_one))
+    # 
+    # plot_colors <- c(status_colors[c("T1D", "AAB")], "not_sig_T1D" = "#f0afa8",
+    #                  "not_sig_AAB" = "#f2c59d")
+    
+    
+
+    all_odds$sig_status <- ifelse(all_odds$p_adj < 0.05, all_odds$status_one,
+                                  "not_sig")
+    
+    all_odds$status <- all_odds$status_one
+
+    plot_colors <- c(status_colors[c("T1D", "AAB")], "not_sig" = "#d3d3d3")
+    
+    all_odds$test_use <- gsub("_(aab|t1d)_nd", "", all_odds$test)
+    
+    # Check if test_use is empty, if it's not make the plots below for each
+    # member.
+    
+    for(test_type in all_odds$test_use){
+      odds_use <- all_odds %>%
+        dplyr::filter(test_use == test_type)
+      odds_plot <- ggplot2::ggplot(odds_use, 
+                                   ggplot2::aes(y = odds_ratio,
+                                                x = v_gene,
+                                                #color = status,
+                                                group = test)) +
+        
+        ggplot2::geom_errorbar(ggplot2::aes(ymin = X95_conf_int_low,
+                                            ymax = X95_conf_int_high,
+                                            color = status),
+                               position = ggplot2::position_dodge(width = 0.75)) +
+        ggplot2::geom_point(position = position_dodge(width=0.75),
+                            aes(color = status)) +
+        ggplot2::geom_hline(yintercept = 1, linetype = "dashed") +
+        ggplot2::scale_color_manual(values = plot_colors) +
+        ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45,
+                                                           hjust = 1))
+      
+      odds_use <- odds_use %>%
+        dplyr::arrange(desc(odds_ratio))
+      
+      odds_use$v_gene <- factor(odds_use$v_gene,
+                                levels = unique(odds_use$v_gene))
+      
+      odds_plot_ord <- ggplot2::ggplot(odds_use, 
+                                       ggplot2::aes(y = odds_ratio,
+                                                    x = v_gene,
+                                                    #color = status,
+                                                    group = test)) +
+        
+        ggplot2::geom_errorbar(ggplot2::aes(ymin = X95_conf_int_low,
+                                            ymax = X95_conf_int_high,
+                                            color = sig_status),
+                               position = ggplot2::position_dodge(width = 0.75)) +
+        ggplot2::geom_point(position = position_dodge(width=0.75),
+                            aes(color = status)) +
+        ggplot2::geom_hline(yintercept = 1, linetype = "dashed") +
+        ggplot2::scale_color_manual(values = plot_colors) +
+        ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45,
+                                                           hjust = 1))
+      
+      
+      # Save data
+      pdf(file.path(save_dir_stats, paste0(test_type, "_",
+                                           "combined_odds_ratio.pdf")),
+          width = 8, height = 12)
+      print(odds_plot)
+      print(odds_plot_ord)
+      dev.off()
+      
+    }
+    
   })
+  
 }
   

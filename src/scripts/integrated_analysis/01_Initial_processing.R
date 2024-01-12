@@ -253,10 +253,12 @@ all_samples <- unique(seurat_data$sample)
 
 names(sample_colors) <- all_samples
 
+status_colors <- MetBrewer::met.brewer(name = "Hokusai1", n = 7)
 
-status_colors <- c("ND" = "#0f7ba2",
-                   "AAB" = "#fab255",
-                   "T1D" = "#dd5129")
+status_colors <- status_colors[c(2, 4, 7)]
+
+names(status_colors) <- c("T1D", "AAB", "ND")
+
 
 
 all_colors <- list("cell_type_colors" = final_colors,
