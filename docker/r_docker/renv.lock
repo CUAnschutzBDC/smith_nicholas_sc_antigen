@@ -1264,6 +1264,14 @@
         "tidyr"
       ]
     },
+    "alluvial": {
+      "Package": "alluvial",
+      "Version": "0.1-2",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "ae1e61b8a3542a11600df419c813093f",
+      "Requirements": []
+    },
     "annotate": {
       "Package": "annotate",
       "Version": "1.76.0",
@@ -2478,6 +2486,21 @@
       "Repository": "RSPM",
       "Hash": "15e9634c0fcd294799e9b2e929ed1b86",
       "Requirements": []
+    },
+    "ggalluvial": {
+      "Package": "ggalluvial",
+      "Version": "0.12.5",
+      "Source": "Repository",
+      "Repository": "RSPM",
+      "Hash": "29bb601821609476215720798eecf979",
+      "Requirements": [
+        "dplyr",
+        "ggplot2",
+        "lazyeval",
+        "rlang",
+        "tidyr",
+        "tidyselect"
+      ]
     },
     "ggbeeswarm": {
       "Package": "ggbeeswarm",
@@ -4357,8 +4380,8 @@
       "RemoteUsername": "CUAnschutzBDC",
       "RemoteRepo": "scAnalysisR",
       "RemoteRef": "main",
-      "RemoteSha": "53838f58dd3921c624adac320a71641774a9d7d5",
-      "Hash": "fefaa010c8a4a78b6798d547a9589192",
+      "RemoteSha": "30c845304cc5982da9f1570bf917958c6712848b",
+      "Hash": "ed90184ee735c2f03a07b068a64ab421",
       "Requirements": [
         "Matrix",
         "RColorBrewer",
