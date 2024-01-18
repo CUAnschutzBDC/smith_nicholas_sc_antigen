@@ -4380,8 +4380,8 @@
       "RemoteUsername": "CUAnschutzBDC",
       "RemoteRepo": "scAnalysisR",
       "RemoteRef": "main",
-      "RemoteSha": "53838f58dd3921c624adac320a71641774a9d7d5",
-      "Hash": "fefaa010c8a4a78b6798d547a9589192",
+      "RemoteSha": "30c845304cc5982da9f1570bf917958c6712848b",
+      "Hash": "ed90184ee735c2f03a07b068a64ab421",
       "Requirements": [
         "Matrix",
         "RColorBrewer",
