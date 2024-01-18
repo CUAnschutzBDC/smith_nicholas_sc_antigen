@@ -1,3 +1,5 @@
+# CONSIDER REPEATING WITH SCAR CLONES, they may look a little better
+
 library(here)
 library(scAnalysisR)
 library(pheatmap)
@@ -50,7 +52,7 @@ if(normalization_method == "SCT"){
 save_dir <- file.path(results_dir, "R_analysis", sample)
 
 # Read in data
-seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
+seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed_no_doublet.rds"))
 
 # The clones com from Chang-o define clones
 # based only on heavy or light

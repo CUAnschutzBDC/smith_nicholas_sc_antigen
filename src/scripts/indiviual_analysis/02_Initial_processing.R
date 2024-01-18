@@ -18,7 +18,7 @@ args <- commandArgs(trailingOnly = TRUE)
 
 sample <- args[[1]]
 sample <- gsub("__.*", "", sample)
-#sample <- "JH310-12_NG"
+#sample <- "JH310-12_EB"
 
 sample_info <- args[[4]]
 #sample_info <- here("files/sample_info.tsv")
@@ -37,6 +37,8 @@ sample_metadata <- sample_metadata[sample_metadata$Sample.Name == sample,] %>%
 sample_info <- read.table(sample_info, fill = TRUE, header = TRUE)
 
 sample_info <- sample_info[sample_info$sample == sample,]
+
+save_sample <- sample_metadata$ID
 
 HTO <- sample_info$HTO
 ADT <- sample_info$ADT
@@ -84,6 +86,8 @@ seurat_object[["percent.mt"]] <- PercentageFeatureSet(seurat_object,
 sample_vect <- sample_metadata[1,,drop = TRUE]
 
 seurat_object <- AddMetaData(seurat_object, metadata = sample_vect)
+
+seurat_object$orig.ident <- seurat_object$ID
 
 # Use scuttle for cutoffs ------------------------------------------------------
 se <- as.SingleCellExperiment(seurat_object)
@@ -203,6 +207,8 @@ full_seurat <- subset(full_seurat, subset = cell_labels != "no_cell")
 barplot_two <- scAnalysisR::stacked_barplots(full_seurat, 
                                              meta_col = "cell_labels")
 
+graphics.off()
+
 pdf(file.path(save_dir, "images", "dropkick_vs_cellqc.pdf"))
 
 print(barplot_one)
@@ -269,8 +275,10 @@ rownames(scar_counts) <- gsub("INS_tet[a|b]", "INS_tet", rownames(scar_counts))
 
 seurat_object[["SCAR_ADT_LOG"]] <- CreateAssayObject(counts = scar_counts)
 
-seurat_object <- NormalizeData(seurat_object, assay = "SCAR_ADT_LOG",
-                               normalization.method = "LogNormalize")
+norm_data <- log1p(scar_counts)
+
+seurat_object <- SetAssayData(object = seurat_object, slot = "data", 
+                              assay = "SCAR_ADT_LOG", new.data = norm_data)
 
 seurat_object[["SCAR_ADT"]] <- CreateAssayObject(counts = scar_counts)
 
@@ -289,26 +297,245 @@ seurat_object <- NormalizeData(seurat_object, assay = "SCAR_TET",
 
 seurat_object[["SCAR_TET_LOG"]] <- CreateAssayObject(counts = all_tetramers)
 
-seurat_object <- NormalizeData(seurat_object, assay = "SCAR_TET_LOG",
-                               normalization.method = "LogNormalize")
+norm_data <- log1p(all_tetramers)
+
+seurat_object <- SetAssayData(object = seurat_object, slot = "data", 
+                              assay = "SCAR_TET_LOG", new.data = norm_data)
 
 
 # HTO demux --------------------------------------------------------------------
-seurat_object <- HTODemux(seurat_object, assay = "TET", 
-                          positive.quantile = 0.90)
+HTODemuxUpdate <- function(object, assay = "HTO", positive.quantile = 0.99,
+                           init = NULL, nstarts = 100, kfunc = "clara", 
+                           nsamples = 100, seed = 42, verbose = TRUE){
+  if (!is.null(x = seed)) {
+    set.seed(seed = seed)
+  }
+  assay <- assay %||% DefaultAssay(object = object)
+  data <- GetAssayData(object = object, assay = assay)
+  counts <- GetAssayData(object = object, assay = assay, slot = "counts")[, 
+                                                                          colnames(x = object)]
+  counts <- as.matrix(x = counts)
+  ncenters <- init %||% (nrow(x = data) + 1)
+  switch(EXPR = kfunc, kmeans = {
+    init.clusters <- kmeans(x = t(x = GetAssayData(object = object, 
+                                                   assay = assay)), centers = ncenters, nstart = nstarts)
+    Idents(object = object, cells = names(x = init.clusters$cluster)) <- init.clusters$cluster
+  }, clara = {
+    init.clusters <- clara(x = t(x = GetAssayData(object = object, 
+                                                  assay = assay)), k = ncenters, samples = nsamples)
+    Idents(object = object, cells = names(x = init.clusters$clustering), 
+           drop = TRUE) <- init.clusters$clustering
+  }, stop("Unknown k-means function ", kfunc, ", please choose from 'kmeans' or 'clara'"))
+  average.expression <- AverageExpression(object = object, 
+                                          assays = assay, verbose = FALSE)[[assay]]
+  if (sum(average.expression == 0) > 0) {
+    stop("Cells with zero counts exist as a cluster.")
+  }
+  discrete <- GetAssayData(object = object, assay = assay)
+  discrete[discrete > 0] <- 0
+  
+  proportion <- discrete
+  for (iter in rownames(x = data)) {
+    values <- counts[iter, colnames(object)]
+    values.use <- values[WhichCells(object = object, idents = levels(x = Idents(object = object))[[which.min(x = average.expression[iter, 
+    ])]])]
+    fit <- suppressWarnings(expr = fitdistrplus::fitdist(data = values.use, 
+                                                         distr = "nbinom"))
+    cutoff <- as.numeric(x = quantile(x = fit, probs = positive.quantile)$quantiles[1])
+    discrete[iter, names(x = which(x = values > cutoff))] <- 1
+    if (verbose) {
+      message(paste0("Cutoff for ", iter, " : ", cutoff, 
+                     " reads"))
+    }
+    if(cutoff == 0){
+      div_by <- 0.1
+    } else {
+      div_by <- cutoff
+    }
+    
+    proportion[iter,] <- values / div_by
+  }
+  npositive <- colSums(x = discrete)
+  classification.global <- npositive
+  classification.global[npositive == 0] <- "Negative"
+  classification.global[npositive == 1] <- "Singlet"
+  classification.global[npositive > 1] <- "Doublet"
+  
+  # Here I do it based on the proportion (count / cutoff). This way, if
+  # the value was higher than the cutoff it will be greater than 1 and if it
+  # is lower it will be less than 1.
+  donor.id <- rownames(x = proportion)
+  hash.max <- apply(X = proportion, MARGIN = 2, FUN = max)
+  hash.maxID <- sapply(X = 1:ncol(x = proportion), FUN = function(x) {
+    max_indices <- which(proportion[, x] == hash.max[x])
+    return(donor.id[min(max_indices)])
+  })
+  
+  hash.second <- apply(X = proportion, MARGIN = 2, FUN = function(x) {
+    sorted_values <- sort(x, decreasing = TRUE)
+    if (length(sorted_values) > 1) {
+      second_max <- sorted_values[2] # Get the second highest value
+      return(second_max)
+    } else {
+      return(NA) # Handle cases where there is no second highest value
+    }
+  })
+  
+  hash.secondID <- sapply(X = 1:ncol(x = proportion), FUN = function(x) {
+    idx <- which(proportion[, x] == hash.second[x])
+    if (length(idx) > 1) {
+      # If there are multiple indices for the second highest value, choose the one not equal to hash.maxID
+      idx <- idx[which(names(idx) != hash.maxID[x])]
+    }
+    return(donor.id[idx[1]])
+  })
+  
+  
+  hash.margin <- hash.max - hash.second
+  doublet_id <- sapply(X = 1:length(x = hash.maxID), FUN = function(x) {
+    return(paste(sort(x = c(hash.maxID[x], hash.secondID[x])), 
+                 collapse = "_"))
+  })
+  classification <- classification.global
+  classification[classification.global == "Negative"] <- "Negative"
+  classification[classification.global == "Singlet"] <- hash.maxID[which(x = classification.global == 
+                                                                           "Singlet")]
+  classification[classification.global == "Doublet"] <- doublet_id[which(x = classification.global == 
+                                                                           "Doublet")]
+  classification.metadata <- data.frame(hash.maxID, hash.secondID, 
+                                        hash.margin, classification, classification.global)
+  colnames(x = classification.metadata) <- paste(assay, c("maxID", 
+                                                          "secondID", "margin", "classification", "classification.global"), 
+                                                 sep = "_")
+  object <- AddMetaData(object = object, metadata = classification.metadata)
+  Idents(object) <- paste0(assay, "_classification")
+  doublets <- rownames(x = object[[]])[which(object[[paste0(assay, 
+                                                            "_classification.global")]] == "Doublet")]
+  Idents(object = object, cells = doublets) <- "Doublet"
+  object$hash.ID <- Idents(object = object)
+  
+  
+  return(list(object = object, proportions = proportion))
+}
 
-seurat_object$tet_hash_id <- seurat_object$hash.ID
+find_hash_id <- function(proportions){
+  new_hash_id <- apply(proportions, MARGIN = 2, FUN = function(x){
+    positive_hits <- x[x > 1]
+    if(length(positive_hits) == 0){
+      return(data.frame("new_hash_id" = "Negative", "full_hash_id" = "Negative"))
+    } else if (length(positive_hits) == 1){
+      return(data.frame("new_hash_id" = names(positive_hits),
+                        "full_hash_id" = names(positive_hits)))
+    } else if(any(grepl("DNA-|TET-", names(positive_hits)))) {
+      return(data.frame("new_hash_id" = "Other_Multi_Reactive",
+                        "full_hash_id" = paste(names(positive_hits),
+                                               collapse = "_")))
+    } else {
+      return(data.frame("new_hash_id" = "Islet_Multi_Reactive",
+                        "full_hash_id" = paste(names(positive_hits),
+                                               collapse = "_")))
+    }
+  })
+  
+  new_hash_id <- do.call(rbind, new_hash_id)
+  
+  return(new_hash_id)
+}
 
-seurat_object <- HTODemux(seurat_object, assay = "SCAR_TET", 
-                          positive.quantile = 0.90,
-                          kfunc = "kmeans")
+positive_quantile <- 0.90
 
-seurat_object$scar_hash_id <- seurat_object$hash.ID
+# Run with the old demux and save the output
+test_object <- seurat_object
+
+test_object <- HTODemux(test_object, assay = "TET", 
+                        positive.quantile = positive_quantile,
+                        kfunc = "kmeans")
+
+test_object$tet_hash_id <- as.character(test_object$hash.ID)
+
+test_object$tet_hash_id[test_object$tet_hash_id == "Doublet"] = "Mulit_Reactive"
+
+test_object <- HTODemux(test_object, assay = "SCAR_TET", 
+                        positive.quantile = positive_quantile,
+                        kfunc = "kmeans")
+
+test_object$scar_hash_id <- as.character(test_object$hash.ID)
+
+test_object$scar_hash_id[test_object$scar_hash_id == "Doublet"] = "Mulit_Reactive"
+
+
+test_meta <- test_object[[]] %>%
+  dplyr::select(dplyr::contains("TET_"), dplyr::contains("SCAR_TET_"),
+                dplyr::contains("hash_id"))
+
+write.csv(test_meta, file.path(save_dir, "files", "previous_htodemux_res.csv"))
+
+
+rm(test_object)
+rm(test_meta)
+
+# Run with the new demux and save the object
+return_res <- HTODemuxUpdate(seurat_object, assay = "TET", 
+                             positive.quantile = positive_quantile,
+                             kfunc = "kmeans")
+
+seurat_object <- return_res$object
+proportions <- return_res$proportions
+
+# Based on these proporitions, add a new column that is
+# "islet doublet" if there is more than 2 > 1 and all > 1 are islet reactive
+# "other dobulet" if there is more than 2 > 1 and not all > 1 are islet reactive
+# singlet based on name if there is 1 > 1
+# negative based on name if there is 0 > 1
+new_hash_id <- find_hash_id(proportions)
+
+colnames(new_hash_id) <- c("tet_hash_id", "full_hash_id")
+
+seurat_object <- AddMetaData(seurat_object, metadata = new_hash_id)
+
+# Make an assay for the proportions
+seurat_object[["TET_PROPORTIONS"]] <- CreateAssayObject(data = proportions)
+
+seurat_object$old_hash_id <- seurat_object$hash.ID
+
+return_res <- HTODemuxUpdate(seurat_object, assay = "SCAR_TET", 
+                                positive.quantile = positive_quantile,
+                                kfunc = "kmeans")
+
+seurat_object <- return_res$object
+proportions <- return_res$proportions
+
+# Based on these proporitions, add a new column that is
+# "islet doublet" if there is more than 2 > 1 and all > 1 are islet reactive
+# "other dobulet" if there is more than 2 > 1 and not all > 1 are islet reactive
+# singlet based on name if there is 1 > 1
+# negative based on name if there is 0 > 1
+new_hash_id <- find_hash_id(proportions)
+
+colnames(new_hash_id) <- c("scar_hash_id", "full_scar_hash_id")
+
+seurat_object <- AddMetaData(seurat_object, metadata = new_hash_id)
+
+# Make an assay for the proportions
+seurat_object[["SCAR_TET_PROPORTIONS"]] <- CreateAssayObject(data = proportions)
+
+
+seurat_object$old_scar_hash_id <- seurat_object$hash.ID
+
+
+
+# seurat_object <- HTODemux(seurat_object, assay = "SCAR_TET",
+#                           positive.quantile = 0.90,
+#                           kfunc = "kmeans")
+# 
+# table(seurat_object$scar_hash_id, seurat_object$hash.ID)
 
 cm <- confusionMatrix(seurat_object$tet_hash_id,
                       seurat_object$scar_hash_id)
 
 cm <- cm / rowSums(cm)
+
+graphics.off()
 
 pdf(file.path(save_dir, "images", "hto_demux_heatmap.pdf"))
 

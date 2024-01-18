@@ -50,56 +50,24 @@ if(normalization_method == "SCT"){
 save_dir <- file.path(results_dir, "R_analysis", sample)
 
 # Read in data
-seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
+seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed_no_doublet.rds"))
 
 ifelse(!dir.exists(file.path(save_dir, "images", "vdj_analysis")),
        dir.create(file.path(save_dir, "images", "vdj_analysis")),
        FALSE)
 
 # Colors -----------------------------------------------------------------------
-final_colors <- c("Resting_memory" = "#924bdb", # Resting memory
-                  "Naive_1" = "#69ba3d", # Naive 1
-                  "Naive_2" = "#9a43a4", # Naive 2
-                  "Memory_IgE_IgG" = "#bf9b31", # Memory IgE/IgG1
-                  "Naive_3" = "#6477ce", # Naive 3
-                  "Memory_IgA" = "#d15131", # Memory IA
-                  "Early_memory" = "#4c9e8e", # Early Memory
-                  "BND2" = "#cc4570", #Bnd2
-                  "DN2" = "#648d4f", # DN2
-                  "Activated_memory" = "#985978", # Activated memory
-                  "Activated_naive" = "#a06846", # Activated naive
-                  "B.intermediate" = "#00008b",
-                  "CD14.Mono" = "#e0205a",
-                  "pDC" = "#ffb6d3",
-                  "Plasmablast" = "#ffac14",
-                  "CD8.TEM" = "#000000") 
-
-tetramer_colors <- MetBrewer::met.brewer(name = "Juarez", n = 7,
-                                         type = "continuous")
-names(tetramer_colors) <- c("Negative", "Doublet", "INS-tet", "TET-tet",
-                            "IA2-tet", "GAD-tet", "DNA-tet")
-
-sample_colors <- MetBrewer::met.brewer(name = "Archambault", n = 16,
-                                       type = "continuous")
+all_colors <- readRDS(file = file.path("files/all_colors.rds"))
 
 
-all_samples <- unique(seurat_data$sample)
+final_colors <- all_colors$cell_type_colors
 
-names(sample_colors) <- all_samples
+tetramer_colors <- all_colors$tetramer_colors
 
-antigen_colors <- MetBrewer::met.brewer(name = "Demuth", n = 4,
-                                        type = "discrete")
-
-names(antigen_colors) <- c("Negative", "Tet_antigen", "other",
-                           "diabetes_antigen")
+sample_colors <- all_colors$sample_colors
 
 
-status_colors <- MetBrewer::met.brewer(name = "Egypt", n = 4,
-                                       type = "discrete")
-
-seurat_data$Status <- gsub(" ", "_", seurat_data$Status)
-
-names(status_colors) <- c("nd", "no", "aab_stage_1", "aab_stage_2")
+status_colors <- all_colors$status_colors
 
 celltypes_keep <- c("Naive_1", "Naive_3",
                      "BND2", "B.intermediate",
@@ -112,23 +80,22 @@ seurat_data <- subset(seurat_data, subset = RNA_combined_celltype %in% celltypes
 
 
 # Any diabetes antigen and no binding
-name_mapping <- c("INS-tet" = "diabetes_antigen",
-                  "GAD-tet" = "diabetes_antigen",
-                  "IA2-tet" = "diabetes_antigen",
-                  "TET-tet" = "Tet_antigen",
+name_mapping <- c("INS-tet" = "Islet_Reactive",
+                  "GAD-tet" = "Islet_Reactive",
+                  "IA2-tet" = "Islet_Reactive",
+                  "TET-tet" = "TET-tet",
                   "Negative" = "Negative",
-                  "Doublet" = "other",
-                  "DNA-tet" = "other")
+                  "DNA-tet" = "Negative")
 
-seurat_data$test_id <- name_mapping[as.character(seurat_data$tet_hash_id)]
+seurat_data$test_id <- name_mapping[as.character(seurat_data$scar_hash_id)]
 
-immcantation_docs <- lapply(unique(seurat_data$sample), function(x){
+immcantation_docs <- lapply(unique(seurat_data$Sample.Name), function(x){
   immcantation_path <- file.path(here("results", x, "outs", 
                                       "immcantation", "filtered_contig_igblast_db-pass.tsv"))
   
   vdj_data <- alakazam::readChangeoDb(immcantation_path)
   
-  seurat_sample <- subset(seurat_data, subset = sample == x)
+  seurat_sample <- subset(seurat_data, subset = Sample.Name == x)
   
   seurat_meta <- seurat_sample[[]] %>%
     dplyr::select(sample, ID, Initials, Sex, Status, tet_hash_id,
@@ -165,14 +132,11 @@ gene2_wide <- gene %>%
   tidyr::pivot_wider(names_from = Status, values_from = seq_freq) %>%
   rowwise() %>%
   dplyr::mutate_all(~replace_na(.,0)) %>%
-  dplyr::mutate(no_a2 = abs(no - aab_stage_2),
-                no_a1 = abs(no - aab_stage_1),
-                no_nd = abs(no - nd),
-                nd_a2 = abs(nd - aab_stage_2),
-                nd_a1 = abs(nd - aab_stage_1),
-                a1_a2 = abs(aab_stage_1 - aab_stage_2)) %>%
-  dplyr::mutate(max_diff = max(no_a2, no_a1, no_nd, nd_a2, nd_a1, a1_a2,
-                               na.rm = TRUE)) %>%
+  dplyr::mutate(t1d_aab = abs(T1D - AAB),
+                t1d_nd = abs(T1D - ND),
+                nd_aab = abs(ND - AAB)) %>%
+  dplyr::mutate(max_diff = max(t1d_aab, t1d_nd, nd_aab),
+                               na.rm = TRUE) %>%
   dplyr::arrange(desc(max_diff))
 
 individual_plot <- gene2 %>%
@@ -217,16 +181,16 @@ dev.off()
 
 # Split by hash id -------------------------------------------------------------
 gene3 <- countGenes(immcantation_docs, gene="v_call", 
-                    groups=c("Status", "sample", "TET_classification"),
+                    groups=c("Status", "sample", "scar_hash_id"),
                     mode="gene")
 
 gene_test <- countGenes(immcantation_docs, gene="v_call", 
-                        groups=c("Status", "TET_classification"),
+                        groups=c("Status", "scar_hash_id"),
                         mode="gene")
 
 # Try to find the ones with the greatest differences?
 gene3_wide <- gene_test %>%
-  dplyr::mutate(status_classification = paste(Status, TET_classification,
+  dplyr::mutate(status_classification = paste(Status, scar_hash_id,
                                               sep = "_")) %>%
   dplyr::ungroup() %>%
   dplyr::select(gene, seq_freq, status_classification) %>%
@@ -236,7 +200,7 @@ gene3_wide <- gene_test %>%
 
 # Find genes that are different between the status within a tet ----------------
 
-all_tets <- unique(immcantation_docs$TET_classification)
+all_tets <- unique(immcantation_docs$scar_hash_id)
 singlet_tets <- all_tets[!grepl("_", all_tets)]
 doublet_tets <- all_tets[grepl("_", all_tets)]
 
@@ -277,13 +241,13 @@ all_comparisons <- lapply(singlet_tets, function(x){
   
   individual_plot <- gene3 %>%
     dplyr::filter(gene %in% individual_comparisons$gene[1:10]) %>%
-    dplyr::filter(TET_classification == x)
+    dplyr::filter(scar_hash_id == x)
   
 
   
   status_plot <- gene_test %>% 
     dplyr::filter(gene %in% individual_comparisons$gene[1:10]) %>%
-    dplyr::filter(TET_classification == x)
+    dplyr::filter(scar_hash_id == x)
   
   g3 <- ggplot(individual_plot, aes(x=gene, y=seq_freq)) +
     theme_bw() +
@@ -325,7 +289,7 @@ dev.off()
 
 # Repeat by genes that are different between tets within status ----------------
 
-all_tets <- unique(immcantation_docs$TET_classification)
+all_tets <- unique(immcantation_docs$scar_hash_id)
 singlet_tets <- all_tets[!grepl("_", all_tets)]
 doublet_tets <- all_tets[grepl("_", all_tets)]
 
@@ -368,11 +332,11 @@ all_comparisons <- lapply(all_status, function(x){
   
   individual_plot <- gene3 %>%
     dplyr::filter(gene %in% individual_comparisons$gene[1:10]) %>%
-    dplyr::filter(Status == x, TET_classification %in% singlet_tets)
+    dplyr::filter(Status == x, scar_hash_id %in% singlet_tets)
 
   status_plot <- gene_test %>% 
     dplyr::filter(gene %in% individual_comparisons$gene[1:10]) %>%
-    dplyr::filter(Status == x, TET_classification %in% singlet_tets)
+    dplyr::filter(Status == x, scar_hash_id %in% singlet_tets)
   
   g3 <- ggplot(individual_plot, aes(x=gene, y=seq_freq)) +
     theme_bw() +
@@ -382,7 +346,7 @@ all_comparisons <- lapply(all_status, function(x){
     xlab("") +
     scale_y_continuous() +
     scale_color_manual(values = tetramer_colors) +
-    geom_point(aes(color=TET_classification), size=5, alpha=0.8)
+    geom_point(aes(color=scar_hash_id), size=5, alpha=0.8)
   
   g4 <- ggplot(status_plot, aes(x=gene, y=seq_freq)) +
     theme_bw() +
@@ -392,7 +356,7 @@ all_comparisons <- lapply(all_status, function(x){
     xlab("") +
     scale_y_continuous() +
     scale_color_manual(values = tetramer_colors) +
-    geom_point(aes(color=TET_classification), size=5, alpha=0.8)
+    geom_point(aes(color=scar_hash_id), size=5, alpha=0.8)
   
   final_plot <- cowplot::plot_grid(g3, g4, nrow = 1, ncol = 2)
   

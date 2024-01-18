@@ -1,0 +1,48 @@
+﻿Class,Systemic name,Common synonyms,Receptor
+CXC (α),CXCL1,"GROα, MGSA, KC (mouse), MIP-2 (mouse)",CXCR2
+,CXCL2,"GROβ, MIP-2α",CXCR2
+,CXCL3,"GROγ, MIP-2β",CXCR2
+,CXCL4,Platelet factor 4,Unknown
+,CXCL5,ENA-78,CXCR2
+,CXCL6,GCP-2,"CXCR1, CXCR2"
+,CXCL7,"PBP, CTAP-III, β-TG, NAP-2",CXCR2
+,CXCL8,"IL-8, MDNCF, GCP, LIF, NAP-1, LYNAP","CXCR1, CXCR2"
+,CXCL9,"Mig, CGR-10 (mouse)",CXCR3
+,CXCL10,"IP-10, CGR2 (mouse)",CXCR3
+,CXCL11,"I-TAC, β-R1, IP9, H174",CXCR3
+,CXCL12,"SDF-1α, SDF-1β, PBSF, TLSF, TPAR1",CXCR4
+,CXCL13,"BCA-1, BLC",CXCR5
+,CXCL14,"BRAK, Bolekine",Unknown
+,CXCL15,,Unknown
+,CXCL16,,CXCR6
+CC(β),CCL1,"1-309, TCA-3 (mouse), SIS-f (mouse)",CCR8
+,CCL2,"MCP-1, MCAF, HC11, JE (mouse)",CCR2
+,CCL3,"MIP-1α, LD-78α, PAT464, GOS19, hSISα","CCR1, CCR5"
+,CCL4,"MIP-1β, ACT-2, HC21, MAD-5, LAG-1",CCR5
+,CCL5,"RANTES, SIS-δ","CCR1, CCR3, CCR5"
+,CCL6,"C10 (mouse), MRP-1 (mouse)",Unknown
+,CCL7,"MCP-3, NC28, FIC, MARC (mouse)","CCR1, CCR2, CCR3"
+,CCL8,"MCP-2, HC14",CCR3
+,CCL9,"MRP-2 (mouse), MIP-1γ (mouse)",Unknown
+,CCL10,,Unknown
+,CCL11,Eotaxin,CCR3
+,CCL12,MCP-5 (mouse),CCR2
+,CCL13,"MCP-4, ckβ10, NCC-1","CCR2, CCR3"
+,CCL14,"CC-1, HCC-1, NCC-2, CCCK-1, Ckβ1",CCR1
+,CCL15,"HCC-2, Lkn-1, MIP-5, CC-2, NCC-3","CCR1, CCR3"
+,CCL16,"HCC-4, LEC, NCC-4, LMC, Mtn-1, LCC-1",CCR1
+,CCL17,TARC,CCR4
+,CCL18,"DC-CK-1, PARC, MIP-4, AMAC-1, ckβ7",Unknown
+,CCL19,"MIP-3β, ELC, exodus-3, ckβ11",CCR7
+,CCL20,"MIP-3α, LARC, exodus-1, ST38 (mouse)",CCR6
+,CCL21,"6Ckine, SLC, exodus-2, TCA4, ckβ9",CCR7
+,CCL22,"MDC, STCP-1, dc/βck (mouse)",CCR4
+,CCL23,"MPIF-1, MIP-3, ckβ8-1",CCR1
+,CCL24,"Eotaxin-2, MPIF-2, ckβ6",CCR3
+,CCL25,"TECK, ckβ15",CCR9
+,CCL26,"Eotaxin-3, MIP-4α",CCR3
+,CCL27,"ESkine, CTACK, skinkine, ILC (mouse)",CCR10
+,CCL28,MEC,CCR10
+C (γ),XCL1,"Lymphotactin α, SCM-1α",XCR1
+,XCL2,"Lymphotactin β, SCM-1β",XCR2
+CX3C (δ),CX3CL1,"Fractalkine, neurotactin (mouse)",CX3CR1

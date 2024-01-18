@@ -35,7 +35,7 @@ if(normalization_method == "SCT"){
 save_dir <- file.path(results_dir, "R_analysis", sample)
 
 seurat_data <- readRDS(file = file.path(save_dir, "rda_obj",
-                                        "seurat_adtnorm.rds"))
+                                        "seurat_processed_no_doublet.rds"))
 
 
 # MBC CD66 = CEACAM1
