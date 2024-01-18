@@ -780,6 +780,7 @@ for(cells_use in c("all", "memory")){
     # member.
     
     for(test_type in all_odds$test_use){
+      graphics.off()
       odds_use <- all_odds %>%
         dplyr::filter(test_use == test_type)
       odds_plot <- ggplot2::ggplot(odds_use, 
@@ -790,10 +791,10 @@ for(cells_use in c("all", "memory")){
         
         ggplot2::geom_errorbar(ggplot2::aes(ymin = X95_conf_int_low,
                                             ymax = X95_conf_int_high,
-                                            color = status),
+                                            color = sig_status),
                                position = ggplot2::position_dodge(width = 0.75)) +
         ggplot2::geom_point(position = position_dodge(width=0.75),
-                            aes(color = status)) +
+                            aes(color = sig_status)) +
         ggplot2::geom_hline(yintercept = 1, linetype = "dashed") +
         ggplot2::scale_color_manual(values = plot_colors) +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45,
@@ -816,7 +817,7 @@ for(cells_use in c("all", "memory")){
                                             color = sig_status),
                                position = ggplot2::position_dodge(width = 0.75)) +
         ggplot2::geom_point(position = position_dodge(width=0.75),
-                            aes(color = status)) +
+                            aes(color = sig_status)) +
         ggplot2::geom_hline(yintercept = 1, linetype = "dashed") +
         ggplot2::scale_color_manual(values = plot_colors) +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45,
@@ -826,7 +827,7 @@ for(cells_use in c("all", "memory")){
       # Save data
       pdf(file.path(save_dir_stats, paste0(test_type, "_",
                                            "combined_odds_ratio.pdf")),
-          width = 8, height = 12)
+          width = 12, height = 6)
       print(odds_plot)
       print(odds_plot_ord)
       dev.off()

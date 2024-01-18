@@ -73,7 +73,16 @@ all_objs <- lapply(samples_use, function(x){
 })
 
 # Merge Seurat objects
-seurat_data <- merge(all_objs[[1]], all_objs[2:length(all_objs)])
+seurat_data <- merge(all_objs[[1]], all_objs[2:length(all_objs)],
+                     add.cell.ids = samples_use)
+
+# Remove any cells that aren't b cells
+remove_celltypes <- c("CD14.Mono", "CD16.Mono", "CD4.TCM",
+                      "CD8.Naive", "CD8.TCM", "CD8.TEM",
+                      "gdT", "NK", "pDC")
+
+`%notin%` <- Negate(`%in%`)
+seurat_data <- subset(seurat_data, subset = RNA_celltype %notin% remove_celltypes)
 
 seurat_data$old_status <- seurat_data$Status
 
@@ -217,22 +226,28 @@ saveRDS(seurat_data, file = file.path(save_dir, "rda_obj",
                                       "seurat_adtnorm.rds"))
 
 # Colors -----------------------------------------------------------------------
+# final_colors <- c("Resting_memory" = "#924bdb", # Resting memory
+#                   "Naive_1" = "#69ba3d", # Naive 1
+#                   "Naive_2" = "#9a43a4", # Naive 2
+#                   "Memory_IgE_IgG" = "#bf9b31", # Memory IgE/IgG1
+#                   "Naive_3" = "#6477ce", # Naive 3
+#                   "Memory_IgA" = "#d15131", # Memory IA
+#                   "Early_memory" = "#4c9e8e", # Early Memory
+#                   "BND2" = "#cc4570", #Bnd2
+#                   "DN2" = "#648d4f", # DN2
+#                   "Activated_memory" = "#985978", # Activated memory
+#                   "Activated_naive" = "#a06846", # Activated naive
+#                   "B.intermediate" = "#00008b",
+#                   "CD14.Mono" = "#e0205a",
+#                   "pDC" = "#ffb6d3",
+#                   "Plasmablast" = "#ffac14",
+#                   "CD8.TEM" = "#000000")
+
 final_colors <- c("Resting_memory" = "#924bdb", # Resting memory
-                  "Naive_1" = "#69ba3d", # Naive 1
-                  "Naive_2" = "#9a43a4", # Naive 2
-                  "Memory_IgE_IgG" = "#bf9b31", # Memory IgE/IgG1
-                  "Naive_3" = "#6477ce", # Naive 3
-                  "Memory_IgA" = "#d15131", # Memory IA
-                  "Early_memory" = "#4c9e8e", # Early Memory
-                  "BND2" = "#cc4570", #Bnd2
-                  "DN2" = "#648d4f", # DN2
-                  "Activated_memory" = "#985978", # Activated memory
-                  "Activated_naive" = "#a06846", # Activated naive
-                  "B.intermediate" = "#00008b",
-                  "CD14.Mono" = "#e0205a",
-                  "pDC" = "#ffb6d3",
-                  "Plasmablast" = "#ffac14",
-                  "CD8.TEM" = "#000000") 
+                  "Naive" = "#69ba3d", # Naive 1
+                  "Activated_memory" = "#a06846", # Activated memory
+                  "Translational_Intermediate" = "#4c9e8e",
+                  "Plasmablast" = "#bf9b31") 
 
 tetramer_full_colors <- MetBrewer::met.brewer(name = "Monet", n = 12,
                                          type = "continuous")
