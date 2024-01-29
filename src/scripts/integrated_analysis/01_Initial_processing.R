@@ -243,10 +243,10 @@ saveRDS(seurat_data, file = file.path(save_dir, "rda_obj",
 #                   "Plasmablast" = "#ffac14",
 #                   "CD8.TEM" = "#000000")
 
-final_colors <- c("Resting_memory" = "#924bdb", # Resting memory
+final_colors <- c("Resting_Memory" = "#924bdb", # Resting memory
                   "Naive" = "#69ba3d", # Naive 1
-                  "Activated_memory" = "#a06846", # Activated memory
-                  "Translational_Intermediate" = "#4c9e8e",
+                  "Memory" = "#a06846", # Activated memory
+                  "ABC" = "#4c9e8e",
                   "Plasmablast" = "#bf9b31") 
 
 tetramer_full_colors <- MetBrewer::met.brewer(name = "Monet", n = 12,

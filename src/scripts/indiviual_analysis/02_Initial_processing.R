@@ -18,7 +18,7 @@ args <- commandArgs(trailingOnly = TRUE)
 
 sample <- args[[1]]
 sample <- gsub("__.*", "", sample)
-#sample <- "JH310-12_EB"
+#sample <- "JH310-12_NG"
 
 sample_info <- args[[4]]
 #sample_info <- here("files/sample_info.tsv")
@@ -259,6 +259,18 @@ seurat_object[["TET"]] <- CreateAssayObject(counts = all_tetramers)
 seurat_object <- NormalizeData(seurat_object, assay = "TET",
                                normalization.method = "CLR", margin = 2)
 
+
+# Libra score clr of psuedocount then z-score
+clr_matrix <- log2((all_tetramers + 1) / rowMeans(all_tetramers))
+
+libra_score <- scale(clr_matrix, center = TRUE, scale = TRUE)
+
+seurat_object[["TET_LIBRA"]] <- CreateAssayObject(counts = all_tetramers)
+
+seurat_object <- SetAssayData(object = seurat_object, slot = "data", 
+                              assay = "TET_LIBRA", new.data = libra_score)
+
+
 # Add in scar counts -----------------------------------------------------------
 scar_counts <- read.csv(file.path(save_dir,
                                   "files", "scar_denoised.csv"),
@@ -302,11 +314,20 @@ norm_data <- log1p(all_tetramers)
 seurat_object <- SetAssayData(object = seurat_object, slot = "data", 
                               assay = "SCAR_TET_LOG", new.data = norm_data)
 
+clr_matrix <- log2((all_tetramers + 1) / rowMeans(all_tetramers))
+
+libra_score_scar <- scale(clr_matrix, center = TRUE, scale = TRUE)
+
+seurat_object[["SCAR_TET_LIBRA"]] <- CreateAssayObject(counts = all_tetramers)
+
+seurat_object <- SetAssayData(object = seurat_object, slot = "data", 
+                              assay = "SCAR_TET_LIBRA", new.data = libra_score_scar)
 
 # HTO demux --------------------------------------------------------------------
 HTODemuxUpdate <- function(object, assay = "HTO", positive.quantile = 0.99,
                            init = NULL, nstarts = 100, kfunc = "clara", 
                            nsamples = 100, seed = 42, verbose = TRUE){
+  cutoff_list <- c()
   if (!is.null(x = seed)) {
     set.seed(seed = seed)
   }
@@ -347,6 +368,9 @@ HTODemuxUpdate <- function(object, assay = "HTO", positive.quantile = 0.99,
       message(paste0("Cutoff for ", iter, " : ", cutoff, 
                      " reads"))
     }
+    new_cutoff <- c(cutoff)
+    names(new_cutoff) <- iter
+    cutoff_list <- c(cutoff_list, new_cutoff)
     if(cutoff == 0){
       div_by <- 0.1
     } else {
@@ -415,12 +439,12 @@ HTODemuxUpdate <- function(object, assay = "HTO", positive.quantile = 0.99,
   object$hash.ID <- Idents(object = object)
   
   
-  return(list(object = object, proportions = proportion))
+  return(list(object = object, proportions = proportion, cutoffs = cutoff_list))
 }
 
-find_hash_id <- function(proportions){
+find_hash_id <- function(proportions, cutoff_val = 1){
   new_hash_id <- apply(proportions, MARGIN = 2, FUN = function(x){
-    positive_hits <- x[x > 1]
+    positive_hits <- x[x > cutoff_val]
     if(length(positive_hits) == 0){
       return(data.frame("new_hash_id" = "Negative", "full_hash_id" = "Negative"))
     } else if (length(positive_hits) == 1){
@@ -442,7 +466,7 @@ find_hash_id <- function(proportions){
   return(new_hash_id)
 }
 
-positive_quantile <- 0.90
+positive_quantile <- 0.99
 
 # Run with the old demux and save the output
 test_object <- seurat_object
@@ -481,6 +505,7 @@ return_res <- HTODemuxUpdate(seurat_object, assay = "TET",
 
 seurat_object <- return_res$object
 proportions <- return_res$proportions
+cutoffs <- return_res$cutoffs
 
 # Based on these proporitions, add a new column that is
 # "islet doublet" if there is more than 2 > 1 and all > 1 are islet reactive
@@ -493,10 +518,94 @@ colnames(new_hash_id) <- c("tet_hash_id", "full_hash_id")
 
 seurat_object <- AddMetaData(seurat_object, metadata = new_hash_id)
 
+# Test with libra seq
+libra_seq_hash <- find_hash_id(libra_score)
+
+colnames(libra_seq_hash) <- c("libra_tet_hash_id", "libra_full_hash_id")
+
+seurat_object <- AddMetaData(seurat_object, metadata = libra_seq_hash)
+
+all_plots <- featDistPlot(seurat_object, c("INS-tet", "IA2-tet", "GAD-tet", 
+                                         "DNA-tet", "TET-tet"),
+                          sep_by = "libra_tet_hash_id",
+             combine = FALSE, assay = "TET")
+
+all_plots2 <- featDistPlot(seurat_object, c("INS-tet", "IA2-tet", "GAD-tet", 
+                                           "DNA-tet", "TET-tet"),
+                          sep_by = "tet_hash_id",
+                          combine = FALSE, assay = "TET")
+
+all_plots3 <- featDistPlot(seurat_object, c("INS-tet", "IA2-tet", "GAD-tet", 
+                                            "DNA-tet", "TET-tet"),
+                           sep_by = "Sample.Name",
+                           combine = FALSE, assay = "TET")
+
+pdf(file.path(save_dir, "images", "libra_hash_id.pdf"))
+print(all_plots)
+
+dev.off()
+
+pdf(file.path(save_dir, "images", "tet_hash_id.pdf"))
+print(all_plots2)
+
+dev.off()
+
+pdf(file.path(save_dir, "images", "sample.pdf"))
+print(all_plots3)
+
+dev.off()
+
+
+all_plots <- featDistPlot(seurat_object, c("INS-tet", "IA2-tet", "GAD-tet", 
+                                           "DNA-tet", "TET-tet"),
+                          sep_by = "libra_tet_hash_id",
+                          combine = FALSE, assay = "TET_LIBRA")
+
+all_plots <- lapply(all_plots, function(x){
+  x +
+    ggplot2::geom_hline(yintercept = 1)
+})
+
+all_plots2 <- featDistPlot(seurat_object, c("INS-tet", "IA2-tet", "GAD-tet", 
+                                            "DNA-tet", "TET-tet"),
+                           sep_by = "tet_hash_id",
+                           combine = FALSE, assay = "TET_LIBRA")
+
+all_plots2 <- lapply(all_plots2, function(x){
+  x +
+    ggplot2::geom_hline(yintercept = 1)
+})
+
+all_plots3 <- featDistPlot(seurat_object, c("INS-tet", "IA2-tet", "GAD-tet", 
+                                            "DNA-tet", "TET-tet"),
+                           sep_by = "Sample.Name",
+                           combine = FALSE, assay = "TET_LIBRA")
+
+all_plots3 <- lapply(all_plots3, function(x){
+  x +
+    ggplot2::geom_hline(yintercept = 1)
+})
+
+pdf(file.path(save_dir, "images", "libra_hash_id_libra.pdf"))
+print(all_plots)
+
+dev.off()
+
+pdf(file.path(save_dir, "images", "tet_hash_id_libra.pdf"))
+print(all_plots2)
+
+dev.off()
+
+pdf(file.path(save_dir, "images", "sample_libra.pdf"))
+print(all_plots3)
+
+dev.off()
 # Make an assay for the proportions
 seurat_object[["TET_PROPORTIONS"]] <- CreateAssayObject(data = proportions)
 
 seurat_object$old_hash_id <- seurat_object$hash.ID
+
+# Repeat with scar
 
 return_res <- HTODemuxUpdate(seurat_object, assay = "SCAR_TET", 
                                 positive.quantile = positive_quantile,
@@ -504,6 +613,7 @@ return_res <- HTODemuxUpdate(seurat_object, assay = "SCAR_TET",
 
 seurat_object <- return_res$object
 proportions <- return_res$proportions
+cutoffs <- return_res$cutoffs
 
 # Based on these proporitions, add a new column that is
 # "islet doublet" if there is more than 2 > 1 and all > 1 are islet reactive
@@ -515,6 +625,143 @@ new_hash_id <- find_hash_id(proportions)
 colnames(new_hash_id) <- c("scar_hash_id", "full_scar_hash_id")
 
 seurat_object <- AddMetaData(seurat_object, metadata = new_hash_id)
+
+# Test with libra seq
+libra_seq_hash <- find_hash_id(libra_score_scar)
+
+colnames(libra_seq_hash) <- c("scar_libra_tet_hash_id", "scar_libra_full_hash_id")
+
+seurat_object <- AddMetaData(seurat_object, metadata = libra_seq_hash)
+
+all_plots <- featDistPlot(seurat_object, c("INS-tet", "IA2-tet", "GAD-tet", 
+                                           "DNA-tet", "TET-tet"),
+                          sep_by = "scar_libra_tet_hash_id",
+                          combine = FALSE, assay = "SCAR_TET")
+
+all_plots2 <- featDistPlot(seurat_object, c("INS-tet", "IA2-tet", "GAD-tet", 
+                                            "DNA-tet", "TET-tet"),
+                           sep_by = "scar_hash_id",
+                           combine = FALSE, assay = "SCAR_TET")
+
+all_plots3 <- featDistPlot(seurat_object, c("INS-tet", "IA2-tet", "GAD-tet", 
+                                            "DNA-tet", "TET-tet"),
+                           sep_by = "Sample.Name",
+                           combine = FALSE, assay = "SCAR_TET")
+
+all_plots4 <- featDistPlot(seurat_object, c("INS-tet", "IA2-tet", "GAD-tet", 
+                                           "DNA-tet", "TET-tet"),
+                          sep_by = "scar_libra_tet_hash_id",
+                          combine = FALSE, assay = "SCAR_TET_LOG")
+
+all_plots4 <- lapply(names(all_plots4), function(plot_name){
+  plot <- all_plots4[[plot_name]]
+  return_plot <- plot +
+    ggplot2::geom_hline(yintercept = log1p(cutoffs[[plot_name]]))
+  
+  return(return_plot)
+})
+
+all_plots5 <- featDistPlot(seurat_object, c("INS-tet", "IA2-tet", "GAD-tet", 
+                                            "DNA-tet", "TET-tet"),
+                           sep_by = "scar_hash_id",
+                           combine = FALSE, assay = "SCAR_TET_LOG")
+
+all_plots5 <- lapply(names(all_plots5), function(plot_name){
+  plot <- all_plots5[[plot_name]]
+  return_plot <- plot +
+    ggplot2::geom_hline(yintercept = log1p(cutoffs[[plot_name]]))
+  
+  return(return_plot)
+})
+
+all_plots6 <- featDistPlot(seurat_object, c("INS-tet", "IA2-tet", "GAD-tet", 
+                                            "DNA-tet", "TET-tet"),
+                           sep_by = "Sample.Name",
+                           combine = FALSE, assay = "SCAR_TET_LOG")
+
+all_plots6 <- lapply(names(all_plots6), function(plot_name){
+  plot <- all_plots6[[plot_name]]
+  return_plot <- plot +
+    ggplot2::geom_hline(yintercept = log1p(cutoffs[[plot_name]]))
+  
+  return(return_plot)
+})
+
+pdf(file.path(save_dir, "images", "scar_libra_hash_id.pdf"))
+print(all_plots)
+
+dev.off()
+
+pdf(file.path(save_dir, "images", "scar_tet_hash_id.pdf"))
+print(all_plots2)
+
+dev.off()
+
+pdf(file.path(save_dir, "images", "scar_sample.pdf"))
+print(all_plots3)
+
+dev.off()
+
+pdf(file.path(save_dir, "images", "scar_libra_hash_id_log.pdf"))
+print(all_plots4)
+
+dev.off()
+
+pdf(file.path(save_dir, "images", "scar_tet_hash_id_log.pdf"))
+print(all_plots5)
+
+dev.off()
+
+pdf(file.path(save_dir, "images", "scar_sample_log.pdf"))
+print(all_plots6)
+
+dev.off()
+
+
+all_plots <- featDistPlot(seurat_object, c("INS-tet", "IA2-tet", "GAD-tet", 
+                                           "DNA-tet", "TET-tet"),
+                          sep_by = "libra_tet_hash_id",
+                          combine = FALSE, assay = "SCAR_TET_LIBRA")
+
+all_plots <- lapply(all_plots, function(x){
+  x +
+    ggplot2::geom_hline(yintercept = 1)
+})
+
+all_plots2 <- featDistPlot(seurat_object, c("INS-tet", "IA2-tet", "GAD-tet", 
+                                            "DNA-tet", "TET-tet"),
+                           sep_by = "tet_hash_id",
+                           combine = FALSE, assay = "SCAR_TET_LIBRA")
+
+all_plots2 <- lapply(all_plots2, function(x){
+  x +
+    ggplot2::geom_hline(yintercept = 1)
+})
+
+all_plots3 <- featDistPlot(seurat_object, c("INS-tet", "IA2-tet", "GAD-tet", 
+                                            "DNA-tet", "TET-tet"),
+                           sep_by = "Sample.Name",
+                           combine = FALSE, assay = "SCAR_TET_LIBRA")
+
+all_plots3 <- lapply(all_plots3, function(x){
+  x +
+    ggplot2::geom_hline(yintercept = 1)
+})
+
+pdf(file.path(save_dir, "images", "scar_libra_hash_id_libra.pdf"))
+print(all_plots)
+
+dev.off()
+
+pdf(file.path(save_dir, "images", "scar_tet_hash_id_libra.pdf"))
+print(all_plots2)
+
+dev.off()
+
+pdf(file.path(save_dir, "images", "scar_sample_libra.pdf"))
+print(all_plots3)
+
+dev.off()
 
 # Make an assay for the proportions
 seurat_object[["SCAR_TET_PROPORTIONS"]] <- CreateAssayObject(data = proportions)

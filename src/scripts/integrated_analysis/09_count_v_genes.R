@@ -58,12 +58,25 @@ seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed_no_doubl
 
 # Get mean and sd of insulin, gad and ia2
 
-assay_data <- GetAssayData(seurat_data, slot = "data", assay = "SCAR_TET_PROPORTIONS") %>%
+assay_data1 <- GetAssayData(seurat_data, slot = "data", assay = "SCAR_TET_PROPORTIONS") %>%
   as.matrix() %>%
   t() %>%
   data.frame
 
-seurat_data <- AddMetaData(seurat_data, metadata = assay_data)
+colnames(assay_data1) <- paste0("bimodal_cutoff_", colnames(assay_data1))
+
+seurat_data <- AddMetaData(seurat_data, metadata = assay_data1)
+
+
+assay_data2 <- GetAssayData(seurat_data, slot = "data", assay = "SCAR_TET_LIBRA") %>%
+  as.matrix() %>%
+  t() %>%
+  data.frame
+
+colnames(assay_data2) <- paste0("libra_cutoff_", colnames(assay_data2))
+
+
+seurat_data <- AddMetaData(seurat_data, metadata = assay_data2)
 
 
 # Pull out v_gene information
@@ -75,10 +88,10 @@ sep_columns <- c("chains", "cdr3", "cdr3_length",
                  "all_ins", "all_del", "all_mis", "vd_ins", "vd_del", "dj_ins",
                  "dj_del", "v_mis_freq", "d_mis_freq", "j_mis_freq",
                  "c_mis_freq", "all_mis_freq")
-keep_columns <- c("isotype", "RNA_combined_celltype", "sample", "paired",
+keep_columns <- c("isotype", "final_celltype", "sample", "paired",
                   "clonotype_id", "Status", "scar_hash_id", "full_scar_hash_id",
-                  "all_chains", "INS.tet", "TET.tet", "GAD.tet", "IA2.tet",
-                  "DNA.tet")
+                  "scar_libra_hash_id", "scar_libra_full_hash_id",
+                  "all_chains", colnames(assay_data1), colnames(assay_data2))
 
 all_info <- seurat_data[[]] %>%
   dplyr::mutate(all_chains = chains) %>%
@@ -147,7 +160,7 @@ count_v_j_gene <- lapply(unique(all_v_genes$v_gene), function(x){
     dplyr::group_by(j_gene, isotype) %>%
     dplyr::add_count(name = "j_gene_isotype_frequency") %>%
     dplyr::ungroup() %>%
-    dplyr::group_by(j_gene, RNA_combined_celltype) %>%
+    dplyr::group_by(j_gene, final_celltype) %>%
     dplyr::add_count(name = "j_celltype_frequency") %>%
     dplyr::ungroup() %>%
     dplyr::group_by(j_gene, scar_hash_id) %>%
@@ -155,7 +168,7 @@ count_v_j_gene <- lapply(unique(all_v_genes$v_gene), function(x){
     dplyr::ungroup() %>%
     dplyr::group_by(j_gene, Status) %>%
     dplyr::add_count(name = "j_status_frequency") %>%
-    dplyr::select(v_gene, j_gene, isotype, RNA_combined_celltype, scar_hash_id,
+    dplyr::select(v_gene, j_gene, isotype, final_celltype, scar_hash_id,
                   full_scar_hash_id, Status, dplyr::contains("frequency"), 
                   dplyr::contains("mean"),
                   dplyr::contains("sd")) %>%
@@ -185,12 +198,12 @@ keep_chains <- c("IGH;IGK", "IGH;IGL")
 
 all_info_split_hl <- all_info_split %>%
   dplyr::filter(all_chains %in% keep_chains) %>%
-  dplyr::select(isotype, RNA_combined_celltype, scar_hash_id,
+  dplyr::select(isotype, final_celltype, scar_hash_id,
                 full_scar_hash_id, Status,
                 chains, barcode, v_gene, dplyr::contains("tet")) %>%
   tidyr::pivot_wider(names_from = chains, values_from = v_gene) %>%
   dplyr::mutate(IGK_IGL = ifelse(!is.na(IGK), IGK, IGL)) %>%
-  dplyr::select(IGH, IGK_IGL, isotype, RNA_combined_celltype, scar_hash_id,
+  dplyr::select(IGH, IGK_IGL, isotype, final_celltype, scar_hash_id,
                 full_scar_hash_id, Status, dplyr::contains("tet"))
 
 save_wb <- openxlsx::createWorkbook()
@@ -211,7 +224,7 @@ count_v_hl_gene <- lapply(unique(all_v_genes$v_gene), function(x){
     dplyr::group_by(IGK_IGL, isotype) %>%
     dplyr::add_count(name = "light_gene_isotype_frequency") %>%
     dplyr::ungroup() %>%
-    dplyr::group_by(IGK_IGL, RNA_combined_celltype) %>%
+    dplyr::group_by(IGK_IGL, final_celltype) %>%
     dplyr::add_count(name = "light_celltype_frequency") %>%
     dplyr::ungroup() %>%
     dplyr::group_by(IGK_IGL, scar_hash_id) %>%
@@ -219,7 +232,7 @@ count_v_hl_gene <- lapply(unique(all_v_genes$v_gene), function(x){
     dplyr::ungroup() %>%
     dplyr::group_by(IGK_IGL, Status) %>%
     dplyr::add_count(name = "light_status_frequency") %>%
-    dplyr::select(IGH, IGK_IGL, isotype, RNA_combined_celltype, scar_hash_id,
+    dplyr::select(IGH, IGK_IGL, isotype, final_celltype, scar_hash_id,
                   full_scar_hash_id, Status,
                   dplyr::contains("frequency"), dplyr::contains("mean"),
                   dplyr::contains("sd")) %>%
@@ -255,6 +268,8 @@ clone_info <- read.table(file.path(save_dir, "define_clones",
                                    "immcantation_combined_clone-pass.tsv"),
                          sep = "\t", header = TRUE)
 
+# add c_call to the so
+
 # These are found within samples individually
 sample_clone_info <- read.table(file.path(save_dir, "define_clones",
                                           "immcantation_combined_clone-pass_sample.tsv"),
@@ -272,16 +287,16 @@ clone_info <- clone_info %>%
   dplyr::mutate(sequence_id_sample = paste(sequence_id,
                                            sample, sep = "_")) %>%
   merge(sample_clone_info, by = "sequence_id_sample", all.x = TRUE) %>%
-  dplyr::mutate(cell_sample = paste(cell_id, sample, sep = "_")) %>%
+  dplyr::mutate(cell_sample = paste(sample, cell_id, sep = "_")) %>%
   dplyr::select(-sample)
 
 meta_data <- seurat_data[[]] %>% 
-  dplyr::select(sample, RNA_combined_celltype, Status, scar_hash_id, v_gene,
+  dplyr::select(sample, final_celltype, Status, scar_hash_id, v_gene,
                 j_gene, chains, INS.tet, GAD.tet, IA2.tet, TET.tet, DNA.tet,
                 isotype, full_scar_hash_id, Sample.Name) %>%
   tibble::rownames_to_column("barcode") %>%
   dplyr::mutate(barcode = gsub("_[0-9]+", "", barcode)) %>%
-  dplyr::mutate(cell_sample = paste(barcode, Sample.Name, sep = "_")) %>%
+  dplyr::mutate(cell_sample = barcode) %>%
   dplyr::select(-Sample.Name)
 
 clone_info <- merge(clone_info, meta_data, by = "cell_sample", all.x = TRUE,
@@ -290,18 +305,11 @@ clone_info <- merge(clone_info, meta_data, by = "cell_sample", all.x = TRUE,
 
 # Check number of non-b cells with v gene call
 # We see exactly the number we expect 
-table(is.na(seurat_data$v_gene), seurat_data$RNA_combined_celltype)
+table(is.na(seurat_data$v_gene), seurat_data$final_celltype)
 clone_info_check <- clone_info %>%
-  dplyr::select(cell_sample, RNA_combined_celltype) %>%
+  dplyr::select(cell_sample, final_celltype) %>%
   dplyr::distinct()
-table(clone_info_check$RNA_combined_celltype)
-
-# Subset to only B cells
-b_cells <- c("Activated_memory", "B.intermediate", "BND2", "Memory_IgA",
-             "Naive_1", "Naive_3", "Plasmablast", "Resting_memory")
-
-clone_info <- clone_info %>%
-  dplyr::filter(RNA_combined_celltype %in% b_cells)
+table(clone_info_check$final_celltype)
 
 # clone_id, sample_clone_id
 # clone_id is called across all samples, sample_clone_id is called only
@@ -316,11 +324,13 @@ count_clones <- clone_info %>%
   dplyr::add_count(name = "clone_count") %>%
   dplyr::filter(clone_count >= 3) %>%
   dplyr::select(v_gene, j_gene, cdr3, productive,
-                cdr3, clone_id, sample, RNA_combined_celltype,
+                cdr3, clone_id, sample, final_celltype,
                 Status, scar_hash_id, chains, isotype,
-                INS.tet, GAD.tet, IA2.tet, TET.tet, DNA.tet,
+                dplyr::all_of(c(colnames(assay_data1),
+                              colnames(assay_data2))),
                 clone_count, full_scar_hash_id,
-                sequences, alignment_sequences)
+                sequences, alignment_sequences, scar_libra_hash_id,
+                full_scar_libra_hash_id)
 
 
 # Add in counts for individuals --> how many individuals are seen?
@@ -333,7 +343,7 @@ count_clones <- count_clones %>%
   dplyr::group_by(clone_id, v_gene, j_gene, isotype) %>%
   dplyr::add_count(name = "isotype_count") %>%
   dplyr::ungroup() %>%
-  dplyr::group_by(clone_id, v_gene, j_gene, RNA_combined_celltype) %>%
+  dplyr::group_by(clone_id, v_gene, j_gene, final_celltype) %>%
   dplyr::add_count(name = "cell_type_count") %>%
   dplyr::ungroup() %>%
   dplyr::group_by(clone_id, v_gene, j_gene, scar_hash_id) %>%
@@ -361,9 +371,10 @@ count_clones %>%
 # Break up into clones that are shared between individuals and those that are now
 column_order <- c("clone_id", "final_clone", "v_gene", "j_gene", "cdr3",
                   "chains", "isotype", "productive", "sample", 
-                  "RNA_combined_celltype",  "Status", "scar_hash_id",
-                  "full_scar_hash_id", "INS.tet", "GAD.tet", "IA2.tet",
-                  "TET.tet", "DNA.tet", "clone_count", "sample_count",
+                  "final_celltype",  "Status", "scar_hash_id",
+                  "full_scar_hash_id", "scar_libra_hash_id",
+                  "scar_libra_full_hash_id", colnames(assay_data1),
+                  colnames(assay_data2),"clone_count", "sample_count",
                   "number_of_samples", "isotype_count", "isotype_percent", 
                   "cell_type_count", "cell_type_percent", "tet_binding_count", 
                   "tet_binding_percent", "status_count", "status_percent",
@@ -404,10 +415,47 @@ high_binding <- count_clones %>%
   dplyr::select(v_gene, j_gene, clone_id, scar_hash_id, tet_binding_percent) %>%
   dplyr::distinct()
 
-# Plots
-# CDR3 length as density plot
-# CDR3 length subset to just Class switched with 3+ SHM
-# Percent SHM
 
-# CDR3 length as density plot
+# Add clone info to unmodified seurat object
+seurat_data <- readRDS(file.path(save_dir, "rda_obj", 
+                                 "seurat_processed_no_doublet.rds"))
 
+
+add_info <- clone_info %>%
+  dplyr::filter(locus == "IGH") %>%
+  dplyr::filter(cell_sample %in% colnames(seurat_data)) %>%
+  dplyr::group_by(clone_id) %>%
+  dplyr::arrange(v_gene, j_gene) %>%
+  dplyr::mutate(final_clone = paste(clone_id, cumsum(!duplicated(v_gene, j_gene)),
+                                    sep = "_")) %>%
+  dplyr::ungroup() %>%
+  dplyr::select(final_clone, cell_sample) %>%
+  dplyr::distinct() %>%
+  tibble::column_to_rownames("cell_sample")
+
+
+seurat_data <- AddMetaData(seurat_data, add_info)
+
+# Add in the c gene call
+c_gene <- clone_info %>%
+  dplyr::filter(locus == "IGH") %>%
+  dplyr::select(c_call, cell_sample) %>%
+  dplyr::filter(cell_sample %in% colnames(seurat_data)) %>%
+  dplyr::distinct() %>%
+  dplyr::rename(imcantation_isotype = c_call) %>%
+  tibble::column_to_rownames("cell_sample")
+
+seurat_data <- AddMetaData(seurat_data, c_gene)
+
+
+saveRDS(seurat_data, file.path(save_dir, "rda_obj", 
+                                 "seurat_processed_no_doublet.rds"))
+
+
+# test_data <- seurat_data[[]] %>%
+#   dplyr::select(v_gene, j_gene, final_clone) %>%
+#   dplyr::mutate(clone_id = gsub("_.*", "", final_clone))
+# 
+# test_data %>%
+#   dplyr::filter(clone_id == 64635) %>%
+#   head()

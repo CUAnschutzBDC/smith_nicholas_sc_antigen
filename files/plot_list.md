@@ -7,13 +7,13 @@ Definitely need the sorting strategy
 (Naïve, Transitional (intermediate), Resting Memory, Activated Memory, Plasmablast)
 I'm pretty confused here
 My cell types:
-B. Intermediate
-Plasmablast
-Naive_3
-Naive_1
-Resting memory
-Memory_IgA
-BND2
+B. Intermediate -- Trasitional intermediate
+Plasmablast -- plasmablast
+Naive_3 -- Naive
+Naive_1 -- Naive
+Resting memory -- memory
+Memory_IgA -- memory
+BND2 -- memory
 
 What gets clumped?
 BND, B. Intermediate into Transitional
@@ -44,7 +44,7 @@ Can you send me this gene list?
 16.	SHM histogram - all cells
 17.	SHM histogram - islet-reactive cells
 
-16 and 17 - separated by what? individual?
+16 and 17 - Separate by status
 
 18.	Shannon alpha diversity rarefaction curve of all cells by status
 19.	Jaccard beta diversity rarefaction curve of islet-reactive cells by status
@@ -53,7 +53,7 @@ Why shannon for all and jaccard for islet-reactive?
 
 20.	Count number of islet-reactive clones found within each individual, make a stacked bar chart delineating whether the clones were public (black) or private (white), and group the individuals on the X axis according to disease status. Y axis is the number of clones present according to category. 
 
-Do you want total number of clones or total number of cells that are part of clones?
+Do you want total number of clones or total number of cells that are part of clones? Ignore the size of the clone
 
 21.	Do the same as 20, but instead of raw # of clones, normalize to a percent of total clones found in each individual, so if 4 clones total and 1 was public, 0.25 of the bar is black and 0.75 of the bar is white.
 

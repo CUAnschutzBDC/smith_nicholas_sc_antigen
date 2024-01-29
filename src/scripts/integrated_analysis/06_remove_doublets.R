@@ -305,7 +305,7 @@ for(assay_type in names(pca_list)){
     mutate(type = ifelse(r < cor_cutoff, "undetermined", type))
 
 
-new_clusters <- seurat_cluster$type
+  new_clusters <- seurat_cluster$type
   names(new_clusters) <- seurat_cluster$cluster
   seurat_data[[paste0(seurat_assay, "_combined_celltype")]] <- 
     new_clusters[seurat_data[[paste0(seurat_assay, "_cluster")]][[1]]]
@@ -324,4 +324,16 @@ new_clusters <- seurat_cluster$type
   dev.off()
 
 }
+
+cell_type_mapping <- c("BND2" = "ABC",
+                       "Memory_IgA" = "Memory",
+                       "Memory_IgE_IgG" = "Memory",
+                       "Naive_1" = "Naive",
+                       "Naive_3" = "Naive",
+                       "Plasmablast" = "Plasmablast",
+                       "Resting_memory" = "Resting_Memory")
+
+
+seurat_data$final_celltype <- cell_type_mapping[seurat_data$RNA_combined_celltype]
+
 saveRDS(seurat_data, file.path(save_dir, "rda_obj", "seurat_processed_no_doublet.rds"))

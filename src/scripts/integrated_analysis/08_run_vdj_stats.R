@@ -90,17 +90,12 @@ for(cells_use in c("all", "memory")){
   if(cells_use == "all"){
     vdj_dir <- file.path(save_dir, "images", "vdj_plots")
     vdj_files <- file.path(save_dir, "files", "vdj_files")
-    seurat_data <- subset(seurat_data, 
-                          subset = RNA_combined_celltype %in% 
-                            c("Activated_memory", "Memory_IgA",
-                              "Resting_memory", "B.intermediate",
-                              "BND2", "Naive_1", "Naive_3", "Plasmablast"))
   } else {
     vdj_dir <- file.path(save_dir, "images", "memory_vdj_plots")
     vdj_files <- file.path(save_dir, "files", "memory_vdj_files")
     seurat_data <- subset(seurat_data, 
-                          subset = RNA_combined_celltype %in% 
-                            c("Activated_memory", "Memory_IgA",
+                          subset = final_celltype %in% 
+                            c("Memory",
                               "Resting_memory"))
   }
   
@@ -118,7 +113,7 @@ for(cells_use in c("all", "memory")){
                    "all_ins", "all_del", "all_mis", "vd_ins", "vd_del", "dj_ins",
                    "dj_del", "v_mis_freq", "d_mis_freq", "j_mis_freq",
                    "c_mis_freq", "all_mis_freq")
-  keep_columns <- c("isotype", "RNA_combined_celltype", "sample", "paired",
+  keep_columns <- c("isotype", "final_celltype", "sample", "paired",
                     "clonotype_id", "Status", "tet_hash_id", "all_chains", 
                     "scar_hash_id")
   
@@ -629,7 +624,9 @@ for(cells_use in c("all", "memory")){
     # Do full p-value correction for the stats tests
     all_odds <- lapply(names(all_stats), function(res){
       return_df <- all_stats[[res]]$all_odds_ratio
-      return_df$test <- res
+      if(!is.null(return_df)){
+        return_df$test <- res
+      }
       return(return_df)
     })
     
@@ -640,7 +637,9 @@ for(cells_use in c("all", "memory")){
     
     all_t <- lapply(names(all_stats), function(res){
       return_df <- all_stats[[res]]$all_t_test
-      return_df$test <- res
+      if(!is.null(return_df)){
+        return_df$test <- res
+      }      
       return(return_df)
     })
     

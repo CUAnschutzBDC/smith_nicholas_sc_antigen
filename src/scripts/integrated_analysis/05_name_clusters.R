@@ -217,4 +217,18 @@ for(assay_type in names(pca_list)){
   dev.off()
 }
 
+graphics.off()
+
+cell_type_mapping <- c("BND2" = "ABC", # TBET and cd11c
+                       "CD4.Proliferating" = "Activated_Memory",
+                       "Memory_IgA" = "Memory",
+                       "Memory_IgE_IgG" = "Memory",
+                       "Naive_1" = "Naive",
+                       "Naive_3" = "Naive",
+                       "Plasmablast" = "Plasmablast",
+                       "Resting_memory" = "Resting_Memory")
+
+
+seurat_data$final_celltype <- cell_type_mapping[seurat_data$RNA_combined_celltype]
+
 saveRDS(seurat_data, file.path(save_dir, "rda_obj", "seurat_processed.rds"))

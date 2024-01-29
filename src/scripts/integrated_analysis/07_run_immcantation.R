@@ -69,25 +69,6 @@ sample_colors <- all_colors$sample_colors
 
 status_colors <- all_colors$status_colors
 
-celltypes_keep <- c("Naive_1", "Naive_3",
-                     "BND2", "B.intermediate",
-                     "Memory_IgA", "Resting_memory", 
-                     "Activated_memory",
-                     "Plasmablast")
-
-seurat_data <- subset(seurat_data, subset = RNA_combined_celltype %in% celltypes_keep)
-
-
-
-# Any diabetes antigen and no binding
-name_mapping <- c("INS-tet" = "Islet_Reactive",
-                  "GAD-tet" = "Islet_Reactive",
-                  "IA2-tet" = "Islet_Reactive",
-                  "TET-tet" = "TET-tet",
-                  "Negative" = "Negative",
-                  "DNA-tet" = "Negative")
-
-seurat_data$test_id <- name_mapping[as.character(seurat_data$scar_hash_id)]
 
 immcantation_docs <- lapply(unique(seurat_data$Sample.Name), function(x){
   immcantation_path <- file.path(here("results", x, "outs", 
@@ -99,12 +80,13 @@ immcantation_docs <- lapply(unique(seurat_data$Sample.Name), function(x){
   
   seurat_meta <- seurat_sample[[]] %>%
     dplyr::select(sample, ID, Initials, Sex, Status, tet_hash_id,
-                  scar_hash_id, RNA_combined_celltype, TET_classification) %>%
-    tibble::rownames_to_column("barcode") %>%
-    dplyr::mutate(barcode = gsub("_[0-9]*", "", barcode))
+                  scar_hash_id, final_celltype, full_scar_hash_id) %>%
+    tibble::rownames_to_column("barcode")
+   # dplyr::mutate(barcode = gsub("_[0-9]*", "", barcode))
   
   vdj_data <- vdj_data %>%
     dplyr::mutate(barcode = gsub("_contig_[0-9]", "", sequence_id)) %>%
+    dplyr::mutate(barcode = paste(x, barcode, sep = "_")) %>%
     dplyr::filter(barcode %in% seurat_meta$barcode)
   
   vdj_data <- merge(vdj_data, seurat_meta, by = "barcode")
@@ -117,6 +99,7 @@ immcantation_docs <- do.call(rbind, immcantation_docs)
 immcantation_docs$vj_call <- paste(immcantation_docs$v_call,
                                    immcantation_docs$j_call,
                                    sep = "_")
+
 
 # Quantify usage at the gene level
 gene <- countGenes(immcantation_docs, gene="v_call", 
