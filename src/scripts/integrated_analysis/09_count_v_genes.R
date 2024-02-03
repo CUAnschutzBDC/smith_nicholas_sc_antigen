@@ -58,7 +58,7 @@ seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed_no_doubl
 
 # Get mean and sd of insulin, gad and ia2
 
-assay_data1 <- GetAssayData(seurat_data, slot = "data", assay = "SCAR_TET_PROPORTIONS") %>%
+assay_data1 <- GetAssayData(seurat_data, slot = "data", assay = "NEW_TET_PROPORTIONS") %>%
   as.matrix() %>%
   t() %>%
   data.frame
@@ -89,8 +89,8 @@ sep_columns <- c("chains", "cdr3", "cdr3_length",
                  "dj_del", "v_mis_freq", "d_mis_freq", "j_mis_freq",
                  "c_mis_freq", "all_mis_freq")
 keep_columns <- c("isotype", "final_celltype", "sample", "paired",
-                  "clonotype_id", "Status", "scar_hash_id", "full_scar_hash_id",
-                  "scar_libra_hash_id", "scar_libra_full_hash_id",
+                  "clonotype_id", "Status", "tet_name_cutoff", "full_tet_name_cutoff",
+                  "scar_libra_tet_hash_id", "scar_libra_full_hash_id",
                   "all_chains", colnames(assay_data1), colnames(assay_data2))
 
 all_info <- seurat_data[[]] %>%
@@ -147,29 +147,29 @@ count_v_j_gene <- lapply(unique(all_v_genes$v_gene), function(x){
     dplyr::filter(v_gene == x) %>%
     dplyr::group_by(j_gene) %>%
     dplyr::add_count(name = "j_frequency") %>%
-    dplyr::mutate("INS_mean" = mean(INS.tet),
-                  "INS_sd" = sd(INS.tet),
-                  "TET_mean" = mean(TET.tet),
-                  "TET_sd" = sd(TET.tet),
-                  "GAD_mean" = mean(GAD.tet),
-                  "GAD_sd" = sd(GAD.tet),
-                  "IA2_mean" = mean(IA2.tet),
-                  "IA2_sd" = sd(IA2.tet),
-                  "DNA_mean" = mean(DNA.tet),
-                  "DNA_sd" = sd(DNA.tet)) %>%
+    dplyr::mutate("INS_mean" = mean(bimodal_cutoff_INS.tet),
+                  "INS_sd" = sd(bimodal_cutoff_INS.tet),
+                  "TET_mean" = mean(bimodal_cutoff_TET.tet),
+                  "TET_sd" = sd(bimodal_cutoff_TET.tet),
+                  "GAD_mean" = mean(bimodal_cutoff_GAD.tet),
+                  "GAD_sd" = sd(bimodal_cutoff_GAD.tet),
+                  "IA2_mean" = mean(bimodal_cutoff_IA2.tet),
+                  "IA2_sd" = sd(bimodal_cutoff_IA2.tet),
+                  "DNA_mean" = mean(bimodal_cutoff_DNA.tet),
+                  "DNA_sd" = sd(bimodal_cutoff_DNA.tet)) %>%
     dplyr::group_by(j_gene, isotype) %>%
     dplyr::add_count(name = "j_gene_isotype_frequency") %>%
     dplyr::ungroup() %>%
     dplyr::group_by(j_gene, final_celltype) %>%
     dplyr::add_count(name = "j_celltype_frequency") %>%
     dplyr::ungroup() %>%
-    dplyr::group_by(j_gene, scar_hash_id) %>%
+    dplyr::group_by(j_gene, tet_name_cutoff) %>%
     dplyr::add_count(name = "j_tetramer_frequency") %>%
     dplyr::ungroup() %>%
     dplyr::group_by(j_gene, Status) %>%
     dplyr::add_count(name = "j_status_frequency") %>%
-    dplyr::select(v_gene, j_gene, isotype, final_celltype, scar_hash_id,
-                  full_scar_hash_id, Status, dplyr::contains("frequency"), 
+    dplyr::select(v_gene, j_gene, isotype, final_celltype, tet_name_cutoff,
+                  full_tet_name_cutoff, Status, dplyr::contains("frequency"), 
                   dplyr::contains("mean"),
                   dplyr::contains("sd")) %>%
     dplyr::distinct() %>%
@@ -198,13 +198,13 @@ keep_chains <- c("IGH;IGK", "IGH;IGL")
 
 all_info_split_hl <- all_info_split %>%
   dplyr::filter(all_chains %in% keep_chains) %>%
-  dplyr::select(isotype, final_celltype, scar_hash_id,
-                full_scar_hash_id, Status,
+  dplyr::select(isotype, final_celltype, tet_name_cutoff,
+                full_tet_name_cutoff, Status,
                 chains, barcode, v_gene, dplyr::contains("tet")) %>%
   tidyr::pivot_wider(names_from = chains, values_from = v_gene) %>%
   dplyr::mutate(IGK_IGL = ifelse(!is.na(IGK), IGK, IGL)) %>%
-  dplyr::select(IGH, IGK_IGL, isotype, final_celltype, scar_hash_id,
-                full_scar_hash_id, Status, dplyr::contains("tet"))
+  dplyr::select(IGH, IGK_IGL, isotype, final_celltype, tet_name_cutoff,
+                full_tet_name_cutoff, Status, dplyr::contains("tet"))
 
 save_wb <- openxlsx::createWorkbook()
 
@@ -213,27 +213,29 @@ count_v_hl_gene <- lapply(unique(all_v_genes$v_gene), function(x){
     dplyr::filter(IGH == x) %>%
     dplyr::group_by(IGK_IGL) %>%
     dplyr::add_count(name = "light_frequency") %>%
-    dplyr::mutate("INS_mean" = mean(INS.tet),
-                  "INS_sd" = sd(INS.tet),
-                  "TET_mean" = mean(TET.tet),
-                  "TET_sd" = sd(TET.tet),
-                  "GAD_mean" = mean(GAD.tet),
-                  "GAD_sd" = sd(GAD.tet),
-                  "DNA_mean" = mean(DNA.tet),
-                  "DNA_sd" = sd(DNA.tet)) %>%
+    dplyr::mutate("INS_mean" = mean(bimodal_cutoff_INS.tet),
+                  "INS_sd" = sd(bimodal_cutoff_INS.tet),
+                  "TET_mean" = mean(bimodal_cutoff_TET.tet),
+                  "TET_sd" = sd(bimodal_cutoff_TET.tet),
+                  "GAD_mean" = mean(bimodal_cutoff_GAD.tet),
+                  "GAD_sd" = sd(bimodal_cutoff_GAD.tet),
+                  "IA2_mean" = mean(bimodal_cutoff_IA2.tet),
+                  "IA2_sd" = sd(bimodal_cutoff_IA2.tet),
+                  "DNA_mean" = mean(bimodal_cutoff_DNA.tet),
+                  "DNA_sd" = sd(bimodal_cutoff_DNA.tet)) %>%
     dplyr::group_by(IGK_IGL, isotype) %>%
     dplyr::add_count(name = "light_gene_isotype_frequency") %>%
     dplyr::ungroup() %>%
     dplyr::group_by(IGK_IGL, final_celltype) %>%
     dplyr::add_count(name = "light_celltype_frequency") %>%
     dplyr::ungroup() %>%
-    dplyr::group_by(IGK_IGL, scar_hash_id) %>%
+    dplyr::group_by(IGK_IGL, tet_name_cutoff) %>%
     dplyr::add_count(name = "light_tetramer_frequency") %>%
     dplyr::ungroup() %>%
     dplyr::group_by(IGK_IGL, Status) %>%
     dplyr::add_count(name = "light_status_frequency") %>%
-    dplyr::select(IGH, IGK_IGL, isotype, final_celltype, scar_hash_id,
-                  full_scar_hash_id, Status,
+    dplyr::select(IGH, IGK_IGL, isotype, final_celltype, tet_name_cutoff,
+                  full_tet_name_cutoff, Status,
                   dplyr::contains("frequency"), dplyr::contains("mean"),
                   dplyr::contains("sd")) %>%
     dplyr::distinct() %>%
@@ -291,16 +293,18 @@ clone_info <- clone_info %>%
   dplyr::select(-sample)
 
 meta_data <- seurat_data[[]] %>% 
-  dplyr::select(sample, final_celltype, Status, scar_hash_id, v_gene,
-                j_gene, chains, INS.tet, GAD.tet, IA2.tet, TET.tet, DNA.tet,
-                isotype, full_scar_hash_id, Sample.Name) %>%
+  dplyr::select(sample, final_celltype, Status, tet_name_cutoff, v_gene,
+                j_gene, chains, dplyr::all_of(c(colnames(assay_data1),
+                colnames(assay_data2))),
+                isotype, full_tet_name_cutoff, scar_libra_tet_hash_id, 
+                scar_libra_full_hash_id, Sample.Name) %>%
   tibble::rownames_to_column("barcode") %>%
   dplyr::mutate(barcode = gsub("_[0-9]+", "", barcode)) %>%
   dplyr::mutate(cell_sample = barcode) %>%
   dplyr::select(-Sample.Name)
 
-clone_info <- merge(clone_info, meta_data, by = "cell_sample", all.x = TRUE,
-                    all.y = FALSE)
+clone_info <- merge(clone_info, meta_data, by = "cell_sample", all.x = FALSE,
+                    all.y = TRUE)
 
 
 # Check number of non-b cells with v gene call
@@ -325,12 +329,12 @@ count_clones <- clone_info %>%
   dplyr::filter(clone_count >= 3) %>%
   dplyr::select(v_gene, j_gene, cdr3, productive,
                 cdr3, clone_id, sample, final_celltype,
-                Status, scar_hash_id, chains, isotype,
+                Status, tet_name_cutoff, chains, isotype,
                 dplyr::all_of(c(colnames(assay_data1),
                               colnames(assay_data2))),
-                clone_count, full_scar_hash_id,
-                sequences, alignment_sequences, scar_libra_hash_id,
-                full_scar_libra_hash_id)
+                clone_count, full_tet_name_cutoff,
+                sequences, alignment_sequences, scar_libra_tet_hash_id,
+                scar_libra_full_hash_id)
 
 
 # Add in counts for individuals --> how many individuals are seen?
@@ -346,7 +350,7 @@ count_clones <- count_clones %>%
   dplyr::group_by(clone_id, v_gene, j_gene, final_celltype) %>%
   dplyr::add_count(name = "cell_type_count") %>%
   dplyr::ungroup() %>%
-  dplyr::group_by(clone_id, v_gene, j_gene, scar_hash_id) %>%
+  dplyr::group_by(clone_id, v_gene, j_gene, tet_name_cutoff) %>%
   dplyr::add_count(name = "tet_binding_count") %>%
   dplyr::ungroup() %>%
   dplyr::group_by(clone_id, v_gene, j_gene, Status) %>%
@@ -371,8 +375,8 @@ count_clones %>%
 # Break up into clones that are shared between individuals and those that are now
 column_order <- c("clone_id", "final_clone", "v_gene", "j_gene", "cdr3",
                   "chains", "isotype", "productive", "sample", 
-                  "final_celltype",  "Status", "scar_hash_id",
-                  "full_scar_hash_id", "scar_libra_hash_id",
+                  "final_celltype",  "Status", "tet_name_cutoff",
+                  "full_tet_name_cutoff", "scar_libra_tet_hash_id",
                   "scar_libra_full_hash_id", colnames(assay_data1),
                   colnames(assay_data2),"clone_count", "sample_count",
                   "number_of_samples", "isotype_count", "isotype_percent", 
@@ -410,9 +414,9 @@ test <- count_clones %>%
 
 # Pull out any clones that are 75% or higher for INS, GAD or IA2
 high_binding <- count_clones %>%
-  dplyr::filter(scar_hash_id %in% c("INS-tet", "GAD-tet", "IA2-tet") &
+  dplyr::filter(tet_name_cutoff %in% c("INS-tet", "GAD-tet", "IA2-tet") &
                   tet_binding_percent >= 0.75) %>%
-  dplyr::select(v_gene, j_gene, clone_id, scar_hash_id, tet_binding_percent) %>%
+  dplyr::select(v_gene, j_gene, clone_id, tet_name_cutoff, tet_binding_percent) %>%
   dplyr::distinct()
 
 
