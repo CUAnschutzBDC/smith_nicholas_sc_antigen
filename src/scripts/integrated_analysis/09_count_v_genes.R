@@ -384,6 +384,44 @@ column_order <- c("clone_id", "final_clone", "v_gene", "j_gene", "cdr3",
                   "tet_binding_percent", "status_count", "status_percent",
                   "sequences", "alignment_sequences")
 
+# Rename clones based on previous names
+old_names1 <- openxlsx::readWorkbook(xlsxFile = file.path(v_counting_dir,
+                                                          "clone_expansion_old.xlsx"),
+                                    sheet = 1) 
+old_names2  <- openxlsx::readWorkbook(xlsxFile = file.path(v_counting_dir,
+                                                           "clone_expansion_old.xlsx"),
+                                      sheet = 2) 
+
+oldnames <- rbind(old_names1, old_names2)[,c("clone_id", "final_clone", "v_gene",
+                                            "j_gene", "cdr3", "sample")]
+
+short_clones <- count_clones[, c("clone_id", "final_clone", "v_gene",
+                               "j_gene", "cdr3", "sample")]
+
+colnames(short_clones) <- c("previous_clone", "previous_final_clone",
+                          "v_gene", "j_gene", "cdr3", "sample")
+
+oldnames <- merge(short_clones, oldnames, by = c("v_gene", "j_gene",
+                                                 "cdr3", "sample"))
+
+oldnames <- oldnames[ , c("previous_clone", "previous_final_clone",
+                          "clone_id", "final_clone")]
+
+oldnames <- unique(oldnames)
+
+# Now rename based on the mapping
+clone_mapping <- oldnames$final_clone
+names(clone_mapping) <- oldnames$previous_final_clone
+
+count_clones$final_clone <- clone_mapping[count_clones$final_clone]
+
+clone_mapping <- oldnames$clone_id
+names(clone_mapping) <- oldnames$previous_clone
+count_clones$clone_id <- clone_mapping[as.character(count_clones$clone_id)]
+
+
+
+# Write to a new file
 shared_clones <- count_clones %>%
   dplyr::filter(number_of_samples > 1) %>%
   dplyr::arrange(desc(clone_count)) %>%
@@ -403,15 +441,35 @@ openxlsx::writeData(wb = new_wb, sheet = "public_clones", x = shared_clones)
 openxlsx::addWorksheet(wb = new_wb, sheetName = "expanded_clones")
 openxlsx::writeData(wb = new_wb, sheet = "expanded_clones", x = expanded_clones)
 
+
+# Check for clones that are mostly islet binding
+not_islet_binding_clones <- unique(count_clones[count_clones$tet_name_cutoff %in% 
+                                           c("DNA.tet", "Other_Multi_Reactive",
+                                             "TET.tet"), ]$final_clone)
+
+islet_binding_clones <- unique(count_clones[count_clones$tet_name_cutoff %in%
+                                              c("GAD.tet", "IA2.tet", "INS.tet",
+                                                "Islet_Multi_Reactive"),]$final_clone)
+
+
+`%notin%` <- Negate(`%in%`)
+
+islet_only_binding_clones <- count_clones[count_clones$final_clone %notin%
+                                       not_islet_binding_clones & 
+                                         count_clones$final_clone %in%
+                                         islet_binding_clones, ]
+
+islet_only_binding_clones <- islet_only_binding_clones %>%
+  dplyr::arrange(desc(clone_count)) %>%
+  dplyr::select(dplyr::all_of(column_order))
+
+
+openxlsx::addWorksheet(wb = new_wb, sheetName = "islet_only")
+openxlsx::writeData(wb = new_wb, sheet = "islet_only", x = islet_only_binding_clones)
+
 openxlsx::saveWorkbook(new_wb, file.path(v_counting_dir,
-                                          "clone_expansion.xlsx"), 
+                                         "clone_expansion.xlsx"), 
                        overwrite = TRUE)
-
-test <- count_clones %>%
-  dplyr::filter(clone_id == "110770") %>%
-  data.frame
-
-
 # Pull out any clones that are 75% or higher for INS, GAD or IA2
 high_binding <- count_clones %>%
   dplyr::filter(tet_name_cutoff %in% c("INS-tet", "GAD-tet", "IA2-tet") &

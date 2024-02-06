@@ -61,11 +61,11 @@ seurat_data <- subset(seurat_data, subset = imcantation_isotype != "IGHE")
 # Set up factors ---------------------------------------------------------------
 seurat_data$Status <- factor(seurat_data$Status, levels = c("ND", "AAB", "T1D"))
 
-plotting_levels <- c("Negative", "DNA-tet", "TET-tet", "Other_Multi_Reactive",
-                     "Islet_Multi_Reactive", "IA2-tet", 
-                     "GAD-tet", "INS-tet")
+plotting_levels <- c("Negative", "DNA.tet", "TET.tet", "Other_Multi_Reactive",
+                     "Islet_Multi_Reactive", "IA2.tet", 
+                     "GAD.tet", "INS.tet")
 
-seurat_data$libra_tet_hash_id <- factor(seurat_data$libra_tet_hash_id, 
+seurat_data$tet_name_cutoff <- factor(seurat_data$tet_name_cutoff, 
                                   levels = plotting_levels)
 
 seurat_data$final_celltype <- factor(seurat_data$final_celltype,
@@ -213,7 +213,7 @@ for(clust in unique(all_markers$cluster)){
 }
 
 openxlsx::saveWorkbook(wb = save_excel, 
-                       file = file.path(image_dir, "cluster_markers.xslx"),
+                       file = file.path(image_dir, "cluster_markers.xlsx"),
                        overwrite = TRUE)
 
 # Ran this to make sure the results didn't change with the downsampling,
@@ -279,7 +279,7 @@ dev.off()
 # total cells minus other_multi_reactive
 # (INS/GAD/IA2/Multi-islet/TET/DNA/Negative)
 
-no_other <- subset(seurat_data, subset = libra_tet_hash_id != "Other_Multi_Reactive")
+no_other <- subset(seurat_data, subset = tet_name_cutoff != "Other_Multi_Reactive")
 
 `%notin%` <- Negate(`%in%`)
 
@@ -287,7 +287,9 @@ tetramer_colors_use <- tetramer_colors[names(tetramer_colors) %notin%
                                          c("Other_Multi_Reactive", 
                                            "Islet_Reactive")]
 
-barplot <- stacked_barplots(no_other, meta_col = "libra_tet_hash_id",
+names(tetramer_colors_use) <- make.names(names(tetramer_colors_use))
+
+barplot <- stacked_barplots(no_other, meta_col = "tet_name_cutoff",
                             split_by = "final_celltype",
                             color = tetramer_colors_use) +
   ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
@@ -315,8 +317,8 @@ violin_1 <- featDistPlot(seurat_data, geneset = "INSR",
                          color = final_colors, combine = FALSE)
 
 violin_2 <- featDistPlot(seurat_data, geneset = "INSR",
-                         col_by = "libra_tet_hash_id",
-                         sep_by = "libra_tet_hash_id",
+                         col_by = "tet_name_cutoff",
+                         sep_by = "tet_name_cutoff",
                          color = tetramer_colors, combine = FALSE)
 
 all_violins <- featDistPlot(seurat_data, geneset = c("INSR", "IGHM", "IGHD", 
@@ -398,7 +400,7 @@ dev.off()
 # 15.	Stacked bar chart of islet-reactive cells: y axis = isotype frequency, 
 # x axis = disease status 
 islet_reactive <- subset(isotype, 
-                         subset = libra_tet_hash_id %in% c("Islet_Multi_Reactive",
+                         subset = tet_name_cutoff %in% c("Islet_Multi_Reactive",
                                                      "IA2-tet", "GAD-tet",
                                                      "INS-tet"))
 
@@ -486,7 +488,7 @@ sep_columns <- c("chains", "cdr3", "cdr3_length",
                  "dj_del", "v_mis_freq", "d_mis_freq", "j_mis_freq",
                  "c_mis_freq", "all_mis_freq")
 keep_columns <- c("isotype", "final_celltype", "sample", "paired",
-                  "clonotype_id", "Status", "libra_tet_hash_id", "full_libra_tet_hash_id",
+                  "clonotype_id", "Status", 
                   "all_chains")
 
 all_info <- seurat_data[[]] %>%
