@@ -15,7 +15,9 @@ ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
 
 normalization_method <- "log" # can be SCT or log
 
-args <- commandArgs(trailingOnly = TRUE)
+#args <- commandArgs(trailingOnly = TRUE)
+
+args <- c("merged", here("results"), "", here("files/sample_info.tsv"))
 
 sample <- args[[1]]
 sample <- gsub("__.*", "", sample)
@@ -405,13 +407,53 @@ islet_reactive <- subset(isotype,
                                                      "INS-tet"))
 
 
-islet_cells <- stacked_barplots(islet_reactive, meta_col = "imcantation_isotype",
+islet_cells <- stacked_barplots(isotype, meta_col = "imcantation_isotype",
                                 split_by = "Status", color = isotype_colors)
 
 pdf(file.path(image_dir, "isotype_barplot_islet_reactive.pdf"),
     height = 8, width = 8)
 
 print(islet_cells)
+
+dev.off()
+
+isotype$celltype_cluster <- factor(isotype$celltype_cluster, levels =
+                                     c("Naive_0", "Naive_1", "Naive_3", 
+                                       "Naive_5", "Naive_6", "ABC_7",
+                                       "Resting_Memory_2", "Resting_Memory_8",
+                                       "Resting_Memory_9",
+                                       "Memory_4", "Plasmablast_10",
+                                       "Plasmablast_11"))
+
+
+barplot <- stacked_barplots(isotype, meta_col = "imcantation_isotype",
+                            split_by = "celltype_cluster",
+                            color = isotype_colors) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
+
+pdf(file.path(image_dir, "isotype_barplot_celltype.pdf"),
+    height = 8, width = 8)
+
+print(barplot)
+
+dev.off()
+
+seurat_data$celltype_cluster <- factor(seurat_data$celltype_cluster, levels =
+                                     c("Naive_0", "Naive_1", "Naive_3", 
+                                       "Naive_5", "Naive_6", "ABC_7",
+                                       "Resting_Memory_2", "Resting_Memory_8",
+                                       "Resting_Memory_9",
+                                       "Memory_4", "Plasmablast_10",
+                                       "Plasmablast_11"))
+
+p1 <- featDistPlot(seurat_data, geneset = c("IgD", "IgM", "CD27.1"),
+             assay = "ADT", sep_by = "celltype_cluster",
+             color = cluster_celltype_colors, combine = FALSE)
+
+pdf(file.path(image_dir, "adts_by_cluster.pdf"),
+    height = 8, width = 8)
+
+print(p1)
 
 dev.off()
 

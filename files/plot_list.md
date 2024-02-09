@@ -15,10 +15,7 @@ Resting memory -- memory
 Memory_IgA -- memory
 BND2 -- memory
 
-What gets clumped?
-BND, B. Intermediate into Transitional
-Memory_IgA into ___ memory?
-Combine Naive
+
 
 3.	List of top 10 genes contributing to cell type determination
   * Not these are not really genes contributing to cell type determination as this is not how cell type was determined (this is important for you when writing the text), these are just the top 10 marker genes of each cluster.
@@ -69,3 +66,26 @@ Again this ignores the size of the clone?
 29.	Replicate something similar to [Figure 6 of this paper](https://journals.aai.org/jimmunol/article/198/4/1460/109668/Dysregulation-of-B-Cell-Repertoire-Formation-in) for our samples with all clones (by status)
 30.	Replicate something similar to [Figure 6 of this paper](https://journals.aai.org/jimmunol/article/198/4/1460/109668/Dysregulation-of-B-Cell-Repertoire-Formation-in) for our samples with public clones (by status)
 31.	Replicate something similar to [Figure 6 of this paper](https://journals.aai.org/jimmunol/article/198/4/1460/109668/Dysregulation-of-B-Cell-Repertoire-Formation-in) for our samples with private clones (by status)
+
+
+
+
+# Meeting 2/8/2024
+
+VDJ figure - plots showing proportion of all v genes, circos plots of significant v genes (odds ratio can go in the supplement), antigen specific, compare each antigen to tetanus
+
+proportion of all v-genes is a treemap https://www.geeksforgeeks.org/treemap-with-ggplot2-and-treemapify-in-r/
+https://cran.r-project.org/web/packages/treemapify/vignettes/introduction-to-treemapify.html
+
+## Analysis to add
+Odds ratio of light chain within each heavy chain 
+Odds ratio of insulin, ia2, gad vs tetanus
+
+Heatmap of sample by antigen, value is average of my threshold (proportion). Do this both by all cells and islet reactive only
+
+## Other notes
+Update circos plot to be numeric order
+
+In the stacked barplot by celltype that is separated by sample, reorder sample to group status together
+
+Violin plot, binding by cell type and status rather than isotype and status

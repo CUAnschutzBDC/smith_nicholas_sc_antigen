@@ -114,8 +114,7 @@ for(cells_use in c("all", "memory")){
                    "dj_del", "v_mis_freq", "d_mis_freq", "j_mis_freq",
                    "c_mis_freq", "all_mis_freq")
   keep_columns <- c("isotype", "final_celltype", "sample", "paired",
-                    "clonotype_id", "Status", "tet_hash_id", "all_chains", 
-                    "scar_hash_id")
+                    "clonotype_id", "Status", "tet_name_cutoff", "all_chains")
   
   all_info <- seurat_data[[]] %>%
     dplyr::mutate(all_chains = chains) %>%
@@ -580,12 +579,12 @@ for(cells_use in c("all", "memory")){
       v_df <- list(comparison_builder(starting_df = all_info_split))
       names(v_df) <- "all"
     } else if(x == "antigen") {
-      v_df <- lapply(unique(all_info_split$scar_hash_id), function(y){
+      v_df <- lapply(unique(all_info_split$tet_name_cutoff), function(y){
         subset_df <- all_info_split %>%
-          dplyr::filter(scar_hash_id == y)
+          dplyr::filter(tet_name_cutoff == y)
         return(comparison_builder(starting_df = subset_df))
       })
-      names(v_df) <- unique(all_info_split$scar_hash_id)
+      names(v_df) <- unique(all_info_split$tet_name_cutoff)
     } else if(x == "isotype"){
       isotype_use <- c("IGHA", "IGHD", "IGHG", "IGHM")
       v_df <- lapply(isotype_use, function(y){

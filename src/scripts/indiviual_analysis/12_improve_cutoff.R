@@ -65,6 +65,11 @@ seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed.rds"))
 # Make using the log 
 # Separate by cell type and hash call
 
+if("undetermined" %in% seurat_data$RNA_celltype){
+  seurat_data <- subset(seurat_data, subset = RNA_celltype != "undetermined")
+  
+}
+
 celltype_mapping <- c("Activated_memory" = "Bcell",
                       "CD14.Mono" = "Other",
                       "DN2" = "Bcell",
@@ -73,7 +78,6 @@ celltype_mapping <- c("Activated_memory" = "Bcell",
                       "Naive_1" = "Bcell",
                       "Plasmablast" = "Bcell",
                       "Resting_memory" = "Bcell",
-                      "undetermined" = "Other",
                       "CD8.TCM" = "Other",
                       "Early_Memory" = "Bcell",
                       "Naive_3" = "Bcell",
