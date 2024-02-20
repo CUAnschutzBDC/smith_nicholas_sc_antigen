@@ -63,7 +63,7 @@ assay_data1 <- GetAssayData(seurat_data, slot = "data", assay = "NEW_TET_PROPORT
   t() %>%
   data.frame
 
-colnames(assay_data1) <- paste0("bimodal_cutoff_", colnames(assay_data1))
+colnames(assay_data1) <- paste0("myeloid_t_cutoff_", colnames(assay_data1))
 
 seurat_data <- AddMetaData(seurat_data, metadata = assay_data1)
 
@@ -78,6 +78,15 @@ colnames(assay_data2) <- paste0("libra_cutoff_", colnames(assay_data2))
 
 seurat_data <- AddMetaData(seurat_data, metadata = assay_data2)
 
+assay_data3 <- GetAssayData(seurat_data, slot = "data", assay = "SCAR_TET_PROPORTIONS") %>%
+  as.matrix() %>%
+  t() %>%
+  data.frame
+
+colnames(assay_data3) <- paste0("old_cutoff_", colnames(assay_data3))
+
+
+seurat_data <- AddMetaData(seurat_data, metadata = assay_data3)
 
 # Pull out v_gene information
 sep_columns <- c("chains", "cdr3", "cdr3_length",
@@ -91,7 +100,9 @@ sep_columns <- c("chains", "cdr3", "cdr3_length",
 keep_columns <- c("isotype", "final_celltype", "sample", "paired",
                   "clonotype_id", "Status", "tet_name_cutoff", "full_tet_name_cutoff",
                   "scar_libra_tet_hash_id", "scar_libra_full_hash_id",
-                  "all_chains", colnames(assay_data1), colnames(assay_data2))
+                  "scar_hash_id", "full_scar_hash_id",
+                  "all_chains", colnames(assay_data1), colnames(assay_data2),
+                  colnames(assay_data3))
 
 all_info <- seurat_data[[]] %>%
   dplyr::mutate(all_chains = chains) %>%
@@ -147,16 +158,16 @@ count_v_j_gene <- lapply(unique(all_v_genes$v_gene), function(x){
     dplyr::filter(v_gene == x) %>%
     dplyr::group_by(j_gene) %>%
     dplyr::add_count(name = "j_frequency") %>%
-    dplyr::mutate("INS_mean" = mean(bimodal_cutoff_INS.tet),
-                  "INS_sd" = sd(bimodal_cutoff_INS.tet),
-                  "TET_mean" = mean(bimodal_cutoff_TET.tet),
-                  "TET_sd" = sd(bimodal_cutoff_TET.tet),
-                  "GAD_mean" = mean(bimodal_cutoff_GAD.tet),
-                  "GAD_sd" = sd(bimodal_cutoff_GAD.tet),
-                  "IA2_mean" = mean(bimodal_cutoff_IA2.tet),
-                  "IA2_sd" = sd(bimodal_cutoff_IA2.tet),
-                  "DNA_mean" = mean(bimodal_cutoff_DNA.tet),
-                  "DNA_sd" = sd(bimodal_cutoff_DNA.tet)) %>%
+    dplyr::mutate("INS_mean" = mean(myeloid_t_cutoff_INS.tet),
+                  "INS_sd" = sd(myeloid_t_cutoff_INS.tet),
+                  "TET_mean" = mean(myeloid_t_cutoff_TET.tet),
+                  "TET_sd" = sd(myeloid_t_cutoff_TET.tet),
+                  "GAD_mean" = mean(myeloid_t_cutoff_GAD.tet),
+                  "GAD_sd" = sd(myeloid_t_cutoff_GAD.tet),
+                  "IA2_mean" = mean(myeloid_t_cutoff_IA2.tet),
+                  "IA2_sd" = sd(myeloid_t_cutoff_IA2.tet),
+                  "DNA_mean" = mean(myeloid_t_cutoff_DNA.tet),
+                  "DNA_sd" = sd(myeloid_t_cutoff_DNA.tet)) %>%
     dplyr::group_by(j_gene, isotype) %>%
     dplyr::add_count(name = "j_gene_isotype_frequency") %>%
     dplyr::ungroup() %>%
@@ -213,16 +224,16 @@ count_v_hl_gene <- lapply(unique(all_v_genes$v_gene), function(x){
     dplyr::filter(IGH == x) %>%
     dplyr::group_by(IGK_IGL) %>%
     dplyr::add_count(name = "light_frequency") %>%
-    dplyr::mutate("INS_mean" = mean(bimodal_cutoff_INS.tet),
-                  "INS_sd" = sd(bimodal_cutoff_INS.tet),
-                  "TET_mean" = mean(bimodal_cutoff_TET.tet),
-                  "TET_sd" = sd(bimodal_cutoff_TET.tet),
-                  "GAD_mean" = mean(bimodal_cutoff_GAD.tet),
-                  "GAD_sd" = sd(bimodal_cutoff_GAD.tet),
-                  "IA2_mean" = mean(bimodal_cutoff_IA2.tet),
-                  "IA2_sd" = sd(bimodal_cutoff_IA2.tet),
-                  "DNA_mean" = mean(bimodal_cutoff_DNA.tet),
-                  "DNA_sd" = sd(bimodal_cutoff_DNA.tet)) %>%
+    dplyr::mutate("INS_mean" = mean(myeloid_t_cutoff_INS.tet),
+                  "INS_sd" = sd(myeloid_t_cutoff_INS.tet),
+                  "TET_mean" = mean(myeloid_t_cutoff_TET.tet),
+                  "TET_sd" = sd(myeloid_t_cutoff_TET.tet),
+                  "GAD_mean" = mean(myeloid_t_cutoff_GAD.tet),
+                  "GAD_sd" = sd(myeloid_t_cutoff_GAD.tet),
+                  "IA2_mean" = mean(myeloid_t_cutoff_IA2.tet),
+                  "IA2_sd" = sd(myeloid_t_cutoff_IA2.tet),
+                  "DNA_mean" = mean(myeloid_t_cutoff_DNA.tet),
+                  "DNA_sd" = sd(myeloid_t_cutoff_DNA.tet)) %>%
     dplyr::group_by(IGK_IGL, isotype) %>%
     dplyr::add_count(name = "light_gene_isotype_frequency") %>%
     dplyr::ungroup() %>%
@@ -295,9 +306,10 @@ clone_info <- clone_info %>%
 meta_data <- seurat_data[[]] %>% 
   dplyr::select(sample, final_celltype, Status, tet_name_cutoff, v_gene,
                 j_gene, chains, dplyr::all_of(c(colnames(assay_data1),
-                colnames(assay_data2))),
+                colnames(assay_data2), colnames(assay_data3))),
                 isotype, full_tet_name_cutoff, scar_libra_tet_hash_id, 
-                scar_libra_full_hash_id, Sample.Name) %>%
+                scar_libra_full_hash_id, scar_hash_id,
+                full_scar_hash_id, Sample.Name) %>%
   tibble::rownames_to_column("barcode") %>%
   dplyr::mutate(barcode = gsub("_[0-9]+", "", barcode)) %>%
   dplyr::mutate(cell_sample = barcode) %>%
@@ -331,10 +343,12 @@ count_clones <- clone_info %>%
                 cdr3, clone_id, sample, final_celltype,
                 Status, tet_name_cutoff, chains, isotype,
                 dplyr::all_of(c(colnames(assay_data1),
-                              colnames(assay_data2))),
+                              colnames(assay_data2),
+                              colnames(assay_data3))),
                 clone_count, full_tet_name_cutoff,
                 sequences, alignment_sequences, scar_libra_tet_hash_id,
-                scar_libra_full_hash_id)
+                scar_libra_full_hash_id, scar_hash_id,
+                full_scar_hash_id)
 
 
 # Add in counts for individuals --> how many individuals are seen?
@@ -377,8 +391,10 @@ column_order <- c("clone_id", "final_clone", "v_gene", "j_gene", "cdr3",
                   "chains", "isotype", "productive", "sample", 
                   "final_celltype",  "Status", "tet_name_cutoff",
                   "full_tet_name_cutoff", "scar_libra_tet_hash_id",
-                  "scar_libra_full_hash_id", colnames(assay_data1),
-                  colnames(assay_data2),"clone_count", "sample_count",
+                  "scar_libra_full_hash_id", "scar_hash_id",
+                  "full_scar_hash_id", colnames(assay_data1),
+                  colnames(assay_data2), colnames(assay_data3),
+                  "clone_count", "sample_count",
                   "number_of_samples", "isotype_count", "isotype_percent", 
                   "cell_type_count", "cell_type_percent", "tet_binding_count", 
                   "tet_binding_percent", "status_count", "status_percent",

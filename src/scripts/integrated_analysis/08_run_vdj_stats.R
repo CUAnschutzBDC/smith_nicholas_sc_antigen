@@ -96,7 +96,7 @@ for(cells_use in c("all", "memory")){
     seurat_data <- subset(seurat_data, 
                           subset = final_celltype %in% 
                             c("Memory",
-                              "Resting_memory"))
+                              "Resting_Memory"))
   }
   
   
