@@ -8,6 +8,9 @@ library(viridis)
 library(ggalluvial)
 library(Seurat)
 library(djvdj)
+library(KEGGREST)
+library(org.Hs.eg.db)
+
 
 normalization_method <- "log" # can be SCT or log
 # Set theme
@@ -95,108 +98,71 @@ status_colors <- all_colors$status_colors
 
 # Plots ------------------------------------------------------------------------
 
-## QC plots --------------------------------------------------------------------
-# 1.	Guidance on which QC plots are necessary to show
-# Violin plots of mito, features, genes across samples
-quality_plot <- featDistPlot(seurat_data, geneset = c("nCount_RNA",
-                                                      "nFeature_RNA", 
-                                                      "percent.mt"),
-                             sep_by = "sample", col_by = "Status",
-                             color = status_colors,
-                             combine = FALSE)
-
-quality_plot$percent.mt <- quality_plot$percent.mt +
-  ggplot2::ylim(0, 20)
-
-final_quality <- cowplot::plot_grid(plotlist = quality_plot, nrow = 3)
-
-pdf(file.path(image_dir, "quality_plots.pdf"))
-print(final_quality)
-dev.off()
-
-# UMAP of samples before and after correction
-
-umap_one <- plotDimRed(seurat_data, col_by = "sample",
-                       plot_type = "pca.umap", color = sample_colors,
-                       ggrastr = TRUE)[[1]]
-
-umap_two <- plotDimRed(seurat_data, col_by = "final_celltype",
-                       plot_type = "pca.umap", color = final_colors,
-                       ggrastr = TRUE)[[1]]
-
-
-umap_three <- plotDimRed(seurat_data, col_by = "sample",
-                         plot_type = "rna_mnn.umap", color = sample_colors,
-                         ggrastr = TRUE)[[1]]
-
-umap_four <- plotDimRed(seurat_data, col_by = "final_celltype",
-                        plot_type = "rna_mnn.umap", color = final_colors,
-                        ggrastr = TRUE)[[1]]
-
-full_plot <- cowplot::plot_grid(umap_one, umap_two, umap_three, umap_four,
-                                rel_widths = c(0.84, 1, 0.84, 1),
-                                nrow = 2, ncol = 2)
-
-pdf(file.path(image_dir, "quality_umaps.pdf"),
-    width = 12, height = 10)
-
-print(full_plot)
-
-dev.off()
-
+## Figure 1 --------------------------------------------------------------------
 ## Cell type information -------------------------------------------------------
 # 2.	Updated UMAP of all cells clustered according to mRNA for cell type
 # (Naïve, Transitional (intermediate), Resting Memory, Activated Memory, Plasmablast)
+
+# Number of cells by status/tetramer
+# With only singlets
+
+# With multis included
 
 seurat_data$celltype_cluster <- paste(seurat_data$final_celltype, 
                                       seurat_data$RNA_cluster,
                                       sep = "_")
 
 
+new_clusters <- c("Naive_0" = "Naive_0",
+                  "Naive_1" = "Naive_0",
+                  "Resting_Memory_2" = "Resting_Memory_1",
+                  "Naive_3" = "Naive_2",
+                  "Memory_4" = "Memory_3",
+                  "Naive_5" = "Naive_4",
+                  "Naive_6" = "Naive_0",
+                  "ABC_7" = "ABC_5",
+                  "Resting_Memory_8" = "Resting_Memory_6",
+                  "Resting_Memory_9" = "Resting_Memory_7",
+                  "Plasmablast_10" = "Plasmablast_8",
+                  "Plasmablast_11" = "Plasmablast_8")
 
-        
+seurat_data$celltype_cluster <- new_clusters[seurat_data$celltype_cluster]
+
+
+
 
 cluster_celltype_colors <- c("Naive_0" = "#58b44d",
-                             "Naive_1" = "#9daf5d",
-                             "Resting_Memory_2" = "#746ec8",
-                             "Naive_3" = "#61732b",
-                             "Memory_4" = "#9f7239",
-                             "Naive_5" = "#b2b72e",
-                             "Naive_6" = "#61a0d5",
-                             "ABC_7" = "#4bae8b",
-                             "Resting_Memory_8" = "#bd5abe",
-                             "Resting_Memory_9" = "#c3618a",
-                             "Plasmablast_10" = "#d89a40",
-                             "Plasmablast_11" = "#bf673d")
+                             "Resting_Memory_1" = "#746ec8",
+                             "Naive_2" = "#61732b",
+                             "Memory_3" = "#9f7239",
+                             "Naive_4" = "#b2b72e",
+                             "ABC_5" = "#4bae8b",
+                             "Resting_Memory_6" = "#bd5abe",
+                             "Resting_Memory_7" = "#61a0d5",
+                             "Plasmablast_8" = "#d89a40")
 
 seurat_data$celltype_cluster <- factor(seurat_data$celltype_cluster,
-                                       levels = c("Naive_0", "Naive_1", 
-                                                  "Naive_3", "Naive_5", 
-                                                  "Naive_6", 
-                                                  "Resting_Memory_2",
-                                                  "Resting_Memory_8", 
-                                                  "Resting_Memory_9",
-                                                  "ABC_7",
-                                                  "Memory_4",
-                                                  "Plasmablast_10",
-                                                  "Plasmablast_11"))
+                                       levels = c("Naive_0", "Naive_2", 
+                                                  "Naive_4", 
+                                                  "Resting_Memory_1",
+                                                  "Resting_Memory_6", 
+                                                  "Resting_Memory_7",
+                                                  "ABC_5",
+                                                  "Memory_3",
+                                                  "Plasmablast_8"))
 
 cluster_celltype_colors <- cluster_celltype_colors[order(match(names(cluster_celltype_colors),
                                                                levels(seurat_data$celltype_cluster)))]
 
-pdf(file.path(image_dir, "rna_umap.pdf"), width = 8, height = 8)
+pdf(file.path(image_dir, "1D_rna_umap.pdf"), width = 8, height = 8)
 
 print(plotDimRed(seurat_data, col_by = "celltype_cluster", 
                  plot_type = "rna_mnn.umap",
-           color = cluster_celltype_colors, ggrastr = TRUE))
+                 color = cluster_celltype_colors, ggrastr = TRUE))
 
 dev.off()
 
-# 3.	List of top 10 genes contributing to cell type determination
-# * Not these are not really genes contributing to cell type determination as 
-# this is not how cell type was determined (this is important for you when 
-# writing the text), these are just the top 10 marker genes of each cluster.
-
+#	List of top 10 genes per cell type
 Idents(seurat_data) <- seurat_data$celltype_cluster
 
 all_markers <- FindAllMarkers(seurat_data, assay = "RNA", 
@@ -224,14 +190,14 @@ openxlsx::saveWorkbook(wb = save_excel,
 #   dplyr::filter(abs(avg_log2FC) > 1)
 
 use_markers <- all_markers %>%
-  dplyr::filter(!grepl("IGK|IGH|IGL", gene)) %>%
+  dplyr::filter(!grepl("IGK|IGH|IGL|AL139020.1", gene)) %>%
   dplyr::group_by(cluster) %>%
   dplyr::top_n(n = 10, wt = avg_log2FC) %>%
   dplyr::arrange(cluster, desc(avg_log2FC))
 
 graphics.off()
 
-pdf(file.path(image_dir, "marker_heatmap_average.pdf"),
+pdf(file.path(image_dir, "1E_marker_heatmap_average.pdf"),
     width = 8, height = 12)
 
 plot_heatmap(seurat_data, gene_list = use_markers$gene,
@@ -240,16 +206,23 @@ plot_heatmap(seurat_data, gene_list = use_markers$gene,
 
 dev.off()
 
-pdf(file.path(image_dir, "marker_heatmap_all.pdf"),
-    width = 8, height = 12)
-
-plot_heatmap(seurat_data, gene_list = use_markers$gene,
-             colors = cluster_celltype_colors, meta_col = "celltype_cluster",
-             average_expression = FALSE, assay = "RNA")
-
-dev.off()
+# pdf(file.path(image_dir, "marker_heatmap_all.pdf"),
+#     width = 8, height = 12)
+# 
+# plot_heatmap(seurat_data, gene_list = use_markers$gene,
+#              colors = cluster_celltype_colors, meta_col = "celltype_cluster",
+#              average_expression = FALSE, assay = "RNA")
+# 
+# dev.off()
 
 graphics.off()
+
+sample_order <- seurat_data[[]] %>%
+  dplyr::select(sample, Status) %>%
+  dplyr::distinct() %>%
+  dplyr::arrange(Status)
+
+seurat_data$sample <- factor(seurat_data$sample, levels = sample_order$sample)
 
 # Cell type by individual
 pdf(file.path(image_dir, "sample_celltype_barplot.pdf"),
@@ -263,7 +236,7 @@ print(barplot)
 dev.off()
 
 # Cell type by status
-pdf(file.path(image_dir, "status_celltype_barplot.pdf"),
+pdf(file.path(image_dir, "1F_status_celltype_barplot.pdf"),
     width = 8, height = 8)
 barplot <- stacked_barplots(seurat_data, meta_col = "celltype_cluster",
                             split_by = "Status",
@@ -274,12 +247,17 @@ print(barplot)
 
 dev.off()
 
-# 4.	UMAP - Antigen reactive cells cluster independently (not clustering by mRNA)
-# INS/GAD/IA2/Multi-islet/TET/DNA
-# * We decided thta this isn't a necessary plot
-# 5.	Stacked bar chart: x axis = B cell subtype (updated), y axis = % of 
-# total cells minus other_multi_reactive
-# (INS/GAD/IA2/Multi-islet/TET/DNA/Negative)
+# AG+ group distribution by cell type
+pdf(file.path(image_dir, "1G_ag_celltype_barplot.pdf"),
+    width = 8, height = 8)
+barplot <- stacked_barplots(seurat_data, meta_col = "celltype_cluster",
+                            split_by = "Status",
+                            color = cluster_celltype_colors) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
+
+print(barplot)
+
+dev.off()
 
 no_other <- subset(seurat_data, subset = tet_name_cutoff != "Other_Multi_Reactive")
 
@@ -296,10 +274,338 @@ barplot <- stacked_barplots(no_other, meta_col = "tet_name_cutoff",
                             color = tetramer_colors_use) +
   ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
 
-pdf(file.path(image_dir, "tetramer_stacked_barplot.pdf"),
+pdf(file.path(image_dir, "1G_tetramer_stacked_barplot.pdf"),
     height = 8, width = 8)
 print(barplot)
 dev.off()
+
+
+# OTHER
+values <- seurat_data[[]] %>%
+  dplyr::select(sample, Status, tet_name_cutoff) %>%
+  dplyr::group_by(sample, Status) %>%
+  dplyr::add_count(name = "sample_count") %>%
+  dplyr::group_by(sample, Status, tet_name_cutoff) %>%
+  dplyr::add_count(name = "tet_count") %>%
+  dplyr::distinct() %>%
+  dplyr::mutate(percent = tet_count / sample_count * 100)
+  
+write.csv(values, file.path(image_dir, "antigen_binding_percents.csv"))
+
+p1 <- ggplot2::ggplot(values, ggplot2::aes(x = tet_name_cutoff, y = percent,
+                                     fill = Status)) +
+  ggplot2::geom_boxplot() +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::geom_point(position = ggplot2::position_dodge(0.75)) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
+
+values <- seurat_data[[]] %>%
+  dplyr::select(sample, Status, tet_name_cutoff) %>%
+  dplyr::filter(tet_name_cutoff != "Negative") %>%
+  dplyr::group_by(sample, Status) %>%
+  dplyr::add_count(name = "sample_count") %>%
+  dplyr::group_by(sample, Status, tet_name_cutoff) %>%
+  dplyr::add_count(name = "tet_count") %>%
+  dplyr::distinct() %>%
+  dplyr::mutate(percent = tet_count / sample_count * 100)
+
+p2 <- ggplot2::ggplot(values, ggplot2::aes(x = tet_name_cutoff, y = percent,
+                                     fill = Status)) +
+  ggplot2::geom_boxplot() +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::geom_point(position = ggplot2::position_dodge(0.75)) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
+
+
+values <- seurat_data[[]] %>%
+  dplyr::select(sample, Status, tet_name_cutoff) %>%
+  dplyr::filter(tet_name_cutoff != "Negative", 
+                tet_name_cutoff != "Other_Multi_Reactive") %>%
+  dplyr::group_by(sample, Status) %>%
+  dplyr::add_count(name = "sample_count") %>%
+  dplyr::group_by(sample, Status, tet_name_cutoff) %>%
+  dplyr::add_count(name = "tet_count") %>%
+  dplyr::distinct() %>%
+  dplyr::mutate(percent = tet_count / sample_count * 100)
+
+p3 <- ggplot2::ggplot(values, ggplot2::aes(x = tet_name_cutoff, y = percent,
+                                     fill = Status)) +
+  ggplot2::geom_boxplot() +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::geom_point(position = ggplot2::position_dodge(0.75)) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
+
+p4 <- ggplot2::ggplot(values, ggplot2::aes(x = tet_name_cutoff, y = percent,
+                                           fill = Status, label = sample)) +
+  ggplot2::geom_boxplot() +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::geom_point(position = ggplot2::position_dodge(0.75)) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
+  ggrepel::geom_label_repel(size = 2, position = position_dodge(0.75))
+
+pdf(file.path(image_dir, "tetramer_percent_by_status.pdf"))
+print(p1)
+print(p2)
+print(p3)
+print(p4)
+
+dev.off()
+
+facs_percents <- read.table(here("files/FACS_percent_PE_pos.csv"),
+                            header = TRUE, sep = ",") %>%
+  tidyr::pivot_longer(names_to = "old_status", values_to = "percent",
+                      cols = colnames(.))
+facs_number <- read.table(here("files/FACS_number_PE_pos.csv"),
+                          header = TRUE, sep = ",") %>%
+  tidyr::pivot_longer(names_to = "old_status", values_to = "count",
+                      cols = colnames(.))
+
+new_status <- c("FDR" = "ND",
+                "Aab" = "AAB",
+                "T1D" = "T1D")
+
+facs_percents$Status <- new_status[facs_percents$old_status]
+facs_number$Status <- new_status[facs_number$old_status]
+
+facs_percents$type <- "PE_positive"
+facs_number$type <- "PE_positive"
+
+
+p1 <- ggplot2::ggplot(facs_percents, ggplot2::aes(x = type, y = percent,
+                                           fill = Status)) +
+  ggplot2::geom_boxplot() +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::geom_point(position = ggplot2::position_dodge(0.75)) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
+
+p2 <- ggplot2::ggplot(facs_number, ggplot2::aes(x = type, y = count,
+                                                  fill = Status)) +
+  ggplot2::geom_boxplot() +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::geom_point(position = ggplot2::position_dodge(0.75)) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
+
+pdf(file.path(image_dir, "1C_ag_positive_facs.pdf"),
+    width = 6, height = 8)
+print(p1)
+dev.off()
+
+pdf(file.path(image_dir, "ag_positive_count_facs.pdf"),
+    width = 6, height = 8)
+print(p2)
+dev.off()
+
+## Figure S1 -------------------------------------------------------------------
+
+### QC plots -------------------------------------------------------------------
+# 1.	Guidance on which QC plots are necessary to show
+# Violin plots of mito, features, genes across samples
+quality_plot <- featDistPlot(seurat_data, geneset = c("nCount_RNA",
+                                                      "nFeature_RNA", 
+                                                      "percent.mt"),
+                             sep_by = "sample", col_by = "Status",
+                             color = status_colors,
+                             combine = FALSE)
+
+quality_plot$percent.mt <- quality_plot$percent.mt +
+  ggplot2::ylim(0, 20)
+
+final_quality <- cowplot::plot_grid(plotlist = quality_plot, nrow = 3)
+
+pdf(file.path(image_dir, "Supp1_quality_plots.pdf"))
+print(final_quality)
+dev.off()
+
+# UMAP of samples before and after correction
+
+umap_one <- plotDimRed(seurat_data, col_by = "sample",
+                       plot_type = "pca.umap", color = sample_colors,
+                       ggrastr = TRUE)[[1]]
+
+umap_two <- plotDimRed(seurat_data, col_by = "final_celltype",
+                       plot_type = "pca.umap", color = final_colors,
+                       ggrastr = TRUE)[[1]]
+
+
+umap_three <- plotDimRed(seurat_data, col_by = "sample",
+                         plot_type = "rna_mnn.umap", color = sample_colors,
+                         ggrastr = TRUE)[[1]]
+
+umap_four <- plotDimRed(seurat_data, col_by = "final_celltype",
+                        plot_type = "rna_mnn.umap", color = final_colors,
+                        ggrastr = TRUE)[[1]]
+
+full_plot <- cowplot::plot_grid(umap_one, umap_two, umap_three, umap_four,
+                                rel_widths = c(0.84, 1, 0.84, 1),
+                                nrow = 2, ncol = 2)
+
+pdf(file.path(image_dir, "Supp2_quality_umaps.pdf"),
+    width = 12, height = 10)
+
+print(full_plot)
+
+dev.off()
+
+## Figure 2 -------------------------------------------------------------------
+# Read in de genes
+markers_sig <- read.csv(file.path(save_dir, "files", "mast_de.csv"))
+
+# Make heatmap of all DE
+de_genes <- markers_sig[markers_sig$cluster !=
+                          "T1D_Islet_Reactive_AAB_Islet_Reactive",]$gene
+
+new_sample_order <- c("110", "116", "108", "107", "113", "114", "118",
+                      "106", "117", "115", "105", "111", "102", "112",
+                      "119", "109")
+
+seurat_data$sample <- factor(seurat_data$sample, levels = new_sample_order)
+
+seurat_islet <- subset(seurat_data, subset = tet_name_cutoff %in%
+                         c("Islet_Multi_Reactive", "IA2.tet",
+                           "GAD.tet", "INS.tet"))
+
+heatmap_data <- plot_heatmap(seurat_islet, gene_list = de_genes,
+                             colors = sample_colors, meta_col = "sample",
+                             average_expression = TRUE, assay = "RNA",
+                             plot_rownames = FALSE, cluster_rows = TRUE, 
+                             return_data = TRUE)
+blueYellow <- c("#352A86", "#343DAE", "#0262E0", "#1389D2", 
+                "#2DB7A3", "#A5BE6A", "#F8BA43", "#F6DA23", "#F8FA0D")
+
+sample_info <- sample_order %>%
+  tibble::remove_rownames() %>%
+  tibble::column_to_rownames("sample")
+
+rownames(sample_info) <- make.names(rownames(sample_info))
+
+annotation_colors <- list("Status" = status_colors)
+
+heatmap <- pheatmap::pheatmap(heatmap_data$z_score, cluster_rows = TRUE, 
+                              cluster_cols = FALSE, show_rownames = FALSE, 
+                              show_colnames = TRUE, annotation_col = sample_info, 
+                              annotation_colors = annotation_colors, 
+                              color = blueYellow, border_color = NA, 
+                              clustering_method = "complete", silent = TRUE)
+
+graphics.off()
+
+pdf(file.path(image_dir, "2A_de_heatmap_average.pdf"),
+    width = 8, height = 12)
+
+print(heatmap)
+
+dev.off()
+
+make_heatmap <- function(kegg_list = NULL, gene_list = NULL){
+
+  if(!is.null(kegg_list)){
+    # Pull out genes from kegg list
+    path <- keggLink("pathway", "hsa")
+    
+    all_genes <- path[grepl(kegg_list, path)]
+    
+    all_gene_id <- keggConv( "ncbi-geneid", names(all_genes))
+    
+    all_gene_id <- gsub("ncbi-geneid:", "", all_gene_id)
+    
+    gene_symbols <- mapIds(org.Hs.eg.db, keys = all_gene_id, 
+                           keytype = "ENTREZID", column = "SYMBOL")
+    
+    gene_symbols <- gene_symbols[!grepl("LOC[0-9]+", gene_symbols)]    
+  } else if (!is.null(gene_list)){
+    gene_symbols <- gene_list
+  } else {
+    stop("Must provide gene list or kegg id")
+  }
+
+  
+  
+  heatmap_data <- plot_heatmap(seurat_islet, gene_list = gene_symbols,
+                               colors = sample_colors, meta_col = "sample",
+                               average_expression = TRUE, assay = "RNA",
+                               plot_rownames = FALSE, cluster_rows = TRUE, 
+                               return_data = TRUE)
+  blueYellow <- c("#352A86", "#343DAE", "#0262E0", "#1389D2", 
+                  "#2DB7A3", "#A5BE6A", "#F8BA43", "#F6DA23", "#F8FA0D")
+  
+  sample_info <- sample_order %>%
+    tibble::remove_rownames() %>%
+    tibble::column_to_rownames("sample")
+  
+  rownames(sample_info) <- make.names(rownames(sample_info))
+  
+  annotation_colors <- list("Status" = status_colors)
+  
+  heatmap <- pheatmap::pheatmap(heatmap_data$z_score, cluster_rows = TRUE, 
+                                cluster_cols = FALSE, show_rownames = TRUE, 
+                                show_colnames = TRUE, annotation_col = sample_info, 
+                                annotation_colors = annotation_colors, 
+                                color = blueYellow, border_color = NA, 
+                                clustering_method = "complete", silent = TRUE)
+  return(heatmap)
+  
+}
+
+# Heatmaps of gsea gene lists
+paths_heatmap <- c("bcr" = "hsa04662", "antigen_processing" = "hsa04612",
+                   "EBV" = "hsa05169")
+
+all_heatmaps <- lapply(paths_heatmap, function(x){
+  make_heatmap(kegg_list = x)
+})
+
+pro_anti_inflammatory <- c("IFNG", "IL1B", "CCL2", "IL23A", "CXCL13", 
+                           "IL12A", "EBI3", "TGFB1", "IL10", "IL11", 
+                           "IL6", "IL13", "IL1RA", "TNFA")
+
+cytokine_heatmap <- make_heatmap(gene_list = pro_anti_inflammatory)
+
+graphics.off()
+
+pdf(file.path(image_dir, "2B_de_heatmap_bcr.pdf"),
+    width = 8, height = 15)
+
+print(all_heatmaps$bcr)
+
+dev.off()
+graphics.off()
+
+
+pdf(file.path(image_dir, "2C_de_heatmap_antigen_processing.pdf"),
+    width = 8, height = 12)
+
+print(all_heatmaps$antigen_processing)
+
+dev.off()
+graphics.off()
+
+
+pdf(file.path(image_dir, "2D_de_heatmap_cytokines.pdf"),
+    width = 8, height = 3)
+
+print(cytokine_heatmap)
+
+dev.off()
+graphics.off()
+
+
+pdf(file.path(image_dir, "2E_de_heatmap_ebv.pdf"),
+    width = 8, height = 30)
+
+print(all_heatmaps$EBV)
+
+dev.off()
+graphics.off()
+
+
+# 4.	UMAP - Antigen reactive cells cluster independently (not clustering by mRNA)
+# INS/GAD/IA2/Multi-islet/TET/DNA
+# * We decided thta this isn't a necessary plot
+# 5.	Stacked bar chart: x axis = B cell subtype (updated), y axis = % of 
+# total cells minus other_multi_reactive
+# (INS/GAD/IA2/Multi-islet/TET/DNA/Negative)
+
+
 
 # 6.	INSR mRNA expression violin plot separated by B cell subtype
 # 7.	INSR mRNA expression violin plot separated by status
