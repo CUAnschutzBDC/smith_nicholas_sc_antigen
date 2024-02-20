@@ -1,0 +1,539 @@
+---
+title: "Muscat testing"
+author: "Kristen Wells"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    highlight: "tango"
+    df_print: "paged"
+    code_folding: "hide"
+    self_contained: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  message = F, 
+  warning = F,
+  comment = ""
+)
+library(here)
+knitr::opts_knit$set(root.dir = here())
+```
+
+# Background
+This document tests muscat using different parameters to ensure I am running it correctly
+
+```{r load-packages}
+library(here)
+library(scAnalysisR)
+library(pheatmap)
+library(tidyverse)
+library(muscat)
+library(SingleCellExperiment)
+library(Seurat)
+library(DESeq2)
+library(cowplot)
+
+source(here("src/scripts/muscat_plotting_functions.R"))
+```
+
+```{r load-data}
+all_colors <- readRDS(file = file.path("files/all_colors.rds"))
+
+
+final_colors <- all_colors$cell_type_colors
+
+final_colors <- final_colors[names(final_colors) != "Translational_Intermediate"]
+
+tetramer_colors <- all_colors$tetramer_colors
+
+sample_colors <- all_colors$sample_colors
+
+
+status_colors <- all_colors$status_colors
+
+normalization_method <- "log" # can be SCT or log
+# Set theme
+ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
+
+normalization_method <- "log" # can be SCT or log
+
+#args <- commandArgs(trailingOnly = TRUE)
+
+args <- c("merged", here("results"), "", here("files/sample_info.tsv"))
+
+sample <- args[[1]]
+sample <- gsub("__.*", "", sample)
+#sample <- "merged"
+
+results_dir <- args[[2]]
+#results_dir <- here("results")
+
+sample_info <- args[[4]]
+#sample_info <- here("files/sample_info.tsv")
+
+sample_info <- read.table(sample_info, fill = TRUE, header = TRUE)
+
+sample_info <- sample_info[sample_info$sample == sample,]
+vars.to.regress <- NULL
+HTO <- sample_info$HTO
+ADT <- sample_info$ADT
+hash_ident <- sample_info$hash_ident
+
+ADT_pca <- sample_info$adt_pca
+run_adt_umap <- sample_info$adt_umap
+
+RNA_pcs <- sample_info$PCs
+resolution <- sample_info$resolution
+batch_correction <- sample_info$batch_correction
+
+if(normalization_method == "SCT"){
+  SCT <- TRUE
+  seurat_assay <- "SCT"
+} else {
+  SCT <- FALSE
+  seurat_assay <- "RNA"
+}
+
+# Set directories
+save_dir <- file.path(results_dir, "R_analysis", sample)
+
+# Read in data
+seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed_no_doublet.rds"))
+DefaultAssay(seurat_data) <- "RNA"
+
+seurat_data <- DietSeurat(object = seurat_data, assays = "RNA")
+```
+
+# Testing batch correction
+Below I set up the data and test batch correction
+
+```{r muscat-setup}
+# All B cells ------------------------------------------------------------------
+
+## Rename columns for compatability --------------------------------------------
+
+test_mapping <- c("DNA.tet" = "Other",
+                  "GAD.tet" = "Islet_Reactive",
+                  "IA2.tet" = "Islet_Reactive",
+                  "INS.tet" = "Islet_Reactive",
+                  "Islet_Multi_Reactive" = "Islet_Reactive",
+                  "Negative" = "Other",
+                  "Other_Multi_Reactive" = "Other",
+                  "TET.tet" = "Other")
+
+seurat_data$test_id <- test_mapping[seurat_data$tet_name_cutoff]
+
+# Name columns for muscat sample_id, group_id, cluster_id
+seurat_data$sample_id <- paste(seurat_data$sample, seurat_data$test_id,
+                               sep = "_")
+seurat_data$group_id <- seurat_data$Status
+
+seurat_data$celltype <- "bcells"
+seurat_data$cluster_id <- seurat_data$celltype
+
+
+# Change to single cell experiment
+sce <- as.SingleCellExperiment(seurat_data)
+sce <- prepSCE(sce,
+               kid = "cluster_id",
+               gid = "group_id",
+               sid = "sample_id",
+               drop = FALSE)
+
+# Aggregate data to pseudotbulk using default parameters from tutorial
+pb <- aggregateData(sce, assay = "counts",
+                    fun = "sum",
+                    by = c("cluster_id", "sample_id"))
+
+
+pb_mds <- pbMDS(pb)
+pb_mds
+
+### Check for batch ------------------------------------------------------------
+plot_data <- pb_mds$data
+
+# fix the dates
+colData(pb)$Collection_Date <- zoo::as.Date(colData(pb)$Collection.Date)
+colData(pb)$Collection_Date <- gsub("-", "_", colData(pb)$Collection_Date)
+colData(pb)$processed_date <- zoo::as.Date(as.numeric(colData(pb)$date.processed.for.scSeq))
+colData(pb)$processed_date <- gsub("-", "_", colData(pb)$processed_date)
+
+
+colData(pb)$Collection_Date <- ifelse(colData(pb)$Collection_Date == 
+                                        "2022_02_08", "2023_02_08",
+                                      colData(pb)$Collection_Date)
+
+
+### Run batch correction -------------------------------------------------------
+
+# Definitely grouping by individual, somewhat by family, can't correct by
+pb$test_full_new_status <- paste(pb$Status, pb$test_id,
+                                          sep = "_")
+dds <- DESeqDataSet(pb, design = ~processed_date + test_full_new_status)
+
+vsd_one <- vst(dds, blind = F)
+
+mat <- assay(vsd_one)
+
+# Day is the batch, the model.matrix should include everything but the batch
+mat <- limma::removeBatchEffect(mat, vsd_one$processed_date,
+                                design = model.matrix(~vsd_one$test_full_new_status))
+
+vsd_two <- vsd_one
+assay(vsd_two) <- mat
+
+mod_mat <- model.matrix(design(dds), colData(dds))
+
+```
+
+Below are plots testing batch correction
+A-B) Status before and after correction
+C-D) Processed date before and after correction
+E-F) Sample before and after correction
+G-H) Tetramer call before and after correciton
+
+```{r plots, fig.height = 16, fig.width = 10}
+
+p1 <- plot_pca(vsd_one, group_by = "Status") +
+        ggplot2::ggtitle("uncorrected")
+
+p2 <- plot_pca(vsd_two, group_by = "Status") +
+        ggplot2::ggtitle("corrected")
+
+p3 <- plot_pca(vsd_one, group_by = "processed_date") +
+        ggplot2::ggtitle("uncorrected")
+
+p4 <- plot_pca(vsd_two, group_by = "processed_date") +
+        ggplot2::ggtitle("corrected")
+
+vsd_one$ID <- factor(vsd_one$ID)
+vsd_two$ID <- factor(vsd_two$ID)
+
+p5 <- plot_pca(vsd_one, group_by = "ID",
+               color_palette = sample_colors) +
+        ggplot2::ggtitle("uncorrected")
+
+p6 <- plot_pca(vsd_two, group_by = "ID",
+               color_palette = sample_colors) +
+        ggplot2::ggtitle("corrected")
+
+p7 <- plot_pca(vsd_one, group_by = "test_id") +
+        ggplot2::ggtitle("uncorrected")
+
+p8 <- plot_pca(vsd_two, group_by = "test_id") +
+        ggplot2::ggtitle("corrected")
+
+cowplot::plot_grid(p1, p2, p3, p4, p5, p6, p7, p8,
+                   nrow = 4, ncol = 2,
+                   labels = c("A", "B", "C", "D", "E", "F", "G", "H"))
+```
+
+
+# Muscat with correction by processed date
+Below I run muscat with a correction on processed date
+
+```{r muscat1}
+### Run deseq with muscat and the new batch term -------------------------------
+
+formula <- ~processed_date + test_full_new_status
+cd <- as.data.frame(colData(pb))
+design <- model.matrix(formula, cd)
+
+ND <- colMeans(design[which(cd$group_id == "ND"), ])
+NO <- colMeans(design[which(cd$group_id == "T1D"), ])
+AAB <- colMeans(design[which(cd$group_id == "AAB"), ])
+diabetes_antigen <- colMeans(design[which(cd$test_id == "Islet_Reactive"), ])
+other <- colMeans(design[which(cd$test_id == "Other"), ])
+ND_diabetes_antigen <- colMeans(design[which(cd$test_id == "Islet_Reactive"
+                                             & cd$group_id == "ND") , ])
+ND_other <- colMeans(design[which(cd$test_id == "Other"
+                                  & cd$group_id == "ND"), ])
+
+NO_diabetes_antigen <- colMeans(design[which(cd$test_id == "Islet_Reactive"
+                                             & cd$group_id == "T1D") , ])
+NO_other <- colMeans(design[which(cd$test_id == "Other"
+                                  & cd$group_id == "T1D"), ])
+
+AAB_diabetes_antigen <- colMeans(design[which(cd$test_id == "Islet_Reactive"
+                                              & cd$group_id == "AAB") , ])
+AAB_other <- colMeans(design[which(cd$test_id == "Other"
+                                   & cd$group_id == "AAB"), ])
+
+all_contrasts <- limma::makeContrasts(NO - ND,
+                                      AAB - ND,
+                                      NO - AAB,
+                                      diabetes_antigen - other,
+                                      NO_diabetes_antigen - ND_diabetes_antigen,
+                                      NO_other - ND_other,
+                                      AAB_diabetes_antigen - ND_diabetes_antigen,
+                                      AAB_other - ND_other,
+                                      NO_diabetes_antigen - AAB_diabetes_antigen,
+                                      NO_other - AAB_other,
+                                      levels = design)
+
+de_genes_all <- muscat::pbDS(pb, method = "DESeq2",
+                             design = design, contrast = all_contrasts)
+
+all_res <- lapply(de_genes_all$table, function(x){
+  return(x$bcells)
+})
+
+all_res <- do.call(rbind, all_res)
+
+all_res <- all_res %>%
+  dplyr::filter(p_adj.glb < 0.05)
+
+processed_df <- data.frame(table(all_res$contrast))
+colnames(processed_df) <- c("contrast", "all_processed_date_freq")
+
+print(processed_df)
+
+```
+
+# Muscat with no correction
+Next I ran muscat without any correction
+
+```{r}
+formula <- ~0 + test_full_new_status
+cd <- as.data.frame(colData(pb))
+design <- model.matrix(formula, cd)
+
+ND <- colMeans(design[which(cd$group_id == "ND"), ])
+NO <- colMeans(design[which(cd$group_id == "T1D"), ])
+AAB <- colMeans(design[which(cd$group_id == "AAB"), ])
+diabetes_antigen <- colMeans(design[which(cd$test_id == "Islet_Reactive"), ])
+other <- colMeans(design[which(cd$test_id == "Other"), ])
+ND_diabetes_antigen <- colMeans(design[which(cd$test_id == "Islet_Reactive"
+                                             & cd$group_id == "ND") , ])
+ND_other <- colMeans(design[which(cd$test_id == "Other"
+                                  & cd$group_id == "ND"), ])
+
+NO_diabetes_antigen <- colMeans(design[which(cd$test_id == "Islet_Reactive"
+                                             & cd$group_id == "T1D") , ])
+NO_other <- colMeans(design[which(cd$test_id == "Other"
+                                  & cd$group_id == "T1D"), ])
+
+AAB_diabetes_antigen <- colMeans(design[which(cd$test_id == "Islet_Reactive"
+                                              & cd$group_id == "AAB") , ])
+AAB_other <- colMeans(design[which(cd$test_id == "Other"
+                                   & cd$group_id == "AAB"), ])
+
+all_contrasts <- limma::makeContrasts(NO - ND,
+                                      AAB - ND,
+                                      NO - AAB,
+                                      diabetes_antigen - other,
+                                      NO_diabetes_antigen - ND_diabetes_antigen,
+                                      NO_other - ND_other,
+                                      AAB_diabetes_antigen - ND_diabetes_antigen,
+                                      AAB_other - ND_other,
+                                      NO_diabetes_antigen - AAB_diabetes_antigen,
+                                      NO_other - AAB_other,
+                                      levels = design)
+
+de_genes_all <- muscat::pbDS(pb, method = "DESeq2",
+                             design = design, contrast = all_contrasts)
+
+all_res <- lapply(de_genes_all$table, function(x){
+  return(x$bcells)
+})
+
+all_res <- do.call(rbind, all_res)
+
+all_res <- all_res %>%
+  dplyr::filter(p_adj.glb < 0.05)
+
+no_correction_df <- data.frame(table(all_res$contrast))
+colnames(no_correction_df) <- c("contrast", "all_no_correction_freq")
+
+print(no_correction_df)
+
+```
+
+# Muscat on tetramer alone
+
+I wanted to next make sure this wasn't a problem with the way I was calling the function. Below I repeat on only the islet reactive cells
+
+```{r}
+pb2 <- pb[ , pb$test_id == "Islet_Reactive"]
+formula <- ~0 + Status
+cd <- as.data.frame(colData(pb2))
+design <- model.matrix(formula, cd)
+
+ND <- colMeans(design[which(cd$group_id == "ND"), ])
+NO <- colMeans(design[which(cd$group_id == "T1D"), ])
+AAB <- colMeans(design[which(cd$group_id == "AAB"), ])
+
+all_contrasts <- limma::makeContrasts(NO - ND,
+                                      AAB - ND,
+                                      NO - AAB,
+                                      levels = design)
+
+de_genes_all <- muscat::pbDS(pb2, method = "DESeq2",
+                             design = design, contrast = all_contrasts)
+
+all_res <- lapply(de_genes_all$table, function(x){
+  return(x$bcells)
+})
+
+all_res <- do.call(rbind, all_res)
+
+all_res <- all_res %>%
+  dplyr::filter(p_adj.glb < 0.05)
+
+islet_only_df <- data.frame(table(all_res$contrast))
+colnames(islet_only_df) <- c("contrast", "islet_only_df_freq")
+
+print(islet_only_df)
+```
+
+# Muscat on tetramer alone corrected
+
+I wanted to next make sure this wasn't a problem with the way I was calling the function. Below I repeat on only the islet reactive cells with the correction
+
+```{r}
+pb2 <- pb[ , pb$test_id == "Islet_Reactive"]
+formula <- ~processed_date + Status
+cd <- as.data.frame(colData(pb2))
+design <- model.matrix(formula, cd)
+
+ND <- colMeans(design[which(cd$group_id == "ND"), ])
+NO <- colMeans(design[which(cd$group_id == "T1D"), ])
+AAB <- colMeans(design[which(cd$group_id == "AAB"), ])
+
+all_contrasts <- limma::makeContrasts(NO - ND,
+                                      AAB - ND,
+                                      NO - AAB,
+                                      levels = design)
+
+de_genes_all <- muscat::pbDS(pb2, method = "DESeq2",
+                             design = design, contrast = all_contrasts)
+
+all_res <- lapply(de_genes_all$table, function(x){
+  return(x$bcells)
+})
+
+all_res <- do.call(rbind, all_res)
+
+all_res <- all_res %>%
+  dplyr::filter(p_adj.glb < 0.05)
+
+islet_only_df_corrected <- data.frame(table(all_res$contrast))
+colnames(islet_only_df_corrected) <- c("contrast", "islet_only_df_corrected_freq")
+
+print(islet_only_df_corrected)
+```
+
+# Muscat ignoring tetramer
+Because the values were so much higher for the tests done without the tetramers, I began to worry that including the tetramers here were just acting as extra data points.
+
+```{r}
+# Name columns for muscat sample_id, group_id, cluster_id
+seurat_data$sample_id <- seurat_data$sample
+seurat_data$group_id <- seurat_data$Status
+
+seurat_data$celltype <- "bcells"
+seurat_data$cluster_id <- seurat_data$celltype
+
+
+# Change to single cell experiment
+sce <- as.SingleCellExperiment(seurat_data)
+sce <- prepSCE(sce,
+               kid = "cluster_id",
+               gid = "group_id",
+               sid = "sample_id",
+               drop = FALSE)
+
+# Aggregate data to pseudotbulk using default parameters from tutorial
+pb <- aggregateData(sce, assay = "counts",
+                    fun = "sum",
+                    by = c("cluster_id", "sample_id"))
+
+colData(pb)$processed_date <- zoo::as.Date(as.numeric(colData(pb)$date.processed.for.scSeq))
+colData(pb)$processed_date <- gsub("-", "_", colData(pb)$processed_date)
+
+
+### Run deseq with muscat and the new batch term -------------------------------
+
+formula <- ~0 + Status
+cd <- as.data.frame(colData(pb))
+design <- model.matrix(formula, cd)
+
+ND <- colMeans(design[which(cd$group_id == "ND"), ])
+NO <- colMeans(design[which(cd$group_id == "T1D"), ])
+AAB <- colMeans(design[which(cd$group_id == "AAB"), ])
+
+all_contrasts <- limma::makeContrasts(NO - ND,
+                                      AAB - ND,
+                                      NO - AAB,
+                                      levels = design)
+
+de_genes_all <- muscat::pbDS(pb, method = "DESeq2",
+                             design = design, contrast = all_contrasts)
+
+all_res <- lapply(de_genes_all$table, function(x){
+  return(x$bcells)
+})
+
+all_res <- do.call(rbind, all_res)
+
+all_res <- all_res %>%
+  dplyr::filter(p_adj.glb < 0.05)
+
+status_only_df <- data.frame(table(all_res$contrast))
+colnames(status_only_df) <- c("contrast", "status_only_df_freq")
+
+print(status_only_df)
+
+```
+
+# Repeating with correction
+
+```{r}
+
+formula <- ~processed_date + Status
+cd <- as.data.frame(colData(pb))
+design <- model.matrix(formula, cd)
+
+ND <- colMeans(design[which(cd$group_id == "ND"), ])
+NO <- colMeans(design[which(cd$group_id == "T1D"), ])
+AAB <- colMeans(design[which(cd$group_id == "AAB"), ])
+
+all_contrasts <- limma::makeContrasts(NO - ND,
+                                      AAB - ND,
+                                      NO - AAB,
+                                      levels = design)
+
+de_genes_all <- muscat::pbDS(pb, method = "DESeq2",
+                             design = design, contrast = all_contrasts)
+
+all_res <- lapply(de_genes_all$table, function(x){
+  return(x$bcells)
+})
+
+all_res <- do.call(rbind, all_res)
+
+all_res <- all_res %>%
+  dplyr::filter(p_adj.glb < 0.05)
+
+status_only_processed_df <- data.frame(table(all_res$contrast))
+colnames(status_only_processed_df) <- c("contrast", "corrected_status_only_df_freq")
+
+print(status_only_processed_df)
+```
+
+# Combining everything
+
+```{r}
+all_dfs <- merge(processed_df, no_correction_df, by = "contrast", all = TRUE)
+all_dfs <- merge(all_dfs, islet_only_df, by = "contrast", all = TRUE)
+all_dfs <- merge(all_dfs, islet_only_df_corrected, by = "contrast",
+                 all = TRUE)
+all_dfs <- merge(all_dfs, status_only_df, by = "contrast", all = TRUE)
+all_dfs <- merge(all_dfs, status_only_processed_df, by = "contrast",
+                 all = TRUE)
+print(all_dfs)
+```
