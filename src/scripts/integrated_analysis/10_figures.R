@@ -64,7 +64,9 @@ seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed_no_doubl
 seurat_data <- subset(seurat_data, subset = imcantation_isotype != "IGHE")
 
 # Set up factors ---------------------------------------------------------------
-seurat_data$Status <- factor(seurat_data$Status, levels = c("ND", "AAB", "T1D"))
+status_levels <- c("ND", "AAB", "T1D")
+
+seurat_data$Status <- factor(seurat_data$Status, levels = status_levels)
 
 plotting_levels <- c("Negative", "DNA.tet", "TET.tet", "Other_Multi_Reactive",
                      "Islet_Multi_Reactive", "IA2.tet", 
@@ -99,7 +101,6 @@ status_colors <- all_colors$status_colors
 # Plots ------------------------------------------------------------------------
 
 ## Figure 1 --------------------------------------------------------------------
-## Cell type information -------------------------------------------------------
 # 2.	Updated UMAP of all cells clustered according to mRNA for cell type
 # (Naïve, Transitional (intermediate), Resting Memory, Activated Memory, Plasmablast)
 
@@ -269,16 +270,93 @@ tetramer_colors_use <- tetramer_colors[names(tetramer_colors) %notin%
 
 names(tetramer_colors_use) <- make.names(names(tetramer_colors_use))
 
-barplot <- stacked_barplots(no_other, meta_col = "tet_name_cutoff",
-                            split_by = "final_celltype",
-                            color = tetramer_colors_use) +
-  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
+# barplot <- stacked_barplots(no_other, meta_col = "tet_name_cutoff",
+#                             split_by = "final_celltype",
+#                             color = tetramer_colors_use) +
+#   ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+
+make_barplot <- function(seurat_object, tetramer_colors_use){
+  seurat_object$full_split <- paste(seurat_object$final_celltype,
+                                    seurat_object$Status, sep = "__")
+  
+  barplot <- stacked_barplots(seurat_object, meta_col = "tet_name_cutoff",
+                              split_by = "full_split",
+                              color = tetramer_colors_use,
+                              return_values = TRUE)
+  
+  barplot_data <- barplot$data
+  barplot_data$celltype <- gsub("__.*", "", barplot_data$split_by)
+  barplot_data$Status <- gsub(".*__", "", barplot_data$split_by)
+  barplot_data$tet_name_cutoff <- barplot_data$meta_col
+  
+  barplot_data$Status <- factor(barplot_data$Status, 
+                                levels = status_levels)
+  
+  barplot_data$celltype <- factor(barplot_data$celltype,
+                                  levels = c("Naive", "ABC", "Resting_Memory",
+                                             "Memory", "Plasmablast"))
+  
+  barplot <- ggplot2::ggplot(barplot_data, aes(x = Status, y = percents,
+                                               fill = tet_name_cutoff)) +
+    ggplot2::geom_bar(position = "stack", stat = "identity") +
+    ggplot2::facet_grid(~celltype, switch = "x") +
+    ggplot2::theme(strip.placement = "outside",
+                   strip.background = element_rect(fill = NA, color = "white"),
+                   panel.spacing = unit(-.01,"cm"),
+                   axis.text.x = ggplot2::element_text(angle = 45, hjust = 1)) +
+    ggplot2::scale_fill_manual(values = tetramer_colors_use)
+  
+  return(barplot)
+  
+}
+
+
+barplot <- make_barplot(seurat_object = no_other,
+                        tetramer_colors_use = tetramer_colors_use)
 
 pdf(file.path(image_dir, "1G_tetramer_stacked_barplot.pdf"),
     height = 8, width = 8)
 print(barplot)
 dev.off()
 
+no_neg <- subset(no_other, subset = tet_name_cutoff != "Negative")
+
+tetramer_colors_no_neg <- tetramer_colors_use[names(tetramer_colors_use) != "Negative"]
+
+barplot <- make_barplot(seurat_object = no_neg,
+                        tetramer_colors_use = tetramer_colors_no_neg)
+
+pdf(file.path(image_dir, "tetramer_stacked_barplot_no_neg.pdf"),
+    height = 8, width = 8)
+print(barplot)
+dev.off()
+
+# Umaps by tetramer coloring
+all_umaps <- lapply(unique(seurat_data$tet_name_cutoff), function(x){
+  umap_return <- plotDimRed(seurat_data, col_by = "celltype_cluster", 
+                            plot_type = "rna_mnn.umap",
+                            color = cluster_celltype_colors, ggrastr = TRUE,
+                            highlight_group = TRUE, group = x,
+                            meta_data_col = "tet_name_cutoff")[[1]] +
+    ggplot2::theme(legend.position = "none")
+  
+  return(umap_return)
+})
+
+names(all_umaps) <- unique(seurat_data$tet_name_cutoff)
+
+full_umaps <- cowplot::plot_grid(all_umaps$INS.tet, all_umaps$IA2.tet,
+                                 all_umaps$GAD.tet, 
+                                 all_umaps$Islet_Multi_Reactive,
+                                 all_umaps$TET.tet, all_umaps$DNA.tet,
+                                 all_umaps$Other_Multi_Reactive,
+                                 all_umaps$Negative,
+                                 ncol = 4)
+
+pdf(file.path(image_dir, "Supp3_tetramer_umap.pdf"),
+    height = 8, width = 16)
+print(full_umaps)
+dev.off()
 
 # OTHER
 values <- seurat_data[[]] %>%
@@ -366,6 +444,8 @@ new_status <- c("FDR" = "ND",
 
 facs_percents$Status <- new_status[facs_percents$old_status]
 facs_number$Status <- new_status[facs_number$old_status]
+facs_percents$Status <- factor(facs_percents$Status, levels = new_status)
+facs_number$Status <- factor(facs_number$Status, levels = new_status)
 
 facs_percents$type <- "PE_positive"
 facs_number$type <- "PE_positive"
@@ -449,10 +529,13 @@ dev.off()
 ## Figure 2 -------------------------------------------------------------------
 # Read in de genes
 markers_sig <- read.csv(file.path(save_dir, "files", "mast_de.csv"))
+twin_markers <- read.csv(file.path(save_dir, "files", "twin_mast_de.csv"))
 
 # Make heatmap of all DE
 de_genes <- markers_sig[markers_sig$cluster !=
                           "T1D_Islet_Reactive_AAB_Islet_Reactive",]$gene
+
+de_genes <- unique(de_genes)
 
 new_sample_order <- c("110", "116", "108", "107", "113", "114", "118",
                       "106", "117", "115", "105", "111", "102", "112",
@@ -597,95 +680,15 @@ print(all_heatmaps$EBV)
 dev.off()
 graphics.off()
 
+## Figure 3 --------------------------------------------------------------------
+seurat_data$celltype_cluster <- factor(seurat_data$celltype_cluster, levels =
+                                         c("Naive_0", "Naive_2", "Naive_4", 
+                                           "ABC_5", "Resting_Memory_1", 
+                                           "Resting_Memory_6",
+                                           "Resting_Memory_7",
+                                           "Memory_3", "Plasmablast_8"))
 
-# 4.	UMAP - Antigen reactive cells cluster independently (not clustering by mRNA)
-# INS/GAD/IA2/Multi-islet/TET/DNA
-# * We decided thta this isn't a necessary plot
-# 5.	Stacked bar chart: x axis = B cell subtype (updated), y axis = % of 
-# total cells minus other_multi_reactive
-# (INS/GAD/IA2/Multi-islet/TET/DNA/Negative)
-
-
-
-# 6.	INSR mRNA expression violin plot separated by B cell subtype
-# 7.	INSR mRNA expression violin plot separated by status
-# 8.	IGHM mRNA expression violin plot separated by status
-# 9.	IGHD mRNA expression violin plot separated by status
-# 10.	IGHG mRNA expression violin plot separated by status --> IGHG1, 2, 3, 4
-# 11.	IGHA mRNA expression violin plot separated by status --> IGHA1, 2
-# *make y axis of plots 7-11 consistent to show difference in values*
-
-# Also make IgM and IgD with protein
-# Make all G and A
-# Plot INSR by tet binding
-
-violin_1 <- featDistPlot(seurat_data, geneset = "INSR",
-                         col_by = "final_celltype",
-                         sep_by = "final_celltype",
-                         color = final_colors, combine = FALSE)
-
-violin_2 <- featDistPlot(seurat_data, geneset = "INSR",
-                         col_by = "tet_name_cutoff",
-                         sep_by = "tet_name_cutoff",
-                         color = tetramer_colors, combine = FALSE)
-
-all_violins <- featDistPlot(seurat_data, geneset = c("INSR", "IGHM", "IGHD", 
-                                                     "IGHG1", "IGHG2",
-                                                     "IGHG3", "IGHG3", 
-                                                     "IGHA1", "IGHA2"),
-                            col_by = "Status", sep_by = "final_celltype",
-                            color = status_colors, combine = FALSE)
-
-# seurat_data <- subset(seurat_data, subset = isotype != "IGHE")
-# 
-# all_violins <- featDistPlot(seurat_data, geneset = c("IGHG1", "IGHA1"),
-#                             col_by = "isotype", sep_by = "isotype",
-#                             color = status_colors, combine = FALSE)
-
-# 8
-
-violin_1 <- violin_1$INSR +
-  ggplot2::ylim(0, 8)
-
-violin_2 <- violin_2$INSR +
-  ggplot2::ylim(0, 8)
-
-all_violins <- lapply(all_violins, function(x){
-  x <- x + 
-    ggplot2::ylim(0, 8)
-  
-  return(x)
-})
-
-
-graphics.off()
-
-pdf(file.path(image_dir, "gene_expression_violins_status.pdf"), height = 4,
-    width = 8)
-print(all_violins)
-
-dev.off()
-
-
-pdf(file.path(image_dir, "gene_expression_violins_celltype.pdf"), height = 5,
-    width = 8)
-print(violin_1)
-print(violin_2)
-
-dev.off()
-
-## Differential expression ------------------------------------------------------
-# 12.	New DEG comparisons heatmaps (first pass plots, will narrow down later)
-# 13.	BCR signaling pathway (KEGG) genes heatmap
-
-# Heatmap by sample/status + antigen binding
-
-# Add in twin DE
-
-## Isotype analysis -------------------------------------------------------------
-# 14.	Stacked bar chart of all cells: y axis = isotype frequency, 
-# x axis = disease status 
-
+# 3A stacked bar chart of isotype distribution by cell type
 isotype <- subset(seurat_data, subset = imcantation_isotype != "")
 
 colors <- MetBrewer::met.brewer(name = "Peru1", n = 6)
@@ -696,137 +699,20 @@ names(isotype_colors) <- c("IGHM", "IGHD",  "IGHA1", "IGHA2",
 isotype$imcantation_isotype <- factor(isotype$imcantation_isotype,
                                       levels = names(isotype_colors))
 
-all_cells <- stacked_barplots(isotype, meta_col = "imcantation_isotype",
-                              split_by = "Status", color = isotype_colors)
-
-pdf(file.path(image_dir, "isotype_barplot_all.pdf"), height = 8, width = 8)
-
-print(all_cells)
-
-dev.off()
-
-# 15.	Stacked bar chart of islet-reactive cells: y axis = isotype frequency, 
-# x axis = disease status 
-islet_reactive <- subset(isotype, 
-                         subset = tet_name_cutoff %in% c("Islet_Multi_Reactive",
-                                                     "IA2-tet", "GAD-tet",
-                                                     "INS-tet"))
-
-
-islet_cells <- stacked_barplots(isotype, meta_col = "imcantation_isotype",
-                                split_by = "Status", color = isotype_colors)
-
-pdf(file.path(image_dir, "isotype_barplot_islet_reactive.pdf"),
-    height = 8, width = 8)
-
-print(islet_cells)
-
-dev.off()
-
-isotype$celltype_cluster <- factor(isotype$celltype_cluster, levels =
-                                     c("Naive_0", "Naive_1", "Naive_3", 
-                                       "Naive_5", "Naive_6", "ABC_7",
-                                       "Resting_Memory_2", "Resting_Memory_8",
-                                       "Resting_Memory_9",
-                                       "Memory_4", "Plasmablast_10",
-                                       "Plasmablast_11"))
-
-
 barplot <- stacked_barplots(isotype, meta_col = "imcantation_isotype",
                             split_by = "celltype_cluster",
                             color = isotype_colors) +
   ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
 
-pdf(file.path(image_dir, "isotype_barplot_celltype.pdf"),
-    height = 8, width = 8)
+pdf(file.path(image_dir, "3A_stacked_bar_chart_isotype_celltype.pdf"),
+    width = 8, height = 8)
 
 print(barplot)
 
 dev.off()
+graphics.off()
 
-seurat_data$celltype_cluster <- factor(seurat_data$celltype_cluster, levels =
-                                     c("Naive_0", "Naive_1", "Naive_3", 
-                                       "Naive_5", "Naive_6", "ABC_7",
-                                       "Resting_Memory_2", "Resting_Memory_8",
-                                       "Resting_Memory_9",
-                                       "Memory_4", "Plasmablast_10",
-                                       "Plasmablast_11"))
-
-p1 <- featDistPlot(seurat_data, geneset = c("IgD", "IgM", "CD27.1"),
-             assay = "ADT", sep_by = "celltype_cluster",
-             color = cluster_celltype_colors, combine = FALSE)
-
-pdf(file.path(image_dir, "adts_by_cluster.pdf"),
-    height = 8, width = 8)
-
-print(p1)
-
-dev.off()
-
-# TODO
-# Sepaarate by cell type as well
-# Plot next to insulin score
-
-# isotype_violin <- featDistPlot(isotype, geneset = "INS-tet",
-#                                assay = "SCAR_TET_LOG",
-#                                sep_by = "Status", col_by = "imcantation_isotype",
-#                                color = isotype_colors,
-#                                combine = FALSE)
-
-
-isotype_violin <- featDistPlot(isotype, geneset = c("INS-tet",
-                                                    "GAD-tet",
-                                                    "IA2-tet",
-                                                    "TET-tet",
-                                                    "DNA-tet"),
-                               assay = "SCAR_TET_LOG",
-                               col_by = "Status", sep_by = "imcantation_isotype",
-                               color = status_colors,
-                               combine = FALSE)
-
-
-isotype_violin2 <- featDistPlot(islet_reactive, geneset = c("INS-tet",
-                                                    "GAD-tet",
-                                                    "IA2-tet",
-                                                    "TET-tet",
-                                                    "DNA-tet"),
-                               assay = "SCAR_TET_LIBRA",
-                               col_by = "Status", sep_by = "imcantation_isotype",
-                               color = status_colors,
-                               combine = FALSE)
-pdf(file.path(image_dir, "isotype_status_tet_log.pdf"),
-    height = 8, width = 8)
-
-print(isotype_violin)
-
-dev.off()
-
-isotype_violin <- featDistPlot(isotype, geneset = c("INS-tet",
-                                                    "GAD-tet",
-                                                    "IA2-tet",
-                                                    "TET-tet",
-                                                    "DNA-tet"),
-                               assay = "SCAR_TET_PROPORTIONS",
-                               col_by = "Status", sep_by = "imcantation_isotype",
-                               color = status_colors,
-                               combine = FALSE)[[1]]+
-  ggplot2::ylim(-1, 50)
-
-
-pdf(file.path(image_dir, "isotype_status_tet_norm.pdf"),
-    height = 8, width = 8)
-
-print(isotype_violin)
-
-dev.off()
-
-# Make for each reactivity only
-
-
-## SHM -------------------------------------------------------------------------
-# 16.	SHM histogram - all cells
-# 17.	SHM histogram - islet-reactive cells
-
+# 3B CDR3 length
 sep_columns <- c("chains", "cdr3", "cdr3_length",
                  "cdr3_nt_length", "v_gene", "d_gene", "j_gene", "c_gene",
                  "reads", "umis", "productive", "full_length",
@@ -836,7 +722,7 @@ sep_columns <- c("chains", "cdr3", "cdr3_length",
                  "dj_del", "v_mis_freq", "d_mis_freq", "j_mis_freq",
                  "c_mis_freq", "all_mis_freq")
 keep_columns <- c("isotype", "final_celltype", "sample", "paired",
-                  "clonotype_id", "Status", 
+                  "clonotype_id", "Status", "tet_name_cutoff",
                   "all_chains")
 
 all_info <- seurat_data[[]] %>%
@@ -852,183 +738,593 @@ all_info_split <- cSplit(all_info, sep_columns, sep = ";", direction = "long") %
 
 # CDR3 length
 
+all_info_split$tet_name_cutoff <- factor(all_info_split$tet_name_cutoff,
+                                         levels = plotting_levels)
+
 heavy_data <- all_info_split %>%
   dplyr::filter(chains == "IGH")
 
 
-# ridge_cdr3_len <- ggplot2::ggplot(heavy_data, ggplot2::aes(x = cdr3_length,
-#                                                            y = Status,
-#                                                            fill = Status)) +
-#   ggridges::geom_density_ridges() +
-#   ggplot2::scale_fill_manual(values = status_colors)
-
 violin_cdr3_len <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = cdr3_length,
-                                                           x = Status,
-                                                           fill = Status)) +
-  ggplot2::geom_violin(adjust = 1.5) +
-  ggplot2::scale_fill_manual(values = status_colors) +
-  ggplot2::stat_summary(fun = median, geom = "point", size = 2,
-                        position = ggplot2::position_dodge(1))
-  
-pdf(file.path(image_dir, "heavy_cdr3_len_violin.pdf"),
-    height = 6, width = 8)
-
-print(violin_cdr3_len)
-
-dev.off()
-
-# all mis
-# ridge_mis <- ggplot2::ggplot(heavy_data, ggplot2::aes(x = all_mis,
-#                                                            y = Status,
-#                                                            fill = Status)) +
-#   ggridges::geom_density_ridges() +
-#   ggplot2::scale_fill_manual(values = status_colors)
-
-violin_mis <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = all_mis,
-                                                            x = Status,
-                                                            fill = Status)) +
-  ggplot2::geom_violin() +
-  ggplot2::scale_fill_manual(values = status_colors) +
-  ggplot2::stat_summary(fun = median, geom = "point", size = 2,
-                        position = ggplot2::position_dodge(1)) 
-
-violin_mis_zoom <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = all_mis,
-                                                            x = Status,
+                                                            x = tet_name_cutoff,
                                                             fill = Status)) +
   ggplot2::geom_violin(adjust = 1.5) +
   ggplot2::scale_fill_manual(values = status_colors) +
   ggplot2::stat_summary(fun = median, geom = "point", size = 2,
-                        position = ggplot2::position_dodge(1)) +
-  ggplot2::ylim(-1, 50)
+                        position = ggplot2::position_dodge(0.9)) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
 
 
-pdf(file.path(image_dir, "heavy_cdr3_smh_violin.pdf"),
-    height = 6, width = 8)
+boxplot_cdr3_len <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = cdr3_length,
+                                                            x = tet_name_cutoff,
+                                                            fill = Status)) +
+  ggplot2::geom_boxplot() +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
 
-print(violin_mis)
-print(violin_mis_zoom)
+pdf(file.path(image_dir, "3B_cdr3_length.pdf"),
+    width = 8, height = 4)
+
+print(boxplot_cdr3_len)
 
 dev.off()
+graphics.off()
 
-# all miss freq
 
-# ridge_mis_freq <- ggplot2::ggplot(heavy_data, ggplot2::aes(x = all_mis_freq,
-#                                                            y = Status,
-#                                                            fill = Status)) +
-#   ggridges::geom_density_ridges() +
-#   ggplot2::scale_fill_manual(values = status_colors) +
-#   ggplot2::xlim(c(-0.01, 0.4))
-
-violin_mis_freq <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = all_mis_freq,
-                                                            x = Status,
-                                                            fill = Status)) +
-  ggplot2::geom_violin(adjust = 2.5) +
+boxplot_cdr3_len <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = cdr3_length,
+                                                             x = tet_name_cutoff,
+                                                             fill = Status)) +
+  ggplot2::geom_boxplot() +
   ggplot2::scale_fill_manual(values = status_colors) +
-  ggplot2::stat_summary(fun = median, geom = "point", size = 2,
-                        position = ggplot2::position_dodge(1)) 
+  ggplot2::geom_jitter(size = 0.1) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 
-violin_mis_freq_zoom <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = all_mis_freq,
-                                                            x = Status,
-                                                            fill = Status)) +
-  ggplot2::geom_violin(adjust = 2.5) +
-  ggplot2::scale_fill_manual(values = status_colors) +
-  ggplot2::stat_summary(fun = median, geom = "point", size = 2,
-                        position = ggplot2::position_dodge(1)) +
-  ggplot2::ylim(-0.01, 0.2)
+pdf(file.path(image_dir, "cdr3_length_jitter.pdf"),
+    width = 8, height = 4)
 
-pdf(file.path(image_dir, "heavy_cdr3_smh_freq_violin.pdf"),
-    height = 6, width = 8)
-
-print(violin_mis_freq)
-print(violin_mis_freq_zoom)
+print(boxplot_cdr3_len)
 
 dev.off()
+graphics.off()
 
-# ridge_mis_freq_cell <- ggplot2::ggplot(heavy_data, ggplot2::aes(x = all_mis_freq,
-#                                                                 y = final_celltype,
-#                                                                 fill = final_celltype)) +
-#   ggridges::geom_density_ridges() +
-#   ggplot2::scale_fill_manual(values = final_colors) +
-#   ggplot2::xlim(c(-0.01, 0.4))
+# SHM VH and VL
 
-
-violin_cell <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = all_mis_freq,
-                                                            x = final_celltype,
-                                                            fill = Status)) +
-  ggplot2::geom_violin(adjust = 2.5) +
+boxplot_h_smh <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = all_mis_freq,
+                                                             x = tet_name_cutoff,
+                                                             fill = Status)) +
+  ggplot2::geom_boxplot() +
   ggplot2::scale_fill_manual(values = status_colors) +
-  ggplot2::stat_summary(fun = median, geom = "point", size = 2,
-                        position = ggplot2::position_dodge(1)) +
-  ggplot2::ylim(-0.01, 0.2)
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
+  ggplot2::ggtitle("Heavy chain SMH")
 
-violin_cell <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = all_mis_freq,
-                                                        x = final_celltype,
-                                                        fill = final_celltype)) +
-  ggplot2::geom_violin(adjust = 2.5) +
-  ggplot2::scale_fill_manual(values = final_colors) +
-  ggplot2::stat_summary(fun = median, geom = "point", size = 2,
-                        position = ggplot2::position_dodge(1)) +
-  ggplot2::ylim(-0.01, 0.2)
+light_data <- all_info_split %>%
+  dplyr::filter(chains %in% c("IGK", "IGL"))
+
+boxplot_l_smh <- ggplot2::ggplot(light_data, ggplot2::aes(y = all_mis_freq,
+                                                          x = tet_name_cutoff,
+                                                          fill = Status)) +
+  ggplot2::geom_boxplot() +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
+  ggplot2::ggtitle("Light chain SMH")
 
 
-## Diversity -------------------------------------------------------------------
-# 18.	Shannon alpha diversity rarefaction curve of all cells by status
-# 19.	Jaccard beta diversity rarefaction curve of islet-reactive cells by status
+h_and_l <- cowplot::plot_grid(boxplot_h_smh, boxplot_l_smh,
+                              nrow = 2, ncol = 1)
 
+
+pdf(file.path(image_dir, "3C_heavy_ligh_smh.pdf"),
+    width = 8, height = 8)
+
+print(h_and_l)
+
+dev.off()
+graphics.off()
+
+no_plasma <- subset(seurat_data, subset = final_celltype != "plasmablast")
+
+# Shannon index
+seurat_data$sample_celltype <- paste(seurat_data$sample,
+                                     seurat_data$final_celltype,
+                                     sep = "_")
 seurat_data <- calc_diversity(seurat_data,
-  data_col    = "final_clone",
-  cluster_col = "Status",
-  method      = abdiv::shannon
+                              data_col    = "final_clone",
+                              cluster_col = "sample_celltype",
+                              method      = abdiv::shannon
 )
 
-plot_diversity(seurat_data,
-  data_col    = "final_clone",
-  cluster_col = "Status",
-  method      = abdiv::shannon,
-  plot_colors = as.character(status_colors)
-)
+diversity <- seurat_data[[]] %>%
+  dplyr::select(final_clone_shannon_diversity, final_celltype, sample,
+                Status) %>%
+  dplyr::distinct() %>%
+  dplyr::filter(!is.na(final_clone_shannon_diversity))
 
-# Need to install iNEXT into docker image
-plot_rarefaction(seurat_data, 
-  data_col    = "final_clone",
-  cluster_col = "Status",
-  method      = c("shannon"),
-  plot_colors = as.character(status_colors)
-)
-## Clonal analysis -------------------------------------------------------------
-# 20.	Count number of islet-reactive clones found within each individual, 
-# make a stacked bar chart 
-# delineating whether the clones were public (black) or private (white), and 
-# group the individuals on 
-# the X axis according to disease status. Y axis is the number of clones present
-# according to category. 
-# 21.	Do the same as 20, but instead of raw # of clones, normalize to a percent
-# of total clones found in 
-# each individual, so if 4 clones total and 1 was public, 0.25 of the bar is 
-# black and 0.75 of the bar is white.
+diversity_p <- ggplot2::ggplot(diversity, ggplot2::aes(x = Status,
+                                                       y = final_clone_shannon_diversity,
+                                                       color = Status)) + 
+  ggplot2::geom_boxplot() +
+  ggplot2::scale_color_manual(values = status_colors) +
+  ggplot2::facet_grid(~final_celltype, switch = "x") +
+  ggpubr::stat_compare_means(ggplot2::aes(group = Status),
+                             method = "t.test",
+                             label = "p.signif",
+                             comparisons = list(c("AAB", "ND"),
+                                                c("T1D", "ND"),
+                                                c("T1D", "AAB"))) +
+  ggplot2::theme(strip.placement = "outside",
+                 strip.background = element_rect(fill = NA, color = "white"),
+                 panel.spacing = unit(-.01,"cm"),
+                 axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 
-## Antigen reactvitiy ----------------------------------------------------------
-# 22.	Stacked bar chart of frequency of antigen reactivity type where 
-# x axis = disease status and y 
-# axis = INS/GAD/IA2/Multi-Islet TET/DNA
-# 23.	Same as 22 but collapse all islet-reactive to one category so 
-# y axis = All-Islet TET/DNA
-# 24.	Same as 22 & 23 but include the negative fraction of cells
-# 25.	Same as 22 & 23 but include the other-reactive fraction of cells
-# 26.	Same as 22 & 23 but include the other-reactive and negative 
-# fractions of cells
+pdf(file.path(image_dir, "3D_shannon_alpha_diversity.pdf"),
+    width = 8, height = 8)
 
-## Other -----------------------------------------------------------------------
-# 27.	Replicate something similar to 
-# [Figure 6 of this paper](https://journals.aai.org/jimmunol/article/198/4/1460/109668/Dysregulation-of-B-Cell-Repertoire-Formation-in) 
-# for our samples with all cells (by status)
-# 28.	Replicate something similar to Figure 6 of this paper for our samples with islet-reactive cells (by status)
-# 29.	Replicate something similar to 
-# [Figure 6 of this paper](https://journals.aai.org/jimmunol/article/198/4/1460/109668/Dysregulation-of-B-Cell-Repertoire-Formation-in) 
-# for our samples with all clones (by status)
-# 30.	Replicate something similar to 
-# [Figure 6 of this paper](https://journals.aai.org/jimmunol/article/198/4/1460/109668/Dysregulation-of-B-Cell-Repertoire-Formation-in) 
-# for our samples with public clones (by status)
-# 31.	Replicate something similar to 
-# [Figure 6 of this paper](https://journals.aai.org/jimmunol/article/198/4/1460/109668/Dysregulation-of-B-Cell-Repertoire-Formation-in) 
-# for our samples with private clones (by status)
+print(diversity_p)
+
+dev.off()
+graphics.off()
+
+# Clone plots
+clone_data <- file.path(save_dir, "files", "v_gene_counting", 
+                        "clone_expansion.xlsx")
+
+
+clone_expanded <- openxlsx::readWorkbook(clone_data, sheet = "expanded_clones")
+clone_public <- openxlsx::readWorkbook(clone_data, sheet = "public_clones")
+
+make_clone_barplot <- function(clone_df){
+  clone_df <- clone_df %>%
+    dplyr::group_by(Status, tet_name_cutoff) %>%
+    dplyr::add_count(name = "number_of_clones") %>%
+    dplyr::select(tet_name_cutoff, number_of_clones, Status) %>%
+    dplyr::distinct()
+  
+  clone_df$Status <- factor(clone_df$Status,
+                                  levels = status_levels)
+  
+  clone_df$tet_name_cutoff <- factor(clone_df$tet_name_cutoff,
+                                           levels = plotting_levels)
+  
+  
+  tet_colors <- tetramer_colors
+  names(tet_colors) <- make.names(names(tet_colors))
+  
+  clone_barplot <- ggplot2::ggplot(data = clone_df, 
+                                   ggplot2::aes(x = Status, y = number_of_clones,
+                                                   fill = tet_name_cutoff)) +
+    ggplot2::geom_bar(stat = "identity", position = "stack") +
+    ggplot2::scale_fill_manual(values = tet_colors)
+  
+  return(clone_barplot)
+  
+}
+
+expanded_barplot <- make_clone_barplot(clone_expanded)
+public_barplot <- make_clone_barplot(clone_public)
+
+pdf(file.path(image_dir, "3E_public_clones.pdf"),
+    width = 8, height = 8)
+
+print(public_barplot)
+
+dev.off()
+graphics.off()
+
+
+pdf(file.path(image_dir, "3F_private_clones.pdf"),
+    width = 8, height = 8)
+
+print(expanded_barplot)
+
+dev.off()
+graphics.off()
+
+
+# Public clone score
+
+clone_long <- clone_public %>%
+  dplyr::select(Status, tet_name_cutoff,
+                dplyr::contains("myeloid_t_cutoff_")) %>%
+  tidyr::pivot_longer(cols = dplyr::contains("myeloid_t_cutoff_"),
+                      names_to = "tetramer",
+                      values_to = "tetramer_score") %>%
+  dplyr::mutate(tetramer = gsub("myeloid_t_cutoff_", "",
+                                tetramer))
+
+clone_long$Status <- factor(clone_long$Status, levels = c("ND", "AAB", "T1D"))
+
+public_clone <- ggplot2::ggplot(data = clone_long,
+                                ggplot2::aes(x = Status,
+                                             y = tetramer_score,
+                                             fill = Status)) +
+  ggplot2::geom_violin(scale = "width", position = ggplot2::position_dodge(1)) +
+  ggplot2::facet_grid(~tetramer, switch = "x") +
+  ggplot2::scale_fill_manual(values = status_colors) + 
+  ggplot2::stat_summary(fun = median, geom = "point", size = 2,
+                        position = ggplot2::position_dodge(1)) +
+  # ggplot2::theme(strip.placement = "outside",
+  #                strip.background = element_rect(fill = NA, color = "white"),
+  #                panel.spacing = unit(-.01,"cm"),
+  #                axis.text.x = ggplot2::element_text(angle = 45, hjust = 1)) +
+  ggplot2::ggtitle("Public clones")
+
+
+# Expanded clone
+
+expanded_clone_long <- clone_expanded %>%
+  dplyr::select(Status, tet_name_cutoff,
+                dplyr::contains("myeloid_t_cutoff_")) %>%
+  tidyr::pivot_longer(cols = dplyr::contains("myeloid_t_cutoff_"),
+                      names_to = "tetramer",
+                      values_to = "tetramer_score") %>%
+  dplyr::mutate(tetramer = gsub("myeloid_t_cutoff_", "",
+                                tetramer))
+
+expanded_clone_long$Status <- factor(expanded_clone_long$Status, 
+                                     levels = c("ND", "AAB", "T1D"))
+
+expanded_clone <- ggplot2::ggplot(data = expanded_clone_long,
+                                ggplot2::aes(x = Status,
+                                             y = tetramer_score,
+                                             fill = Status)) +
+  ggplot2::geom_violin(scale = "width", position = ggplot2::position_dodge(1)) +
+  ggplot2::facet_grid(~tetramer, switch = "x") +
+  ggplot2::scale_fill_manual(values = status_colors) + 
+  ggplot2::stat_summary(fun = median, geom = "point", size = 2,
+                        position = ggplot2::position_dodge(1)) +
+  # ggplot2::theme(strip.placement = "outside",
+  #                strip.background = element_rect(fill = NA, color = "white"),
+  #                panel.spacing = unit(-.01,"cm"),
+  #                axis.text.x = ggplot2::element_text(angle = 45, hjust = 1)) +
+  ggplot2::ggtitle("Expanded clones")
+
+full_plot <- cowplot::plot_grid(public_clone, expanded_clone,
+                                nrow = 2, ncol = 1)
+
+
+pdf(file.path(image_dir, "3G_clone_scores.pdf"),
+    width = 8, height = 8)
+
+print(full_plot)
+
+dev.off()
+graphics.off()
+
+## Figure 4 --------------------------------------------------------------------
+
+stats_aab <- file.path(save_dir, "files", "vdj_files",
+                            "stats", "all_aab_nd.xlsx")
+
+stats_t1d <- file.path(save_dir, "files", "vdj_files",
+                            "stats", "all_t1d_nd.xlsx")
+
+stats_aab_light <- file.path(save_dir, "files", "vdj_files",
+                       "stats", "all_light_aab_nd.xlsx")
+
+stats_t1d_light <- file.path(save_dir, "files", "vdj_files",
+                       "stats", "all_light_t1d_nd.xlsx")
+
+stats_aab_hl <- file.path(save_dir, "files", "vdj_files",
+                             "stats", "all_heavy_light_aab_nd.xlsx")
+
+stats_t1d_hl <- file.path(save_dir, "files", "vdj_files",
+                             "stats", "all_heavy_light_t1d_nd.xlsx")
+
+
+# Heavy
+odds_ratio_aab <- openxlsx::readWorkbook(stats_aab, sheet = "odds_ratio")
+
+odds_ratio_t1d <- openxlsx::readWorkbook(stats_t1d, sheet = "odds_ratio")
+
+odds_ratio_t1d <- odds_ratio_t1d[order(odds_ratio_t1d$odds_ratio),]
+
+odds_ratio_aab <- odds_ratio_aab[order(match(odds_ratio_aab$v_gene,
+                                             odds_ratio_t1d$v_gene)),]
+
+# Light
+odds_ratio_aab_light <- openxlsx::readWorkbook(stats_aab_light,
+                                               sheet = "odds_ratio")
+
+odds_ratio_t1d_light <- openxlsx::readWorkbook(stats_t1d_light,
+                                               sheet = "odds_ratio")
+
+odds_ratio_t1d_light <- odds_ratio_t1d_light[
+  order(odds_ratio_t1d_light$odds_ratio),]
+
+odds_ratio_aab_light <- odds_ratio_aab_light[
+  order(match(odds_ratio_aab_light$v_gene,
+              odds_ratio_t1d_light$v_gene)),]
+
+# Heavy and light
+odds_ratio_aab_hl <- openxlsx::readWorkbook(stats_aab_hl,
+                                               sheet = "odds_ratio")
+
+odds_ratio_t1d_hl <- openxlsx::readWorkbook(stats_t1d_hl,
+                                               sheet = "odds_ratio")
+
+odds_ratio_t1d_hl <- odds_ratio_t1d_hl[
+  order(odds_ratio_t1d_hl$odds_ratio),]
+
+odds_ratio_t1d_hl <- odds_ratio_t1d_hl[
+  order(match(odds_ratio_t1d_hl$v_gene,
+              odds_ratio_t1d_hl$v_gene)),]
+
+
+make_plot <- function(odds_ratio, status, chain){
+  # Set the order
+  odds_ratio$v_gene <- factor(odds_ratio$v_gene,
+                              levels = odds_ratio$v_gene)
+  col_mapping <- c("P>0.05" = "#D3D3D3",
+                   "P<0.05" = as.character(status_colors[status]))
+  
+  odds_plot <- ggplot2::ggplot(odds_ratio, 
+                               ggplot2::aes(x = odds_ratio,
+                                            y = v_gene,
+                                            color = padj_category)) +
+    ggplot2::geom_point() +
+    ggplot2::geom_errorbar(ggplot2::aes(xmin = X95_conf_int_low,
+                                        xmax = X95_conf_int_high)) +
+    ggplot2::geom_vline(xintercept = 1, linetype = "dashed") +
+    ggplot2::scale_color_manual(values = col_mapping) +
+    ggplot2::ggtitle(paste0(chain, " chain: ", status, " vs ND")) +
+    ggplot2::theme(plot.title = element_text(hjust = 0.5))
+}
+
+t1d <- make_plot(odds_ratio_t1d, status = "T1D", chain = "Heavy")
+aab <- make_plot(odds_ratio_aab, status = "AAB", chain = "Heavy")
+
+# Remove chains with a very high confidence interval
+odds_ratio_t1d_light <- odds_ratio_t1d_light[odds_ratio_t1d_light$X95_conf_int_high < 10,]
+odds_ratio_aab_light <- odds_ratio_aab_light[odds_ratio_aab_light$X95_conf_int_high < 10,]
+
+t1d_light <- make_plot(odds_ratio_t1d_light, status = "T1D", chain = "Light")
+aab_light <- make_plot(odds_ratio_aab_light, status = "AAB", chain = "Light")
+
+full_plot <- cowplot::plot_grid(t1d, aab, t1d_light, aab_light,
+                                nrow = 2, ncol = 2, rel_heights = c(1, 1.2))
+
+heavy_plot <- cowplot::plot_grid(t1d, aab,
+                                nrow = 1, ncol = 2)
+
+light_plot <- cowplot::plot_grid(t1d_light, aab_light,
+                                 nrow = 1, ncol = 2)
+
+pdf(file.path(image_dir, "4A_all_odds.pdf"),
+    width = 15, height = 20)
+
+print(full_plot)
+
+dev.off()
+graphics.off()
+
+pdf(file.path(image_dir, "4A_heavy_odds.pdf"),
+    width = 15, height = 10)
+
+print(heavy_plot)
+
+dev.off()
+graphics.off()
+
+pdf(file.path(image_dir, "4A_light_odds.pdf"),
+    width = 15, height = 11)
+
+print(light_plot)
+
+dev.off()
+graphics.off()
+
+# t1d_light <- make_plot(odds_ratio_t1d_hl, status = "T1D", chain = "Light")
+
+# all_heavy_chains <- unique(str_split_i(all_chains, pattern = ";", i = 1))
+# all_light_chains <- unique(str_split_i(all_chains, pattern = ";", i = 2))
+# 
+# hl_chains <- unique(unlist(str_split(all_chains, pattern = ";")))
+
+make_circos_plot <- function(circos_df, color = NULL,
+                             grid_color = NULL){
+  if(nrow(circos_df) > 0){
+    
+    chordDiagram(circos_df, annotationTrack = "grid", 
+                 preAllocateTracks = 1, col = color,
+                 grid.col = grid_color)
+    
+    # we go back to the first track and customize sector labels
+    circos.track(track.index = 1, panel.fun = function(x, y) {
+      circos.text(CELL_META$xcenter, CELL_META$ylim[1], CELL_META$sector.index, 
+                  facing = "clockwise", niceFacing = TRUE, adj = c(-0.1, 0.5))
+    }, bg.border = NA) # here set bg.border to NA is important
+    
+  }
+  
+}
+
+count_genes_heavy_light <- function(starting_df, group_by = "all",
+                                    chain = c("IGK", "IGL"),
+                                    color_list = NULL, subset_counts = 0){
+  
+  # Hard coding this because the function won't work if there are multiple
+  # heavy and light chains.
+  keep_chains <- c("IGH;IGK", "IGH;IGL")
+  
+  if(group_by == "all"){
+    select_cols <- c()
+  } else if (group_by == "sample") {
+    select_cols <- c("sample")
+  } else if (group_by == "Status") {
+    select_cols <- c("Status")
+  } else {
+    stop("group_by must be 'all', 'sample', or 'Status'")
+  }
+  
+  return_df <- starting_df %>%
+    dplyr::filter(all_chains %in% keep_chains) %>%
+    dplyr::select(dplyr::all_of(select_cols), chains, barcode, v_gene) %>%
+    tidyr::pivot_wider(names_from = chains, values_from = v_gene)
+  
+  if(identical(sort(chain), sort(c("IGK", "IGL")))){
+    return_df <- return_df %>%
+      dplyr::mutate(IGK_IGL = ifelse(!is.na(IGK), IGK, IGL)) %>%
+      dplyr::select(dplyr::all_of(select_cols), IGH, IGK_IGL)
+    test_chain <- "IGK_IGL"
+  } else {
+    return_df <- return_df %>%
+      dplyr::select(dplyr::all_of(c(select_cols, "IGH", chain))) %>%
+      dplyr::filter(!is.na(!!as.name(chain)))
+    test_chain <- chain
+  }
+  
+  return_df <- return_df %>%
+    dplyr::group_by(dplyr::across(dplyr::all_of(c(select_cols, test_chain, "IGH")))) %>% 
+    dplyr::add_count(name = "value") %>%
+    dplyr::distinct() %>%
+    dplyr::ungroup() %>%
+    dplyr::filter(value >= subset_counts)
+  
+  colnames(return_df) <- c(select_cols, "heavy", "light", "value")
+  
+  # Order the data frame
+  heavy_order <- strcapture("([A-Za-z]+)([0-9]+)-([0-9]+)", 
+                            unique(return_df$heavy),
+                            list(prefix = "", numeric1 = 0, numeric2 = 0))
+  
+  heavy_order$original <- unique(return_df$heavy)
+  
+  heavy_order <- data.frame(heavy_order)
+  
+  heavy_order <- heavy_order[order(heavy_order$numeric1, heavy_order$numeric2),]
+  
+  light_order <- strcapture("([A-Za-z]+)([0-9]+)-([0-9]+)", 
+                            unique(return_df$light),
+                            list(prefix = "", numeric1 = 0, numeric2 = 0))
+  
+  light_order$original <- unique(return_df$light)
+  
+  light_order <- data.frame(light_order)
+  
+  light_order <- light_order[order(light_order$prefix,
+                                   light_order$numeric1, 
+                                   light_order$numeric2),]  
+  
+  return_df$heavy <- factor(return_df$heavy, levels = heavy_order$original)
+  return_df$light <- factor(return_df$light, levels = light_order$original)
+  
+  return_df <- return_df[order(return_df$heavy,
+                               return_df$light), ]
+  
+  if(group_by != "all"){
+    
+    return_df$color <- color_list[as.character(return_df[[group_by]])]
+    color_values <- return_df$color
+    full_df <- return_df
+    return_df <- return_df %>%
+      dplyr::select(-dplyr::all_of(group_by), -color)
+  } else{
+    color_values <- NULL
+    full_df <- return_df
+  }
+  
+  return(list("df" = return_df, "color_list" = color_values,
+              "full_df" = full_df))
+}
+
+# Colors
+heavy <- unique(all_info_split[all_info_split$chains == "IGH",]$v_gene)
+light <- unique(all_info_split[all_info_split$chains %in% c("IGL", "IGK"),]$v_gene)
+
+palette1 <- colorRampPalette(colors = 
+                               RColorBrewer::brewer.pal(name = "Set1", n = 9))
+
+palette2 <- colorRampPalette(colors = 
+                               RColorBrewer::brewer.pal(name = "Set2", n = 8))
+
+heavy_colors <- palette1(length(heavy))
+names(heavy_colors) <- heavy
+
+light_colors <- palette2(length(light))
+names(light_colors) <- light
+
+all_colors <- c(heavy_colors, light_colors)
+
+
+# Only odds increased heavy light pairs
+# Get only significant chains
+sig_hl_t1d <- odds_ratio_t1d_hl[odds_ratio_t1d_hl$p_adj < 0.05 &
+                                  odds_ratio_t1d_hl$odds_ratio > 1,]
+sig_hl_aab <- odds_ratio_aab_hl[odds_ratio_aab_hl$p_adj < 0.05 &
+                                  odds_ratio_aab_hl$odds_ratio > 1,]
+
+
+all_chains <- c(sig_hl_t1d$v_gene, sig_hl_aab$v_gene)
+use_cells <- seurat_data[[]] %>%
+  dplyr::filter(v_gene %in% all_chains)
+
+use_data <- all_info_split[all_info_split$barcode %in%
+                             rownames(use_cells), ]
+
+all_data <- count_genes_heavy_light(starting_df = use_data,
+                                    group_by = "Status",
+                                    subset_counts = 0,
+                                    color_list = status_colors)
+
+
+pdf(file.path(image_dir, "4B_combined_heavy_light_significant.pdf"),
+    width = 8, height = 8)
+
+par(mfrow = c(1, 1))
+make_circos_plot(circos_df = all_data$df,
+                 color = all_data$color_list, 
+                 grid_color = all_colors)
+
+dev.off()
+graphics.off()
+
+odds_siginificant_v <- rbind(odds_ratio_aab, odds_ratio_t1d) %>%
+  dplyr::filter(p_adj < 0.05, odds_ratio > 1)
+
+use_cells <- all_info_split[all_info_split$v_gene %in% 
+                              odds_siginificant_v$v_gene, ]$barcode
+
+use_data <- all_info_split[all_info_split$barcode %in%
+                             use_cells, ]
+
+pdf(file.path(image_dir, "4B_sig_heavy_all_light.pdf"),
+    width = 32, height = 16)
+
+par(mfrow = c(2, 4))
+for(tet_group in unique(use_data$tet_name_cutoff)){
+  sub_data <- use_data[use_data$tet_name_cutoff == tet_group, ]
+  all_data <- count_genes_heavy_light(starting_df = sub_data,
+                                      group_by = "Status",
+                                      subset_counts = 0,
+                                      color_list = status_colors)  
+  
+  make_circos_plot(circos_df = all_data$df,
+                   color = all_data$color_list, 
+                   grid_color = all_colors)
+  
+  title(main = tet_group)
+}
+
+dev.off()
+
+# Get cell barcode of immcantation clones
+clone_info <- read.table(file.path(save_dir, "define_clones",
+                                   "immcantation_combined_clone-pass.tsv"),
+                         sep = "\t", header = TRUE)
+
+all_sequences <- cSplit(clone_expanded, splitCols = "sequences", sep = ";")
+
+clone_info <- clone_info[clone_info$locus == "IGH",]
+
+cells_use <- clone_info[clone_info$sequence %in%
+                          all_sequences$sequences_1,]$cell_id
+
+cells_use_direct <- clone_expanded$
+
+
+all_sequences <- cSplit(clone_public, splitCols = "sequences", sep = ";")
+
+clone_info <- clone_info[clone_info$locus == "IGH",]
+
+cells_use <- clone_info[clone_info$sequence %in%
+                          all_sequences$sequences_1,]$cell_id

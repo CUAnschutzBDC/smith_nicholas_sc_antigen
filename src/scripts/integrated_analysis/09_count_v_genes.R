@@ -330,8 +330,10 @@ table(clone_info_check$final_celltype)
 # clone_id, sample_clone_id
 # clone_id is called across all samples, sample_clone_id is called only
 # within samples
+clone_info$locus <- factor(clone_info$locus, levels = c("IGH", "IGK", "IGL"))
 
 count_clones <- clone_info %>%
+  dplyr::arrange(locus) %>%
   dplyr::group_by(cell_sample) %>%
   dplyr::mutate(sequences = paste(sequence, collapse = ";"),
                    alignment_sequences = paste(sequence_alignment, collapse = ";")) %>%
@@ -348,7 +350,7 @@ count_clones <- clone_info %>%
                 clone_count, full_tet_name_cutoff,
                 sequences, alignment_sequences, scar_libra_tet_hash_id,
                 scar_libra_full_hash_id, scar_hash_id,
-                full_scar_hash_id)
+                full_scar_hash_id, barcode)
 
 
 # Add in counts for individuals --> how many individuals are seen?
@@ -398,7 +400,7 @@ column_order <- c("clone_id", "final_clone", "v_gene", "j_gene", "cdr3",
                   "number_of_samples", "isotype_count", "isotype_percent", 
                   "cell_type_count", "cell_type_percent", "tet_binding_count", 
                   "tet_binding_percent", "status_count", "status_percent",
-                  "sequences", "alignment_sequences")
+                  "sequences", "alignment_sequences", "barcode")
 
 # Rename clones based on previous names
 old_names1 <- openxlsx::readWorkbook(xlsxFile = file.path(v_counting_dir,
@@ -435,6 +437,9 @@ clone_mapping <- oldnames$clone_id
 names(clone_mapping) <- oldnames$previous_clone
 count_clones$clone_id <- clone_mapping[as.character(count_clones$clone_id)]
 
+
+write.csv(count_clones, file.path(v_counting_dir, 
+                                  "all_clone_info.csv"))
 
 
 # Write to a new file

@@ -510,11 +510,14 @@ for(cells_use in c("all", "memory")){
   # 2. All subsets of class switching
   
   # Build comparisons
-  comparison_builder <- function(starting_df){
+  comparison_builder <- function(starting_df, chains_use = "IGH",
+                                 keep_chains = c("IGH", "IGH;IGK", "IGH;IGK;IGK",
+                                                 "IGH;IGK;IGL", "IGH;IGL", 
+                                                 "IGH;IGL;IGL")){
     # Make this into a function that builds v_data based on whatever subset df,
     # and also makes the lists below
     v_data <- starting_df %>%
-      dplyr::filter(chains %in% c("IGH")) %>% 
+      dplyr::filter(chains %in% chains_use) %>% 
       dplyr::filter(all_chains %in% keep_chains) %>%
       dplyr::select(sample, v_gene, Status) %>%
       dplyr::group_by(sample, v_gene) %>%
@@ -573,7 +576,8 @@ for(cells_use in c("all", "memory")){
                          "T1D" = all_samples_t1d,
                          "AAB" = all_samples_aab)
   
-  build_tests <- lapply(c("all", "antigen", "isotype"), function(x){
+  build_tests <- lapply(c("all", "antigen", "isotype",
+                          "all_light", "all_heavy_light"), function(x){
     print(x)
     if(x == "all"){
       v_df <- list(comparison_builder(starting_df = all_info_split))
@@ -593,6 +597,16 @@ for(cells_use in c("all", "memory")){
         return(comparison_builder(starting_df = subset_df))
       })
       names(v_df) <- isotype_use
+    } else if(x == "all_light"){
+      v_df <- list(comparison_builder(starting_df = all_info_split,
+                                      chains_use = c("IGK", "IGL")))
+      names(v_df) <- "all_light"
+    } else if(x == "all_heavy_light"){
+      starting_df <- seurat_data[[]]
+      starting_df$all_chains <- starting_df$chains
+      v_df <- list(comparison_builder(starting_df = starting_df,
+                                      chains_use = c("IGH;IGK", "IGH;IGL")))
+      names(v_df) <- "all_heavy_light"
     }
     
     # Now we have the v df. We want to build a list that includes that
