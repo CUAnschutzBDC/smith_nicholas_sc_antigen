@@ -10,6 +10,8 @@ library(Seurat)
 library(djvdj)
 library(KEGGREST)
 library(org.Hs.eg.db)
+library(treemapify)
+
 
 
 normalization_method <- "log" # can be SCT or log
@@ -62,6 +64,10 @@ save_dir <- file.path(results_dir, "R_analysis", sample)
 seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed_no_doublet.rds"))
 
 seurat_data <- subset(seurat_data, subset = imcantation_isotype != "IGHE")
+
+seurat_data$tet_name_cutoff <- ifelse(seurat_data$tet_name_cutoff == "Other_Multi_Reactive" & 
+                                        grepl("INS|GAD|IA2", seurat_data$full_tet_name_cutoff),
+                                      "Islet_Multi_Reactive", seurat_data$tet_name_cutoff)
 
 # Set up factors ---------------------------------------------------------------
 status_levels <- c("ND", "AAB", "T1D")
@@ -248,17 +254,16 @@ print(barplot)
 
 dev.off()
 
-# AG+ group distribution by cell type
-pdf(file.path(image_dir, "1G_ag_celltype_barplot.pdf"),
-    width = 8, height = 8)
-barplot <- stacked_barplots(seurat_data, meta_col = "celltype_cluster",
-                            split_by = "Status",
-                            color = cluster_celltype_colors) +
-  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
-
-print(barplot)
-
-dev.off()
+# pdf(file.path(image_dir, "1G_ag_celltype_barplot.pdf"),
+#     width = 8, height = 8)
+# barplot <- stacked_barplots(seurat_data, meta_col = "celltype_cluster",
+#                             split_by = "Status",
+#                             color = cluster_celltype_colors) +
+#   ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
+# 
+# print(barplot)
+# 
+# dev.off()
 
 no_other <- subset(seurat_data, subset = tet_name_cutoff != "Other_Multi_Reactive")
 
@@ -758,7 +763,7 @@ violin_cdr3_len <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = cdr3_length,
 boxplot_cdr3_len <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = cdr3_length,
                                                             x = tet_name_cutoff,
                                                             fill = Status)) +
-  ggplot2::geom_boxplot() +
+  ggplot2::geom_boxplot(size = 0.1, outlier.size = 0.5) +
   ggplot2::scale_fill_manual(values = status_colors) +
   ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
 
@@ -774,7 +779,7 @@ graphics.off()
 boxplot_cdr3_len <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = cdr3_length,
                                                              x = tet_name_cutoff,
                                                              fill = Status)) +
-  ggplot2::geom_boxplot() +
+  ggplot2::geom_boxplot(size = 0.1, outlier.size = 0.5) +
   ggplot2::scale_fill_manual(values = status_colors) +
   ggplot2::geom_jitter(size = 0.1) +
   ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
@@ -792,7 +797,7 @@ graphics.off()
 boxplot_h_smh <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = all_mis_freq,
                                                              x = tet_name_cutoff,
                                                              fill = Status)) +
-  ggplot2::geom_boxplot() +
+  ggplot2::geom_boxplot(size = 0.1, outlier.size = 0.5) +
   ggplot2::scale_fill_manual(values = status_colors) +
   ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
   ggplot2::ggtitle("Heavy chain SMH")
@@ -803,7 +808,7 @@ light_data <- all_info_split %>%
 boxplot_l_smh <- ggplot2::ggplot(light_data, ggplot2::aes(y = all_mis_freq,
                                                           x = tet_name_cutoff,
                                                           fill = Status)) +
-  ggplot2::geom_boxplot() +
+  ggplot2::geom_boxplot(size = 0.1, outlier.size = 0.5) +
   ggplot2::scale_fill_manual(values = status_colors) +
   ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
   ggplot2::ggtitle("Light chain SMH")
@@ -820,8 +825,6 @@ print(h_and_l)
 
 dev.off()
 graphics.off()
-
-no_plasma <- subset(seurat_data, subset = final_celltype != "plasmablast")
 
 # Shannon index
 seurat_data$sample_celltype <- paste(seurat_data$sample,
@@ -841,9 +844,9 @@ diversity <- seurat_data[[]] %>%
 
 diversity_p <- ggplot2::ggplot(diversity, ggplot2::aes(x = Status,
                                                        y = final_clone_shannon_diversity,
-                                                       color = Status)) + 
-  ggplot2::geom_boxplot() +
-  ggplot2::scale_color_manual(values = status_colors) +
+                                                       fill = Status)) + 
+  ggplot2::geom_boxplot(size = 0.25, outlier.size = 0.5) +
+  ggplot2::scale_fill_manual(values = status_colors) +
   ggplot2::facet_grid(~final_celltype, switch = "x") +
   ggpubr::stat_compare_means(ggplot2::aes(group = Status),
                              method = "t.test",
@@ -871,6 +874,15 @@ clone_data <- file.path(save_dir, "files", "v_gene_counting",
 
 clone_expanded <- openxlsx::readWorkbook(clone_data, sheet = "expanded_clones")
 clone_public <- openxlsx::readWorkbook(clone_data, sheet = "public_clones")
+
+clone_expanded$tet_name_cutoff <- ifelse(clone_expanded$tet_name_cutoff == "Other_Multi_Reactive" & 
+                                        grepl("INS|GAD|IA2", clone_expanded$full_tet_name_cutoff),
+                                      "Islet_Multi_Reactive", clone_expanded$tet_name_cutoff)
+
+clone_public$tet_name_cutoff <- ifelse(clone_public$tet_name_cutoff == "Other_Multi_Reactive" & 
+                                           grepl("INS|GAD|IA2", clone_public$full_tet_name_cutoff),
+                                         "Islet_Multi_Reactive", clone_public$tet_name_cutoff)
+
 
 make_clone_barplot <- function(clone_df){
   clone_df <- clone_df %>%
@@ -1287,11 +1299,14 @@ use_cells <- all_info_split[all_info_split$v_gene %in%
 use_data <- all_info_split[all_info_split$barcode %in%
                              use_cells, ]
 
+use_data$tet_name_cutoff <- factor(use_data$tet_name_cutoff,
+                                   levels = plotting_levels)
+
 pdf(file.path(image_dir, "4B_sig_heavy_all_light.pdf"),
     width = 32, height = 16)
 
 par(mfrow = c(2, 4))
-for(tet_group in unique(use_data$tet_name_cutoff)){
+for(tet_group in levels(use_data$tet_name_cutoff)){
   sub_data <- use_data[use_data$tet_name_cutoff == tet_group, ]
   all_data <- count_genes_heavy_light(starting_df = sub_data,
                                       group_by = "Status",
@@ -1302,29 +1317,107 @@ for(tet_group in unique(use_data$tet_name_cutoff)){
                    color = all_data$color_list, 
                    grid_color = all_colors)
   
-  title(main = tet_group)
+  title(main = tet_group, cex.main = 1.5)
 }
 
 dev.off()
 
 # Get cell barcode of immcantation clones
-clone_info <- read.table(file.path(save_dir, "define_clones",
-                                   "immcantation_combined_clone-pass.tsv"),
-                         sep = "\t", header = TRUE)
+use_cells <- clone_expanded$barcode
 
-all_sequences <- cSplit(clone_expanded, splitCols = "sequences", sep = ";")
-
-clone_info <- clone_info[clone_info$locus == "IGH",]
-
-cells_use <- clone_info[clone_info$sequence %in%
-                          all_sequences$sequences_1,]$cell_id
-
-cells_use_direct <- clone_expanded$
+#use_cells <- gsub("JH.*-[0-9]+_.*_", "", cells_use_direct)
 
 
-all_sequences <- cSplit(clone_public, splitCols = "sequences", sep = ";")
+use_data <- all_info_split[all_info_split$barcode %in%
+                             use_cells, ]
 
-clone_info <- clone_info[clone_info$locus == "IGH",]
+use_data$tet_name_cutoff <- factor(use_data$tet_name_cutoff,
+                                   levels = plotting_levels)
 
-cells_use <- clone_info[clone_info$sequence %in%
-                          all_sequences$sequences_1,]$cell_id
+pdf(file.path(image_dir, "4C_expanded_clone_circos.pdf"),
+    width = 32, height = 16)
+
+par(mfrow = c(2, 4))
+for(tet_group in levels(use_data$tet_name_cutoff)){
+  sub_data <- use_data[use_data$tet_name_cutoff == tet_group, ]
+  all_data <- count_genes_heavy_light(starting_df = sub_data,
+                                      group_by = "Status",
+                                      subset_counts = 0,
+                                      color_list = status_colors)  
+  
+  make_circos_plot(circos_df = all_data$df,
+                   color = all_data$color_list, 
+                   grid_color = all_colors)
+  
+  title(main = tet_group, cex.main = 1.5)
+}
+
+dev.off()
+
+use_cells <- clone_public$barcode
+
+
+use_data <- all_info_split[all_info_split$barcode %in%
+                             use_cells, ]
+
+use_data$tet_name_cutoff <- factor(use_data$tet_name_cutoff,
+                                   levels = plotting_levels)
+
+pdf(file.path(image_dir, "4D_public_clone_circos.pdf"),
+    width = 32, height = 16)
+
+par(mfrow = c(2, 4))
+for(tet_group in levels(use_data$tet_name_cutoff)){
+  sub_data <- use_data[use_data$tet_name_cutoff == tet_group, ]
+  all_data <- count_genes_heavy_light(starting_df = sub_data,
+                                      group_by = "Status",
+                                      subset_counts = 0,
+                                      color_list = status_colors)  
+  
+  make_circos_plot(circos_df = all_data$df,
+                   color = all_data$color_list, 
+                   grid_color = all_colors)
+  
+  title(main = tet_group, cex.main = 1.5)
+}
+
+dev.off()
+
+# Tree maps
+all_data <- all_info_split[all_info_split$chains == "IGH", c("v_gene", "Status")]
+
+all_plots <- lapply(levels(all_data$Status), function(x){
+  df <- all_data %>%
+    dplyr::filter(Status == x) %>%
+    dplyr::group_by(v_gene) %>%
+    dplyr::add_count(name = "v_count") %>%
+    dplyr::ungroup() %>%
+    dplyr::distinct() %>%
+    dplyr::mutate(v_percent = v_count / sum(v_count) * 100) %>%
+    dplyr::mutate(plot_v = ifelse(v_percent > 0.25, v_gene, ""))
+  
+  
+  # Fill could be v_percent
+  plot <- ggplot(df, aes(area = v_percent, fill = v_gene, label = plot_v)) +
+    treemapify::geom_treemap() +
+    treemapify::geom_treemap_text(colour = "white", place = "center", reflow = T) +
+    # viridis::scale_fill_viridis(option = "inferno",
+    #                             discrete = FALSE, n.breaks = 50) +
+    ggplot2::scale_fill_manual(values = heavy_colors) +
+    ggplot2::ggtitle(x) +
+    ggplot2::theme(legend.position = "none", 
+                   plot.title = ggplot2::element_text(hjust = 0.5))
+  
+  return(plot)
+})
+
+combined_plot <- cowplot::plot_grid(plotlist = all_plots, nrow = 1,
+                                    ncol = 3)
+
+
+pdf(file.path(image_dir, "4E_vdj_percent_all.pdf"),
+    width = 16, height = 6)
+
+print(combined_plot)
+
+dev.off()
