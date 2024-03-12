@@ -124,3 +124,32 @@ rule define_clones:
 
 		echo "Finished define clones" > {output}
 		"""
+
+rule find_germlines:
+	input:
+		immcantation_file = "{results}/R_analysis/merged/define_clones/immcantation_combined_clone-pass.tsv",
+		script_file = "{results}/run_scripts/merged__07_run_immcantation_run.txt"
+	output:
+		final_output = "{results}/R_analysis/merged/define_clones/germlines_finished.txt"
+	params:
+		job_name    = "germline",
+		memory      = "select[mem>50] rusage[mem=50]",
+		outdir      = "{results}/R_analysis/merged/define_clones"
+	singularity:
+		config["IMMCANTATION_CONTAINER"]
+	log:
+		"{results}/logs/germline/germline"
+	threads:
+		10
+	shell:
+		"""
+		# Run on samples separately
+		CreateGermlines.py \
+			-d {input} \
+			-g dmask \
+			-r /usr/local/share/germlines/imgt/human/vdj/imgt_human_*.fasta \
+			--format airr \
+			--cloned
+
+		echo "Finished define clones" > {output}
+		"""
