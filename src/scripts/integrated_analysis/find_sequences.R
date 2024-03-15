@@ -1,6 +1,7 @@
 library(tidyverse)
 library(openxlsx)
 library(here)
+library(splitstackshape)
 
 sample <- "merged"
 
@@ -43,28 +44,58 @@ clone_info <- clone_info %>%
 catherine_data_path <- here("files/GenScript_rAB_sequences.xlsx")
 catherine_data <- openxlsx::read.xlsx(catherine_data_path) 
 
-clone_info_heavy <- clone_info[clone_info$sequence %in% catherine_data$Heavy.Chain, ] %>%
+catherine_data_path_two <- here("files/20240314_additional_13_rAb_sequences_to_trim.xlsx")
+catherine_data_two <- openxlsx::read.xlsx(catherine_data_path_two)
+
+
+sep_columns <- c("v_gene", "j_gene", "chains",
+                 "sequences")
+keep_columns <- c("clone_id")
+
+all_info <- catherine_data_two %>%
+  dplyr::select(dplyr::all_of(c(sep_columns, keep_columns))) 
+
+
+all_info_split <- cSplit(all_info, sep_columns, sep = ";", direction = "long")
+
+heavy_info <- all_info_split[all_info_split$chains == "IGH",]
+light_info <- all_info_split[all_info_split$chains != "IGH", ]
+
+# Remove any overlaps
+`%notin%` <- Negate(`%in%`)
+heavy_info <- heavy_info[heavy_info$sequences %notin% catherine_data$Heavy.Chain,]
+
+clone_info_heavy <- clone_info[clone_info$sequence %in% 
+                                 c(catherine_data$Heavy.Chain,
+                                   heavy_info$sequences), ] %>%
   dplyr::select(-sequence_id_sample, -sequence_id, -cell_id, -consensus_count,
                 -umi_count, -cell_sample) %>%
   distinct()
 
 clone_info_heavy <- clone_info_heavy[order(match(clone_info_heavy$sequence,
-                                                 catherine_data$Heavy.Chain)),]
+                                                 c(catherine_data$Heavy.Chain,
+                                                   heavy_info$sequences))),]
 
+clone_info_heavy$clone_id <- c(catherine_data$clone_id, heavy_info$clone_id)
 
-clone_info_heavy$clone_id <- catherine_data$clone_id
+# Remove any overlaps
+`%notin%` <- Negate(`%in%`)
+light_info <- light_info[light_info$sequences %notin% catherine_data$Light.Chain,]
 
-clone_info_light <- clone_info[clone_info$sequence %in% catherine_data$Light.Chain, ] %>%
+clone_info_light <- clone_info[clone_info$sequence %in% 
+                                 c(catherine_data$Light.Chain,
+                                   light_info$sequences), ] %>%
   dplyr::select(-sequence_id_sample, -sequence_id, -cell_id, -consensus_count,
                 -umi_count, -cell_sample, -sample_clone_id, -clone_id) %>%
   distinct()
 
 
 clone_info_light <- clone_info_light[order(match(clone_info_light$sequence,
-                                                 catherine_data$Light.Chain)),]
+                                                 c(catherine_data$Light.Chain,
+                                                   light_info$sequences))),]
 
 
-clone_info_light$clone_id <- catherine_data$clone_id
+clone_info_light$clone_id <- c(catherine_data$clone_id, light_info$clone_id)
 
 clone_info_light$sample_clone_id <- "NA"
 

@@ -12,7 +12,7 @@ library(KEGGREST)
 library(org.Hs.eg.db)
 library(treemapify)
 
-
+# Naive - resting memory/activate naive/intermediate - ABC/memory - Plasmablast
 
 normalization_method <- "log" # can be SCT or log
 # Set theme
@@ -207,9 +207,9 @@ graphics.off()
 pdf(file.path(image_dir, "1E_marker_heatmap_average.pdf"),
     width = 8, height = 12)
 
-plot_heatmap(seurat_data, gene_list = use_markers$gene,
+print(plot_heatmap(seurat_data, gene_list = use_markers$gene,
              colors = cluster_celltype_colors, meta_col = "celltype_cluster",
-             average_expression = TRUE, assay = "RNA")
+             average_expression = TRUE, assay = "RNA"))
 
 dev.off()
 
@@ -794,13 +794,22 @@ graphics.off()
 
 # SHM VH and VL
 
-boxplot_h_smh <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = all_mis_freq,
+boxplot_h_smh <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = (all_mis_freq),
                                                              x = tet_name_cutoff,
                                                              fill = Status)) +
   ggplot2::geom_boxplot(size = 0.1, outlier.size = 0.5) +
   ggplot2::scale_fill_manual(values = status_colors) +
   ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
   ggplot2::ggtitle("Heavy chain SMH")
+
+violin_h_smh <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = all_mis_freq,
+                                                            x = tet_name_cutoff,
+                                                            fill = Status)) +
+  ggplot2::geom_violin(adjust = 1.5) +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::stat_summary(fun = median, geom = "point", size = 2,
+                        position = ggplot2::position_dodge(0.9)) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
 
 light_data <- all_info_split %>%
   dplyr::filter(chains %in% c("IGK", "IGL"))
