@@ -65,16 +65,12 @@ seurat_data <- readRDS(file.path(save_dir, "rda_obj", "seurat_processed_no_doubl
 
 seurat_data <- subset(seurat_data, subset = imcantation_isotype != "IGHE")
 
-seurat_data$tet_name_cutoff <- ifelse(seurat_data$tet_name_cutoff == "Other_Multi_Reactive" & 
-                                        grepl("INS|GAD|IA2", seurat_data$full_tet_name_cutoff),
-                                      "Islet_Multi_Reactive", seurat_data$tet_name_cutoff)
-
 # Set up factors ---------------------------------------------------------------
 status_levels <- c("ND", "AAB", "T1D")
 
 seurat_data$Status <- factor(seurat_data$Status, levels = status_levels)
 
-plotting_levels <- c("Negative", "DNA.tet", "TET.tet", "Other_Multi_Reactive",
+plotting_levels <- c("Negative", "DNA.tet", "TET.tet",
                      "Islet_Multi_Reactive", "IA2.tet", 
                      "GAD.tet", "INS.tet")
 
@@ -107,53 +103,97 @@ status_colors <- all_colors$status_colors
 # Plots ------------------------------------------------------------------------
 
 ## Figure 1 --------------------------------------------------------------------
-# 2.	Updated UMAP of all cells clustered according to mRNA for cell type
-# (Naïve, Transitional (intermediate), Resting Memory, Activated Memory, Plasmablast)
 
-# Number of cells by status/tetramer
-# With only singlets
+# Facs percents from Catherine
+facs_percents <- read.table(here("files/FACS_percent_PE_pos.csv"),
+                            header = TRUE, sep = ",") %>%
+  tidyr::pivot_longer(names_to = "old_status", values_to = "percent",
+                      cols = colnames(.))
+# facs_number <- read.table(here("files/FACS_number_PE_pos.csv"),
+#                           header = TRUE, sep = ",") %>%
+#   tidyr::pivot_longer(names_to = "old_status", values_to = "count",
+#                       cols = colnames(.))
 
-# With multis included
+# Rename status to match other figures
+new_status <- c("FDR" = "ND",
+                "Aab" = "AAB",
+                "T1D" = "T1D")
 
+facs_percents$Status <- new_status[facs_percents$old_status]
+# facs_number$Status <- new_status[facs_number$old_status]
+facs_percents$Status <- factor(facs_percents$Status, levels = new_status)
+# facs_number$Status <- factor(facs_number$Status, levels = new_status)
+
+facs_percents$type <- "PE_positive"
+# facs_number$type <- "PE_positive"
+
+
+# Make boxplot
+p1 <- ggplot2::ggplot(facs_percents, ggplot2::aes(x = type, y = percent,
+                                                  fill = Status)) +
+  ggplot2::geom_boxplot() +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::geom_point(position = ggplot2::position_dodge(0.75)) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
+
+# p2 <- ggplot2::ggplot(facs_number, ggplot2::aes(x = type, y = count,
+#                                                 fill = Status)) +
+#   ggplot2::geom_boxplot() +
+#   ggplot2::scale_fill_manual(values = status_colors) +
+#   ggplot2::geom_point(position = ggplot2::position_dodge(0.75)) +
+#   ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
+
+pdf(file.path(image_dir, "1C_ag_positive_facs.pdf"),
+    width = 6, height = 8)
+print(p1)
+dev.off()
+
+# pdf(file.path(image_dir, "ag_positive_count_facs.pdf"),
+#     width = 6, height = 8)
+# print(p2)
+# dev.off()
+
+## Figure 2 --------------------------------------------------------------------
+# Make a column of cell type and cluster
 seurat_data$celltype_cluster <- paste(seurat_data$final_celltype, 
                                       seurat_data$RNA_cluster,
                                       sep = "_")
 
-
+# Merge some clusters based on gene expression
 new_clusters <- c("Naive_0" = "Naive_0",
                   "Naive_1" = "Naive_0",
-                  "Resting_Memory_2" = "Resting_Memory_1",
+                  "Resting_Memory_2" = "B_Intermediate_1",
                   "Naive_3" = "Naive_2",
                   "Memory_4" = "Memory_3",
                   "Naive_5" = "Naive_4",
                   "Naive_6" = "Naive_0",
                   "ABC_7" = "ABC_5",
-                  "Resting_Memory_8" = "Resting_Memory_6",
-                  "Resting_Memory_9" = "Resting_Memory_7",
-                  "Plasmablast_10" = "Plasmablast_8",
-                  "Plasmablast_11" = "Plasmablast_8")
+                  "Resting_Memory_8" = "B_Intermediate_6",
+                  "Plasmablast_9" = "Plasmablast_8",
+                  "Resting_Memory_10" = "B_Intermediate_7",
+                  "Plasmablast_11" = "Plasmablast_8",
+                  "NA_12" = "B_Intermediate_1")
 
 seurat_data$celltype_cluster <- new_clusters[seurat_data$celltype_cluster]
 
-
-
-
+# Pick colors, Naive = Green, resting memory = purple/blue, plasmablast = orange,
+# memory = brown
 cluster_celltype_colors <- c("Naive_0" = "#58b44d",
-                             "Resting_Memory_1" = "#746ec8",
+                             "B_Intermediate_1" = "#746ec8",
                              "Naive_2" = "#61732b",
                              "Memory_3" = "#9f7239",
                              "Naive_4" = "#b2b72e",
                              "ABC_5" = "#4bae8b",
-                             "Resting_Memory_6" = "#bd5abe",
-                             "Resting_Memory_7" = "#61a0d5",
+                             "B_Intermediate_6" = "#bd5abe",
+                             "B_Intermediate_7" = "#61a0d5",
                              "Plasmablast_8" = "#d89a40")
 
 seurat_data$celltype_cluster <- factor(seurat_data$celltype_cluster,
                                        levels = c("Naive_0", "Naive_2", 
-                                                  "Naive_4", 
-                                                  "Resting_Memory_1",
-                                                  "Resting_Memory_6", 
-                                                  "Resting_Memory_7",
+                                                  "Naive_4",
+                                                  "B_Intermediate_1",
+                                                  "B_Intermediate_6", 
+                                                  "B_Intermediate_7",
                                                   "ABC_5",
                                                   "Memory_3",
                                                   "Plasmablast_8"))
@@ -161,13 +201,30 @@ seurat_data$celltype_cluster <- factor(seurat_data$celltype_cluster,
 cluster_celltype_colors <- cluster_celltype_colors[order(match(names(cluster_celltype_colors),
                                                                levels(seurat_data$celltype_cluster)))]
 
-pdf(file.path(image_dir, "1D_rna_umap.pdf"), width = 8, height = 8)
+pdf(file.path(image_dir, "2A_rna_umap.pdf"), width = 8, height = 8)
 
 print(plotDimRed(seurat_data, col_by = "celltype_cluster", 
                  plot_type = "rna_mnn.umap",
                  color = cluster_celltype_colors, ggrastr = TRUE))
 
 dev.off()
+
+# Celltype genes
+gene_list <- c("PCNA", "TUBA1B", "TOP2A", "FAS", "CD38", "JCHAIN", "MZB1", "XBP1", "PRDM1", "IGHG1",
+               "IGHG2", "IGHG3", "IGHG4", "IGHA1", "IGHA2", "CD24", "AHNAK", "CD27", "CXCR3",
+               "CD80", "B2M", "KLF2", "MS4A1", "CD19", "FGR", "FCRL5", "HCK", "ITGAX",
+               "TBX21", "CD86", "IRF4", "CD83", "PAX5", "BACH2", "IL4R", "CR2", "CD69",
+               "CXCR4", "IGHM", "IGHD", "MME", "FCER2")
+
+pdf(file.path(image_dir, "2B_gene_dotplot.pdf"), width = 8, height = 10)
+Idents(seurat_data) <- "celltype_cluster"
+print(DotPlot(seurat_data, features = gene_list, cols = c( "#D3D3D3", "#3416d9"),
+              scale = TRUE) +
+  ggplot2::coord_flip() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)))
+
+dev.off()
+
 
 #	List of top 10 genes per cell type
 Idents(seurat_data) <- seurat_data$celltype_cluster
@@ -432,52 +489,6 @@ print(p2)
 print(p3)
 print(p4)
 
-dev.off()
-
-facs_percents <- read.table(here("files/FACS_percent_PE_pos.csv"),
-                            header = TRUE, sep = ",") %>%
-  tidyr::pivot_longer(names_to = "old_status", values_to = "percent",
-                      cols = colnames(.))
-facs_number <- read.table(here("files/FACS_number_PE_pos.csv"),
-                          header = TRUE, sep = ",") %>%
-  tidyr::pivot_longer(names_to = "old_status", values_to = "count",
-                      cols = colnames(.))
-
-new_status <- c("FDR" = "ND",
-                "Aab" = "AAB",
-                "T1D" = "T1D")
-
-facs_percents$Status <- new_status[facs_percents$old_status]
-facs_number$Status <- new_status[facs_number$old_status]
-facs_percents$Status <- factor(facs_percents$Status, levels = new_status)
-facs_number$Status <- factor(facs_number$Status, levels = new_status)
-
-facs_percents$type <- "PE_positive"
-facs_number$type <- "PE_positive"
-
-
-p1 <- ggplot2::ggplot(facs_percents, ggplot2::aes(x = type, y = percent,
-                                           fill = Status)) +
-  ggplot2::geom_boxplot() +
-  ggplot2::scale_fill_manual(values = status_colors) +
-  ggplot2::geom_point(position = ggplot2::position_dodge(0.75)) +
-  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
-
-p2 <- ggplot2::ggplot(facs_number, ggplot2::aes(x = type, y = count,
-                                                  fill = Status)) +
-  ggplot2::geom_boxplot() +
-  ggplot2::scale_fill_manual(values = status_colors) +
-  ggplot2::geom_point(position = ggplot2::position_dodge(0.75)) +
-  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
-
-pdf(file.path(image_dir, "1C_ag_positive_facs.pdf"),
-    width = 6, height = 8)
-print(p1)
-dev.off()
-
-pdf(file.path(image_dir, "ag_positive_count_facs.pdf"),
-    width = 6, height = 8)
-print(p2)
 dev.off()
 
 ## Figure S1 -------------------------------------------------------------------
