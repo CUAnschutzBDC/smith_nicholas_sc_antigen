@@ -209,10 +209,10 @@ rule all:
             results = RESULTS
             ),
         # Add in germlines
-        expand(
-            "{results}/R_analysis/merged/define_clones/germlines_finished.txt",
-            results = RESULTS
-            )
+        #expand(
+        #    "{results}/R_analysis/merged/define_clones/germlines_finished.txt",
+        #    results = RESULTS
+        #    )
         # expand(
         #     "{results}/logs/{sample}_velocyto_done.out",
         #     results = RESULTS, sample = SAMPLES

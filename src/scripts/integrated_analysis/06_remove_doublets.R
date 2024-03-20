@@ -25,6 +25,9 @@ normalization_method <- "log" # can be SCT or log
 
 args <- commandArgs(trailingOnly = TRUE)
 
+#args <- c("merged", here("results"), "", here("files/sample_info.tsv"))
+
+
 sample <- args[[1]]
 sample <- gsub("__.*", "", sample)
 #sample <- "merged"
@@ -114,6 +117,15 @@ remove_cells <- unique(c(remove_cells_chain, remove_cells_doublet))
 keep_cells <- colnames(seurat_data)[!colnames(seurat_data) %in% remove_cells]
 
 seurat_data <- subset(seurat_data, cells = keep_cells)
+
+# Remove Other Multi Reactive
+seurat_data$tet_name_cutoff <- ifelse(seurat_data$tet_name_cutoff == "Other_Multi_Reactive" & 
+                                        grepl("INS|GAD|IA2", seurat_data$full_tet_name_cutoff),
+                                      "Islet_Multi_Reactive", seurat_data$tet_name_cutoff)
+
+seurat_data <- subset(seurat_data, 
+                      subset = tet_name_cutoff != "Other_Multi_Reactive")
+
 
 #-------------------------------------------------------------------------------
 for(assay_type in names(pca_list)){
