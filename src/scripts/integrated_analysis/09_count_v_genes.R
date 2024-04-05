@@ -16,6 +16,7 @@ ggplot2::theme_set(ggplot2::theme_classic(base_size = 10))
 normalization_method <- "log" # can be SCT or log
 
 args <- commandArgs(trailingOnly = TRUE)
+args <- c("merged", here("results"), "", here("files/sample_info.tsv"))
 
 sample <- args[[1]]
 sample <- gsub("__.*", "", sample)
@@ -380,13 +381,11 @@ count_clones <- count_clones %>%
                 tet_binding_percent = tet_binding_count / clone_count * 100,
                 status_percent = status_count / clone_count * 100) %>%
   dplyr::group_by(clone_id) %>%
-  dplyr::arrange(v_gene, j_gene) %>%
-  dplyr::mutate(final_clone = paste(clone_id, cumsum(!duplicated(v_gene, j_gene)),
-                                    sep = "_"))
-
-count_clones %>%
-  dplyr::filter(clone_id == "19880") %>%
-  data.frame()
+  dplyr::mutate(v_j = paste(v_gene, j_gene, sep = "_")) %>%
+  dplyr::arrange(v_j) %>%
+  dplyr::mutate(final_clone = paste(clone_id, cumsum(!duplicated(v_j)),
+                                    sep = "_")) %>%
+  dplyr::select(-v_j)
 
 # Break up into clones that are shared between individuals and those that are now
 column_order <- c("clone_id", "final_clone", "v_gene", "j_gene", "cdr3",
@@ -410,32 +409,54 @@ old_names2  <- openxlsx::readWorkbook(xlsxFile = file.path(v_counting_dir,
                                                            "clone_expansion_old.xlsx"),
                                       sheet = 2) 
 
+# Keep only columns that are important
 oldnames <- rbind(old_names1, old_names2)[,c("clone_id", "final_clone", "v_gene",
                                             "j_gene", "cdr3", "sample")]
 
 short_clones <- count_clones[, c("clone_id", "final_clone", "v_gene",
                                "j_gene", "cdr3", "sample")]
 
+# Rename clone columns for merging
 colnames(short_clones) <- c("previous_clone", "previous_final_clone",
                           "v_gene", "j_gene", "cdr3", "sample")
 
+# Merge dfs
 oldnames <- merge(short_clones, oldnames, by = c("v_gene", "j_gene",
                                                  "cdr3", "sample"))
 
+# Keep only clone info
 oldnames <- oldnames[ , c("previous_clone", "previous_final_clone",
                           "clone_id", "final_clone")]
 
+# Keep unique lines
 oldnames <- unique(oldnames)
+
+# The old subclones were wrong, update with our new ones
+oldnames$final_subclone <- gsub(".*_", "", oldnames$previous_final_clone)
+oldnames$final_clone <- paste(oldnames$clone_id, oldnames$final_subclone,
+                              sep = "_")
 
 # Now rename based on the mapping
 clone_mapping <- oldnames$final_clone
 names(clone_mapping) <- oldnames$previous_final_clone
 
-count_clones$final_clone <- clone_mapping[count_clones$final_clone]
+
+# Find indices of elements in test that match keys in test_mapping
+indices <- match(count_clones$final_clone, names(clone_mapping))
+
+# Use indices to extract values from test_mapping, replace NAs with original values from test
+count_clones$final_clone <- ifelse(is.na(indices), count_clones$final_clone,
+                                   clone_mapping[indices])
 
 clone_mapping <- oldnames$clone_id
 names(clone_mapping) <- oldnames$previous_clone
-count_clones$clone_id <- clone_mapping[as.character(count_clones$clone_id)]
+
+# Find indices of elements in test that match keys in test_mapping
+indices <- match(count_clones$clone_id, names(clone_mapping))
+
+# Use indices to extract values from test_mapping, replace NAs with original values from test
+count_clones$clone_id <- ifelse(is.na(indices), count_clones$clone_id,
+                                   clone_mapping[indices])
 
 
 write.csv(count_clones, file.path(v_counting_dir, 

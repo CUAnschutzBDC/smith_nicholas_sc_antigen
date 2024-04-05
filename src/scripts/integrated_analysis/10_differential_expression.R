@@ -114,7 +114,8 @@ tests_run <- list(c("T1D_Islet_Reactive", "ND_Islet_Reactive"),
 all_markers <- lapply(tests_run, function(x){
   markers <- FindMarkers(seurat_data, test.use = "MAST", 
                          ident.1 = x[[1]],
-                         ident.2 = x[[2]])
+                         ident.2 = x[[2]],
+                         logfc.threshold = 0)
   
   markers$ident.1 <- x[[1]]
   markers$ident.2 <- x[[2]]
@@ -136,6 +137,8 @@ markers_sig$cluster <- paste(markers_sig$ident.1,
 
 # TODO save markers
 write.csv(markers_sig, file.path(save_dir, "files", "mast_de.csv"))
+write.csv(all_markers, file.path(save_dir, "files", "mast_de_all.csv"))
+
 
 # Make heatmap of all DE
 de_genes <- markers_sig[markers_sig$cluster !=

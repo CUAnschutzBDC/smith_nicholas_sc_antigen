@@ -80,9 +80,9 @@ seurat_data <- DietSeurat(object = seurat_data, assays = "RNA")
 
 seurat_data$Status <- factor(seurat_data$Status, levels = c("ND", "AAB", "T1D"))
 
-#sisters <- c("109", "108", "107")
+sisters <- c("109", "108", "107")
 
-sisters <- c("109", "107")
+#sisters <- c("109", "107")
 
 seurat_data <- subset(seurat_data, subset = sample %in% twins)
 
