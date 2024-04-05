@@ -12,6 +12,8 @@ library(KEGGREST)
 library(org.Hs.eg.db)
 library(treemapify)
 
+source(here("src/scripts/integrated_analysis/figure_functions.R"))
+
 # Naive - resting memory/activate naive/intermediate - ABC/memory - Plasmablast
 
 normalization_method <- "log" # can be SCT or log
@@ -106,6 +108,23 @@ sample_colors <- all_colors$sample_colors
 
 
 status_colors <- all_colors$status_colors
+
+heavy <- unique(all_info_split[all_info_split$chains == "IGH",]$v_gene)
+light <- unique(all_info_split[all_info_split$chains %in% c("IGL", "IGK"),]$v_gene)
+
+palette1 <- colorRampPalette(colors = 
+                               RColorBrewer::brewer.pal(name = "Set1", n = 9))
+
+palette2 <- colorRampPalette(colors = 
+                               RColorBrewer::brewer.pal(name = "Set2", n = 8))
+
+heavy_colors <- palette1(length(heavy))
+names(heavy_colors) <- heavy
+
+light_colors <- palette2(length(light))
+names(light_colors) <- light
+
+all_colors <- c(heavy_colors, light_colors)
 
 # Main figures -----------------------------------------------------------------
 
@@ -519,237 +538,7 @@ jaccard <- function(a, b) {
 }
 
 
-#' Generates an hclust object based on the comparison (query) and a status.
-#' 
-#' This assumes that gene ontology was run using `gprofiler2::gost`. The
-#' final output will be a dotplot where the size is the number of
-#' intersectig genes and the color is the log of the p value. These
-#' dots will be on the end of the dendrogram built on the similarity 
-#' between kett terms. Currently this function only works for KEGG because
-#' the genes in each term need to be downloaded and only KEGG is currently
-#' supported
-#' 
-#' @param query The query from the gse_res, the gse_res will be subset
-#' by this query
-#' @param gse_res the results table returned by `gprofiler2::gost`
-#' @param p_val_cutoff what p_val to use to subset terms
-make_histogram <- function(query, gse_res, p_val_cutoff = 0.01){
-  
-  # Subset to only kegg terms and the query of interest
-  gse_res <- gse_res[gse_res$source == "KEGG" & 
-                       gse_res$query == query,]
-  
-  # Make a list of all terms
-  gse_list <- gse_res$term_id
-  names(gse_list) <- gse_res$term_name
-  
-  # Find all genes associated with the kegg term
-  # This could probably go faster if all genes from all kegg terms are
-  # first pulled and keggConv and mapIds are only run once.
-  all_genes <- lapply(gse_list, function(x){
-    genes <- get_gene_list(x)
-    
-    return(genes)
-  })
-  
-  # Make a matrix of the correct size, it should be all gene sets by all gene
-  # sets
-  total_values <- length(all_genes) ^ 2
-  final_jaccard_matrix <- Matrix::Matrix(data = rep(0, total_values),
-                                         nrow = length(all_genes),
-                                         ncol = length(all_genes),
-                                         sparse = TRUE)
-  
-  # Find the jaccard distance for all pairwise gene sets
-  for (x in 1:length(all_genes)){
-    for (y in 1:length(all_genes)){
-      
-      save_val <- jaccard(a = all_genes[[x]],
-                          b = all_genes[[y]])
-      
-      # Save to both relevant positions in the matrix so you don't
-      # run twice
-      final_jaccard_matrix[x, y] <- save_val
-      final_jaccard_matrix[y, x] <- save_val
-    }
-  }
-  
-  colnames(final_jaccard_matrix) <- names(all_genes)
-  rownames(final_jaccard_matrix) <- names(all_genes)
-  
-  # Make into a distance matrix and run hclust
-  hc_full <- stats::hclust(stats::as.dist(1- final_jaccard_matrix),
-                           method = "ward.D2")
-  
-  # Subset based on the desired p-value
-  gse_small <- gse_res[gse_res$p_value < p_val_cutoff,]
-  
-  jaccard_small <- final_jaccard_matrix[rownames(final_jaccard_matrix)
-                                        %in% gse_small$term_name,
-                                        colnames(final_jaccard_matrix)
-                                        %in% gse_small$term_name]
-  
-  # Repeat clustering on the smaller data set
-  hc_small <- stats::hclust(stats::as.dist(1- jaccard_small),
-                            method = "ward.D2")
-  
-  return(list(full = hc_full, small = hc_small, gse_res = gse_res))
-  
-}
 
-#' Finds all gene IDs from a a kegg term
-#' 
-#' This takes a kegg term and a path of all kegg terms and maps
-#' to ncbi gene ids
-#' 
-#' @param kegg_term The list of kegg terms to query. If multiple are provided
-#' a list of genes from all terms combined will be returned.
-get_gene_list <- function(kegg_term){
-  path <- keggLink("pathway", "hsa")
-  
-  search_term <- gsub("KEGG:", "", kegg_term)
-  
-  tryCatch({
-    # Find genes in term
-    all_genes <- lapply(search_term, function(term){
-      genes_in_term <- path[grepl(term, path)]
-      return(genes_in_term)
-    })
-    all_genes <- unlist(all_genes)
-    
-    # Translate to gene id
-    all_gene_id <- keggConv("ncbi-geneid", unique(names(all_genes)))
-    
-    all_gene_id <- gsub("ncbi-geneid:", "", all_gene_id)
-    
-    # Map to gene symbols
-    gene_symbols <- mapIds(org.Hs.eg.db, keys = all_gene_id, 
-                           keytype = "ENTREZID", column = "SYMBOL")  
-    
-  }, error = function(e) {
-    cat("Error:", conditionMessage(e), "\n")
-    gene_symbols <- "NA"
-  })
-  
-  return(as.character(gene_symbols))
-}
-
-#' Makes a histogram based on the output from `make_histogram`.
-#' 
-#' This assumes that `make_histogram` has already been run. Will take
-#' that output and make a dendrogram
-#' 
-#' @param hc The hclust object output from `make_h`
-#' @param gse_res the results table returned by `gprofiler2::gost`
-#' @param y_lim how to set the y-lim, this is important to modify if
-#' you save the figure in different sizes, it moves where the key is 
-#' relative to the text
-#' @param title The title of the plot
-plot_histogram <- function(hc, gse_res, ylim = c(2, -2), title = NULL){
-  # Convert hclust to dendrogram
-  dend <- as.dendrogram(hc)
-  
-  # Make dendrogram into an object that plays well with ggplot
-  ddata <- ggdendro::dendro_data(dend, type = "rectangle")
-  
-  # Add gse information
-  dot_data <- merge(ddata$labels, gse_res, by.x = "label", by.y = "term_name",
-                    all.x = TRUE, all.y = FALSE)
-  
-  
-  # Make the plot with the dendrogram passed to geom segment and the 
-  # gse res as the geom_point
-  p <- ggplot(ggdendro::segment(ddata)) + 
-    ggplot2::geom_segment(aes(x = x, y = y, xend = xend, yend = yend)) + 
-    ggplot2::geom_text(data = ddata$labels, ggplot2::aes(x = x, y = y - 0.06,
-                                                         label = label),
-                       hjust = 0, angle = 0, size = 3) +
-    ggplot2::geom_point(data = dot_data, ggplot2::aes(x = x, y = y,
-                                                      color = -log(p_value),
-                                                      size = intersection_size)) +
-    ggplot2::scale_color_gradient(low = "blue", high = "red") +
-    ggplot2::coord_flip() + 
-    ggplot2::scale_y_reverse(expand = c(0.2, 0)) +
-    ggplot2::ylim(ylim) +
-    ggplot2::theme(axis.line = element_blank(),
-                   axis.text = element_blank(),
-                   axis.ticks = element_blank(),
-                   axis.title = element_blank())
-  
-  if(!is.null(title)){
-    p <- p +
-      ggplot2::ggtitle(title) +
-      ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
-  }
-  
-  return(p)
-  
-}
-
-#' Makes a volcano
-#' 
-#' Makes a volcano plot based on a previously run DE analysis. Assumes 
-#' columns named `p_val_adj`, `avg_log2FC` and `gene` are present. Also
-#' takes a list of kegg pathways. Any gene in any of those pathways will be
-#' colored on top of the volcano plot. Logic to fix the p-values was borrowed
-#' from `EnhancedVolcano`
-#' 
-#' @param de_genes The de genes to plot
-#' @param kegg_pathways A list of kegg pathways. Genes from these will
-#' be highlighted
-#' @param group_name Name for the kegg pathways. This will be the name
-#' of the plot
-#' @param color What color to color the kegg pathway genes
-make_volcano <- function(de_genes, kegg_pathways, group_name,
-                         color = NULL){
-  # Pull out all genes to highlight on the volcano plot
-  highlight_genes <- get_gene_list(kegg_pathways)
-  
-  if(is.null(color)){
-    color <- "#C41E3A"
-  }
-  
-  # Fix y values (taken from enhanced volcano)
-  if (min(de_genes$p_val_adj, na.rm=TRUE) == 0) {
-    # <= v1.2
-    #warning(paste("One or more P values is 0.",
-    #  "Converting to minimum possible value..."),
-    #  call. = FALSE)
-    #toptable[which(toptable[[y]] == 0), y] <- .Machine$double.xmin
-    warning(paste('One or more p-values is 0.',
-                  'Converting to 10^-1 * current',
-                  'lowest non-zero p-value...'),
-            call. = FALSE)
-    
-    de_genes[which(de_genes[["p_val_adj"]] == 0), "p_val_adj"] <- min(
-      de_genes[which(de_genes[["p_val_adj"]] != 0), "p_val_adj"],
-      na.rm = TRUE) * 10^-1
-  }
-  
-  # Add in colors
-  de_genes$color <- ifelse(de_genes$gene %in% highlight_genes,
-                           "kegg_gene", "other_gene")
-  
-  de_genes$color <- factor(de_genes$color, levels = c("other_gene",
-                                                      "kegg_gene"))
-  
-  de_genes <- de_genes[order(de_genes$color),]
-  
-  color_mapping <- c("kegg_gene" = color, "other_gene" = "#999999")
-  
-  
-  # Make a volcano plot
-  volcano_plot <- ggplot2::ggplot(de_genes, ggplot2::aes(x = avg_log2FC,
-                                                         y = -log(p_val_adj),
-                                                         color = color)) +
-    ggplot2::geom_point() + 
-    ggplot2::xlim(-2, 2) +
-    ggplot2::scale_color_manual(values = color_mapping) +
-    ggplot2::ggtitle(group_name) +
-    ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.5))
-  
-  return(volcano_plot)
-}
 
 keep_pathways <- list("pro_inflammatory_signaling" =
                         c("KEGG:04657", "KEGG:04668", "KEGG:04064"),
@@ -889,9 +678,12 @@ dev.off()
 
 ## Figure 5 --------------------------------------------------------------------
 # Make a barplot of antigen 
+
+# This function could be easily modified to be much more flexible and work
+# in both locations where the function has the same name
 make_barplot <- function(seurat_object, isotype_colors,
                          meta_data_col = "imcantation_isotype"){
-  seurat_object$full_split <- paste(seurat_object$celltype_cluster,
+  seurat_object$full_split <- paste(seurat_object$Status,
                                     seurat_object$tet_name_cutoff, sep = "__")
   
   barplot <- stacked_barplots(seurat_object, meta_col = meta_data_col,
@@ -900,20 +692,20 @@ make_barplot <- function(seurat_object, isotype_colors,
                               return_values = TRUE)
   
   barplot_data <- barplot$data
-  barplot_data$celltype <- gsub("__.*", "", barplot_data$split_by)
+  barplot_data$Status <- gsub("__.*", "", barplot_data$split_by)
   barplot_data$tet_name_cutoff <- gsub(".*__", "", barplot_data$split_by)
   barplot_data[[meta_data_col]] <- barplot_data$meta_col
   
-  barplot_data$Status <- factor(barplot_data$tet_name_cutoff,
+  barplot_data$tet_name_cutoff <- factor(barplot_data$tet_name_cutoff,
                                 levels = plotting_levels)
 
-  barplot_data$celltype <- factor(barplot_data$celltype,
-                                  levels = levels(seurat_data$celltype_cluster))
+  barplot_data$Status <- factor(barplot_data$Status,
+                                  levels = levels(seurat_data$Status))
   
-  barplot <- ggplot2::ggplot(barplot_data, aes(x = Status, y = percents,
+  barplot <- ggplot2::ggplot(barplot_data, aes(x = tet_name_cutoff, y = percents,
                                                fill = !!sym(meta_data_col))) +
     ggplot2::geom_bar(position = "stack", stat = "identity") +
-    ggplot2::facet_grid(~celltype, switch = "x") +
+    ggplot2::facet_grid(~Status, switch = "x") +
     ggplot2::theme(strip.placement = "outside",
                    strip.background = element_rect(fill = NA, color = "white"),
                    panel.spacing = unit(-.01,"cm"),
@@ -937,15 +729,505 @@ isotype$imcantation_isotype <- factor(isotype$imcantation_isotype,
 
 barplot <- make_barplot(isotype, isotype_colors)
 
-pdf(file.path(image_dir, "5A_stacked_bar_chart_isotype_celltype.pdf"),
-    width = 12, height = 8)
+pdf(file.path(image_dir, "5A_stacked_bar_chart_isotype_status.pdf"),
+    width = 8, height = 8)
 
 print(barplot)
 
 dev.off()
 graphics.off()
 
+# 5B CDR3 length
+sep_columns <- c("chains", "cdr3", "cdr3_length",
+                 "cdr3_nt_length", "v_gene", "d_gene", "j_gene", "c_gene",
+                 "reads", "umis", "productive", "full_length",
+                 "v_ins", "v_del", "v_mis", "d_ins", "d_del",
+                 "d_mis", "j_ins", "j_del", "j_mis", "c_ins", "c_del", "c_mis",
+                 "all_ins", "all_del", "all_mis", "vd_ins", "vd_del", "dj_ins",
+                 "dj_del", "v_mis_freq", "d_mis_freq", "j_mis_freq",
+                 "c_mis_freq", "all_mis_freq")
+keep_columns <- c("isotype", "final_celltype", "sample", "paired",
+                  "clonotype_id", "Status", "tet_name_cutoff",
+                  "all_chains")
+
+all_info <- seurat_data[[]] %>%
+  dplyr::mutate(all_chains = chains) %>%
+  dplyr::select(dplyr::all_of(c(sep_columns, keep_columns)), n_chains) %>%
+  tibble::rownames_to_column("barcode") %>%
+  dplyr::filter(!is.na(n_chains))
+
+
+all_info_split <- cSplit(all_info, sep_columns, sep = ";", direction = "long") %>%
+  dplyr::filter(!is.na(chains))
+
+
+# CDR3 length
+
+all_info_split$tet_name_cutoff <- factor(all_info_split$tet_name_cutoff,
+                                         levels = plotting_levels)
+
+heavy_data <- all_info_split %>%
+  dplyr::filter(chains == "IGH")
+
+boxplot_cdr3_len <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = cdr3_length,
+                                                             x = tet_name_cutoff,
+                                                             fill = Status)) +
+  ggplot2::geom_boxplot(size = 0.1, outlier.size = 0.5) +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1))
+
+pdf(file.path(image_dir, "5B_cdr3_length.pdf"),
+    width = 8, height = 4)
+
+print(boxplot_cdr3_len)
+
+dev.off()
+graphics.off()
+
+# SHM VH and VL
+
+density_h_smh <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = Status,
+                                                          x = all_mis_freq,
+                                                          fill = Status)) +
+  ggridges::geom_density_ridges() +
+  ggplot2::facet_grid(~tet_name_cutoff, switch = "x") +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
+  ggplot2::ggtitle("Heavy chain SMH") +
+  ggplot2::xlim(-0.02, 0.2) +
+  ggplot2::coord_flip()
+
+boxplot_h_smh <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = (all_mis_freq),
+                                                          x = tet_name_cutoff,
+                                                          fill = Status)) +
+  ggplot2::geom_boxplot(size = 0.1, outlier.size = 0.5) +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
+  ggplot2::ggtitle("Heavy chain SMH")
+
+light_data <- all_info_split %>%
+  dplyr::filter(chains %in% c("IGK", "IGL"))
+
+boxplot_l_smh <- ggplot2::ggplot(light_data, ggplot2::aes(y = all_mis_freq,
+                                                          x = tet_name_cutoff,
+                                                          fill = Status)) +
+  ggplot2::geom_boxplot(size = 0.1, outlier.size = 0.5) +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
+  ggplot2::ggtitle("Light chain SMH")
+
+density_l_smh <- ggplot2::ggplot(light_data, ggplot2::aes(y = Status,
+                                                          x = all_mis_freq,
+                                                          fill = Status)) +
+  ggridges::geom_density_ridges() +
+  ggplot2::facet_grid(~tet_name_cutoff, switch = "x") +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
+  ggplot2::ggtitle("Light chain SMH") +
+  ggplot2::xlim(-0.02, 0.2) +
+  ggplot2::coord_flip()
+
+
+h_and_l <- cowplot::plot_grid(boxplot_h_smh, boxplot_l_smh,
+                              nrow = 2, ncol = 1)
+
+h_and_l_density <- cowplot::plot_grid(density_h_smh, density_l_smh,
+                                      nrow = 2, ncol = 1)
+
+pdf(file.path(image_dir, "5E_heavy_ligh_smh.pdf"),
+    width = 8, height = 8)
+
+print(h_and_l)
+
+dev.off()
+graphics.off()
+
+pdf(file.path(image_dir, "5E_heavy_ligh_smh_density.pdf"),
+    width = 8, height = 8)
+
+print(h_and_l_density)
+
+dev.off()
+graphics.off()
+
+## Figure 6 --------------------------------------------------------------------
+# Shannon index
+seurat_data$sample_celltype <- paste(seurat_data$sample,
+                                     seurat_data$final_celltype,
+                                     sep = "_")
+seurat_data <- calc_diversity(seurat_data,
+                              data_col    = "final_clone",
+                              cluster_col = "sample_celltype",
+                              method      = abdiv::shannon
+)
+
+diversity <- seurat_data[[]] %>%
+  dplyr::select(final_clone_shannon_diversity, final_celltype, sample,
+                Status) %>%
+  dplyr::distinct() %>%
+  dplyr::filter(!is.na(final_clone_shannon_diversity))
+
+diversity_p <- ggplot2::ggplot(diversity, ggplot2::aes(x = Status,
+                                                       y = final_clone_shannon_diversity,
+                                                       fill = Status)) + 
+  ggplot2::geom_boxplot(size = 0.25, outlier.size = 0.5) +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::facet_grid(~final_celltype, switch = "x") +
+  ggpubr::stat_compare_means(ggplot2::aes(group = Status),
+                             method = "t.test",
+                             label = "p.signif",
+                             comparisons = list(c("AAB", "ND"),
+                                                c("T1D", "ND"),
+                                                c("T1D", "AAB"))) +
+  ggplot2::theme(strip.placement = "outside",
+                 strip.background = element_rect(fill = NA, color = "white"),
+                 panel.spacing = unit(-.01,"cm"),
+                 axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+
+pdf(file.path(image_dir, "6A_shannon_alpha_diversity.pdf"),
+    width = 8, height = 8)
+
+print(diversity_p)
+
+dev.off()
+graphics.off()
+
+# Tree maps
+all_data <- all_info_split[all_info_split$chains == "IGH", c("v_gene", "Status")]
+
+all_plots <- lapply(levels(all_data$Status), function(x){
+  df <- all_data %>%
+    dplyr::filter(Status == x) %>%
+    dplyr::group_by(v_gene) %>%
+    dplyr::add_count(name = "v_count") %>%
+    dplyr::ungroup() %>%
+    dplyr::distinct() %>%
+    dplyr::mutate(v_percent = v_count / sum(v_count) * 100) %>%
+    dplyr::mutate(plot_v = ifelse(v_percent > 0.25, v_gene, ""))
+  
+  
+  # Fill could be v_percent
+  plot <- ggplot(df, aes(area = v_percent, fill = v_gene, label = plot_v)) +
+    treemapify::geom_treemap() +
+    treemapify::geom_treemap_text(colour = "white", place = "center", reflow = T) +
+    # viridis::scale_fill_viridis(option = "inferno",
+    #                             discrete = FALSE, n.breaks = 50) +
+    ggplot2::scale_fill_manual(values = heavy_colors) +
+    ggplot2::ggtitle(x) +
+    ggplot2::theme(legend.position = "none", 
+                   plot.title = ggplot2::element_text(hjust = 0.5))
+  
+  return(plot)
+})
+
+combined_plot <- cowplot::plot_grid(plotlist = all_plots, nrow = 1,
+                                    ncol = 3)
+
+
+pdf(file.path(image_dir, "6B_vdj_percent_all.pdf"),
+    width = 16, height = 6)
+
+print(combined_plot)
+
+dev.off()
+
+
+# Odds ratio
+stats_aab <- file.path(save_dir, "files", "vdj_files",
+                       "stats", "all_aab_nd.xlsx")
+
+stats_t1d <- file.path(save_dir, "files", "vdj_files",
+                       "stats", "all_t1d_nd.xlsx")
+
+stats_aab_light <- file.path(save_dir, "files", "vdj_files",
+                             "stats", "all_light_aab_nd.xlsx")
+
+stats_t1d_light <- file.path(save_dir, "files", "vdj_files",
+                             "stats", "all_light_t1d_nd.xlsx")
+
+stats_aab_hl <- file.path(save_dir, "files", "vdj_files",
+                          "stats", "all_heavy_light_aab_nd.xlsx")
+
+stats_t1d_hl <- file.path(save_dir, "files", "vdj_files",
+                          "stats", "all_heavy_light_t1d_nd.xlsx")
+
+
+# Heavy
+odds_ratio_aab <- openxlsx::readWorkbook(stats_aab, sheet = "odds_ratio")
+
+odds_ratio_t1d <- openxlsx::readWorkbook(stats_t1d, sheet = "odds_ratio")
+
+odds_ratio_t1d <- odds_ratio_t1d[order(odds_ratio_t1d$odds_ratio),]
+
+odds_ratio_aab <- odds_ratio_aab[order(match(odds_ratio_aab$v_gene,
+                                             odds_ratio_t1d$v_gene)),]
+
+# Light
+odds_ratio_aab_light <- openxlsx::readWorkbook(stats_aab_light,
+                                               sheet = "odds_ratio")
+
+odds_ratio_t1d_light <- openxlsx::readWorkbook(stats_t1d_light,
+                                               sheet = "odds_ratio")
+
+odds_ratio_t1d_light <- odds_ratio_t1d_light[
+  order(odds_ratio_t1d_light$odds_ratio),]
+
+odds_ratio_aab_light <- odds_ratio_aab_light[
+  order(match(odds_ratio_aab_light$v_gene,
+              odds_ratio_t1d_light$v_gene)),]
+
+# Heavy and light
+odds_ratio_aab_hl <- openxlsx::readWorkbook(stats_aab_hl,
+                                            sheet = "odds_ratio")
+
+odds_ratio_t1d_hl <- openxlsx::readWorkbook(stats_t1d_hl,
+                                            sheet = "odds_ratio")
+
+odds_ratio_t1d_hl <- odds_ratio_t1d_hl[
+  order(odds_ratio_t1d_hl$odds_ratio),]
+
+odds_ratio_t1d_hl <- odds_ratio_t1d_hl[
+  order(match(odds_ratio_t1d_hl$v_gene,
+              odds_ratio_t1d_hl$v_gene)),]
+
+
+make_plot <- function(odds_ratio, status, chain){
+  # Set the order
+  odds_ratio$v_gene <- factor(odds_ratio$v_gene,
+                              levels = odds_ratio$v_gene)
+  col_mapping <- c("P>0.05" = "#D3D3D3",
+                   "P<0.05" = as.character(status_colors[status]))
+  
+  odds_plot <- ggplot2::ggplot(odds_ratio, 
+                               ggplot2::aes(x = odds_ratio,
+                                            y = v_gene,
+                                            color = padj_category)) +
+    ggplot2::geom_point() +
+    ggplot2::geom_errorbar(ggplot2::aes(xmin = X95_conf_int_low,
+                                        xmax = X95_conf_int_high)) +
+    ggplot2::geom_vline(xintercept = 1, linetype = "dashed") +
+    ggplot2::scale_color_manual(values = col_mapping) +
+    ggplot2::ggtitle(paste0(chain, " chain: ", status, " vs ND")) +
+    ggplot2::theme(plot.title = element_text(hjust = 0.5))
+}
+
+t1d <- make_plot(odds_ratio_t1d, status = "T1D", chain = "Heavy")
+aab <- make_plot(odds_ratio_aab, status = "AAB", chain = "Heavy")
+
+# Remove chains with a very high confidence interval
+odds_ratio_t1d_light <- odds_ratio_t1d_light[odds_ratio_t1d_light$X95_conf_int_high < 10,]
+odds_ratio_aab_light <- odds_ratio_aab_light[odds_ratio_aab_light$X95_conf_int_high < 10,]
+
+t1d_light <- make_plot(odds_ratio_t1d_light, status = "T1D", chain = "Light")
+aab_light <- make_plot(odds_ratio_aab_light, status = "AAB", chain = "Light")
+
+full_plot <- cowplot::plot_grid(t1d, aab, t1d_light, aab_light,
+                                nrow = 2, ncol = 2, rel_heights = c(1, 1.2))
+
+heavy_plot <- cowplot::plot_grid(t1d, aab,
+                                 nrow = 1, ncol = 2)
+
+light_plot <- cowplot::plot_grid(t1d_light, aab_light,
+                                 nrow = 1, ncol = 2)
+
+pdf(file.path(image_dir, "6C_all_odds.pdf"),
+    width = 15, height = 20)
+
+print(full_plot)
+
+dev.off()
+graphics.off()
+
+
+pdf(file.path(image_dir, "6C_heavy_odds.pdf"),
+    width = 15, height = 10)
+
+print(heavy_plot)
+
+dev.off()
+graphics.off()
+
+pdf(file.path(image_dir, "6C_heavy_odds.pdf"),
+    width = 15, height = 11)
+
+print(light_plot)
+
+dev.off()
+graphics.off()
+
+
+# Tree maps light
+all_data <- all_info_split[all_info_split$chains %in% c("IGK", "IGL"), c("v_gene", "Status")]
+
+all_plots <- lapply(levels(all_data$Status), function(x){
+  df <- all_data %>%
+    dplyr::filter(Status == x) %>%
+    dplyr::group_by(v_gene) %>%
+    dplyr::add_count(name = "v_count") %>%
+    dplyr::ungroup() %>%
+    dplyr::distinct() %>%
+    dplyr::mutate(v_percent = v_count / sum(v_count) * 100) %>%
+    dplyr::mutate(plot_v = ifelse(v_percent > 0.25, v_gene, ""))
+  
+  
+  # Fill could be v_percent
+  plot <- ggplot(df, aes(area = v_percent, fill = v_gene, label = plot_v)) +
+    treemapify::geom_treemap() +
+    treemapify::geom_treemap_text(colour = "white", place = "center", reflow = T) +
+    # viridis::scale_fill_viridis(option = "inferno",
+    #                             discrete = FALSE, n.breaks = 50) +
+    ggplot2::scale_fill_manual(values = light_colors) +
+    ggplot2::ggtitle(x) +
+    ggplot2::theme(legend.position = "none", 
+                   plot.title = ggplot2::element_text(hjust = 0.5))
+  
+  return(plot)
+})
+
+combined_plot <- cowplot::plot_grid(plotlist = all_plots, nrow = 1,
+                                    ncol = 3)
+
+
+pdf(file.path(image_dir, "6D_vdj_percent_light.pdf"),
+    width = 16, height = 6)
+
+print(combined_plot)
+
+dev.off()
+
+
+
+# Only odds increased heavy light pairs
+# Get only significant chains
+sig_hl_t1d <- odds_ratio_t1d_hl[odds_ratio_t1d_hl$p_adj < 0.05 &
+                                  odds_ratio_t1d_hl$odds_ratio > 1,]
+sig_hl_aab <- odds_ratio_aab_hl[odds_ratio_aab_hl$p_adj < 0.05 &
+                                  odds_ratio_aab_hl$odds_ratio > 1,]
+
+
+all_chains <- c(sig_hl_t1d$v_gene, sig_hl_aab$v_gene)
+use_cells <- seurat_data[[]] %>%
+  dplyr::filter(v_gene %in% all_chains)
+
+use_data <- all_info_split[all_info_split$barcode %in%
+                             rownames(use_cells), ]
+
+all_data <- count_genes_heavy_light(starting_df = use_data,
+                                    group_by = "Status",
+                                    subset_counts = 0,
+                                    color_list = status_colors)
+
+
+pdf(file.path(image_dir, "6F_combined_heavy_light_significant.pdf"),
+    width = 8, height = 8)
+
+par(mfrow = c(1, 1))
+make_circos_plot(circos_df = all_data$df,
+                 color = all_data$color_list, 
+                 grid_color = all_colors)
+
+dev.off()
+graphics.off()
+
+all_data <- count_genes_heavy_light(starting_df = use_data,
+                                    group_by = "tet_name_cutoff",
+                                    subset_counts = 0,
+                                    color_list = tetramer_colors)
+
+
+pdf(file.path(image_dir, "6G_combined_heavy_light_significant_tet_color.pdf"),
+    width = 8, height = 8)
+
+par(mfrow = c(1, 1))
+make_circos_plot(circos_df = all_data$df,
+                 color = all_data$color_list, 
+                 grid_color = all_colors)
+
+dev.off()
+graphics.off()
+
 ## Figure 7 --------------------------------------------------------------------
+clone_data <- file.path(save_dir, "files", "v_gene_counting", 
+                        "clone_expansion.xlsx")
+
+clone_expanded <- openxlsx::readWorkbook(clone_data, sheet = "expanded_clones")
+
+use_cells <- clone_expanded$barcode
+use_data <- all_info_split[all_info_split$barcode %in%
+                             use_cells, ]
+
+use_data$tet_name_cutoff <- factor(use_data$tet_name_cutoff,
+                                   levels = plotting_levels)
+
+pdf(file.path(image_dir, "7A_expanded_clone_circos.pdf"),
+    width = 32, height = 16)
+
+par(mfrow = c(2, 4))
+for(tet_group in levels(use_data$tet_name_cutoff)){
+  sub_data <- use_data[use_data$tet_name_cutoff == tet_group, ]
+  all_data <- count_genes_heavy_light(starting_df = sub_data,
+                                      group_by = "Status",
+                                      subset_counts = 0,
+                                      color_list = status_colors)  
+  
+  make_circos_plot(circos_df = all_data$df,
+                   color = all_data$color_list, 
+                   grid_color = all_colors)
+  
+  title(main = tet_group, cex.main = 1.5)
+}
+
+dev.off()
+
+# Clone plots
+
+
+clone_expanded <- openxlsx::readWorkbook(clone_data, sheet = "expanded_clones")
+
+clone_expanded$tet_name_cutoff <- ifelse(clone_expanded$tet_name_cutoff == "Other_Multi_Reactive" & 
+                                           grepl("INS|GAD|IA2", clone_expanded$full_tet_name_cutoff),
+                                         "Islet_Multi_Reactive", clone_expanded$tet_name_cutoff)
+
+
+make_clone_barplot <- function(clone_df){
+  clone_df <- clone_df %>%
+    dplyr::group_by(Status, tet_name_cutoff) %>%
+    dplyr::add_count(name = "number_of_clones") %>%
+    dplyr::select(tet_name_cutoff, number_of_clones, Status) %>%
+    dplyr::distinct()
+  
+  clone_df$Status <- factor(clone_df$Status,
+                            levels = status_levels)
+  
+  clone_df$tet_name_cutoff <- factor(clone_df$tet_name_cutoff,
+                                     levels = plotting_levels)
+  
+  
+  tet_colors <- tetramer_colors
+  names(tet_colors) <- make.names(names(tet_colors))
+  
+  clone_barplot <- ggplot2::ggplot(data = clone_df, 
+                                   ggplot2::aes(x = Status, y = number_of_clones,
+                                                fill = tet_name_cutoff)) +
+    ggplot2::geom_bar(stat = "identity", position = "stack") +
+    ggplot2::scale_fill_manual(values = tet_colors)
+  
+  return(clone_barplot)
+  
+}
+
+expanded_barplot <- make_clone_barplot(clone_expanded)
+
+pdf(file.path(image_dir, "7B_private_clones.pdf"),
+    width = 8, height = 8)
+
+print(expanded_barplot)
+
+dev.off()
+graphics.off()
+
+
+
 
 clone_data <- file.path(save_dir, "files", "v_gene_counting", 
                         "clone_expansion.xlsx")
