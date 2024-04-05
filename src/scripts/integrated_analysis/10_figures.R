@@ -1180,8 +1180,6 @@ for(tet_group in levels(use_data$tet_name_cutoff)){
 dev.off()
 
 # Clone plots
-
-
 clone_expanded <- openxlsx::readWorkbook(clone_data, sheet = "expanded_clones")
 
 clone_expanded$tet_name_cutoff <- ifelse(clone_expanded$tet_name_cutoff == "Other_Multi_Reactive" & 
@@ -1226,15 +1224,48 @@ print(expanded_barplot)
 dev.off()
 graphics.off()
 
-
-
-
-clone_data <- file.path(save_dir, "files", "v_gene_counting", 
-                        "clone_expansion.xlsx")
-
-
-clone_expanded <- openxlsx::readWorkbook(clone_data, sheet = "expanded_clones")
+# Public clone circos
 clone_public <- openxlsx::readWorkbook(clone_data, sheet = "public_clones")
+
+
+use_cells <- clone_public$barcode
+
+use_data <- all_info_split[all_info_split$barcode %in%
+                             use_cells, ]
+
+all_data <- count_genes_heavy_light(starting_df = use_data,
+                                    group_by = "sample",
+                                    subset_counts = 0,
+                                    color_list = sample_colors)
+
+
+pdf(file.path(image_dir, "7C_public_circos_sample_color.pdf"),
+    width = 8, height = 8)
+
+par(mfrow = c(1, 1))
+make_circos_plot(circos_df = all_data$df,
+                 color = all_data$color_list, 
+                 grid_color = all_colors)
+
+dev.off()
+graphics.off()
+
+all_data <- count_genes_heavy_light(starting_df = use_data,
+                                    group_by = "tet_name_cutoff",
+                                    subset_counts = 0,
+                                    color_list = tetramer_colors)
+
+
+pdf(file.path(image_dir, "7D_public_circos_tet_color.pdf"),
+    width = 8, height = 8)
+
+par(mfrow = c(1, 1))
+make_circos_plot(circos_df = all_data$df,
+                 color = all_data$color_list, 
+                 grid_color = all_colors)
+
+dev.off()
+graphics.off()
 
 # Public clones
 
