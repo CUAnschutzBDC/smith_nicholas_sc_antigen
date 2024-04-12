@@ -11,6 +11,8 @@ library(djvdj)
 library(KEGGREST)
 library(org.Hs.eg.db)
 library(treemapify)
+library(rstatix)
+
 
 source(here("src/scripts/integrated_analysis/figure_functions.R"))
 
@@ -176,31 +178,21 @@ facs_percents$Status <- factor(facs_percents$Status, levels = unique(new_status)
 facs_percents$type <- "PE_positive"
 
 # Do t test
-all_combinations <- combn(unique(new_status), m = 2)
+stat.test <- facs_percents %>%
+  t_test(percent ~ Status) %>%
+  adjust_pvalue(method = "bonferroni") %>%
+  add_significance()
 
-all_p_val <- lapply(1:ncol(all_combinations), function(col){
-  val1 <- all_combinations[1, col]
-  val2 <- all_combinations[2, col]
-  t_test_val <- t.test(facs_percents[facs_percents$Status == val1,]$percent,
-                       facs_percents[facs_percents$Status == val2,]$percent)
-  return_df <- data.frame("group1" = val1, "group2" = val2, 
-                          "p_value" = t_test_val$p.value)
-  return(return_df)
-})
+stat.test <- stat.test %>% add_xy_position(x = "Status")
 
-all_p_val <- do.call(rbind, all_p_val)
-
-# Make boxplot
-# Add in stats
 p1 <- ggplot2::ggplot(facs_percents, ggplot2::aes(x = Status, y = percent)) +
   ggplot2::geom_boxplot(ggplot2::aes(fill = Status)) +
   ggplot2::scale_fill_manual(values = status_colors) +
   ggplot2::geom_point(position = ggplot2::position_dodge(0.75)) +
   ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1)) +
   ggpubr::stat_pvalue_manual(
-    all_p_val, 
-    y.position = 12, step.increase = 0.1,
-    label = "p_value"
+    stat.test, 
+    label = "p.adj.signif"
   )
 
 pdf(file.path(image_dir, "1C_ag_positive_facs.pdf"),
@@ -862,8 +854,98 @@ graphics.off()
 
 ### 5C -------------------------------------------------------------------------
 
+# Find charge of CDR3 with alakazam
+heavy_data <- all_info_split %>%
+  dplyr::filter(chains == "IGH")
+
+heavy_data$charge <- alakazam::charge(seq = heavy_data$cdr3)
+
+# Barplot, y = charge, x = tetramer, color = status
+h_charge <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = charge,
+                                                     x = tet_name_cutoff,
+                                                     fill = Status)) +
+  ggplot2::geom_boxplot(size = 0.1, outlier.size = 0.5) +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
+  ggplot2::ggtitle("Heavy chain SMH")
+
+pdf(file.path(image_dir, "5C_heavy_charge.pdf"),
+    width = 8, height = 4)
+
+print(h_charge)
+
+dev.off()
+graphics.off()
+
+# Repeat with light
+light_data <- all_info_split %>%
+  dplyr::filter(chains %in% c("IGK", "IGL"))
+
+light_data$charge <- alakazam::charge(seq = light_data$cdr3)
+
+# Barplot, y = charge, x = tetramer, color = status
+l_charge <- ggplot2::ggplot(light_data, ggplot2::aes(y = charge,
+                                                     x = tet_name_cutoff,
+                                                     fill = Status)) +
+  ggplot2::geom_boxplot(size = 0.1, outlier.size = 0.5) +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
+  ggplot2::ggtitle("Heavy chain SMH")
+
+
+pdf(file.path(image_dir, "5C_light_charge.pdf"),
+    width = 8, height = 4)
+
+print(l_charge)
+
+dev.off()
+graphics.off()
+
 ### 5D -------------------------------------------------------------------------
 
+# JH gene usage by status
+
+# First find the percent J gene usage by status
+j_data <- heavy_data[ , c("j_gene", "sample", "Status")]
+
+j_data <- j_data %>%
+  dplyr::group_by(sample) %>% 
+  dplyr::add_count(name = "sample_count") %>% # Total cells in sample
+  dplyr::ungroup() %>%
+  dplyr::group_by(sample, j_gene) %>%
+  dplyr::add_count(name = "j_count") %>% # Total cells per j gene per sample
+  dplyr::distinct() %>% # One line per sample/j gene
+  dplyr::mutate(percent_j = j_count / sample_count * 100)
+
+
+# Do t test
+stat.test <- j_data %>%
+  group_by(j_gene) %>%
+  t_test(percent_j ~ Status) %>%
+  adjust_pvalue(method = "bonferroni") %>%
+  add_significance()
+
+stat.test <- stat.test %>% add_xy_position(x = "Status")
+
+
+# Make a plot
+j_plot <- ggplot2::ggplot(j_data, ggplot2::aes(x = Status,
+                                               y = percent_j)) +
+  ggplot2::geom_boxplot(ggplot2::aes(fill = Status)) +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::facet_grid(~j_gene, switch = "x") +
+  ggpubr::stat_pvalue_manual(
+    stat.test, 
+    label = "p.adj.signif"
+  )
+
+pdf(file.path(image_dir, "5D_jh_usage.pdf"),
+    width = 6, height = 6)
+
+print(j_plot)
+
+dev.off()
+graphics.off()
 
 ### 5E -------------------------------------------------------------------------
 
