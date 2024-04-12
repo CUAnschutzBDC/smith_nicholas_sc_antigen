@@ -1530,3 +1530,126 @@ print(bar_plot)
 dev.off()
 
 ## Supplement ------------------------------------------------------------------
+
+### Supp 1 ---------------------------------------------------------------------
+# Violin plots of mito, features, genes across samples
+quality_plot <- featDistPlot(seurat_data, geneset = c("nCount_RNA",
+                                                      "nFeature_RNA", 
+                                                      "percent.mt"),
+                             sep_by = "sample", col_by = "Status",
+                             color = status_colors,
+                             combine = FALSE)
+
+quality_plot$percent.mt <- quality_plot$percent.mt +
+  ggplot2::ylim(0, 20)
+
+final_quality <- cowplot::plot_grid(plotlist = quality_plot, nrow = 3)
+
+pdf(file.path(image_dir, "Supp1_quality_plots.pdf"))
+print(final_quality)
+dev.off()
+
+### Supp 2 ---------------------------------------------------------------------
+# UMAP of samples before and after correction
+
+umap_one <- plotDimRed(seurat_data, col_by = "sample",
+                       plot_type = "pca.umap", color = sample_colors,
+                       ggrastr = TRUE)[[1]]
+
+umap_two <- plotDimRed(seurat_data, col_by = "final_celltype",
+                       plot_type = "pca.umap", color = final_colors,
+                       ggrastr = TRUE)[[1]]
+
+
+umap_three <- plotDimRed(seurat_data, col_by = "sample",
+                         plot_type = "rna_mnn.umap", color = sample_colors,
+                         ggrastr = TRUE)[[1]]
+
+umap_four <- plotDimRed(seurat_data, col_by = "final_celltype",
+                        plot_type = "rna_mnn.umap", color = final_colors,
+                        ggrastr = TRUE)[[1]]
+
+full_plot <- cowplot::plot_grid(umap_one, umap_two, umap_three, umap_four,
+                                rel_widths = c(0.84, 1, 0.84, 1),
+                                nrow = 2, ncol = 2)
+
+pdf(file.path(image_dir, "Supp2_quality_umaps.pdf"),
+    width = 12, height = 10)
+
+print(full_plot)
+
+dev.off()
+
+### Supp 3 ---------------------------------------------------------------------
+# Insr mRNA by Ag reactivity and Status
+
+save_violin <- featDistPlot(seurat_data, geneset = "INSR",
+                            sep_by = "tet_name_cutoff",
+                            col_by = "Status", color = status_colors,
+                            combine = FALSE)
+
+pdf(file.path(image_dir, "Supp3_insr_expr.pdf"),
+    height = 4, width = 8)
+print(save_violin)
+dev.off()
+
+graphics.off()
+
+### Supp 6 ---------------------------------------------------------------------
+pdf(file.path(image_dir, "Supp6_tetramer_new_vs_old_cutoff.pdf"))
+
+cm2 <- confusionMatrix(seurat_data$tet_name_cutoff, seurat_data$libra_tet_hash_id)
+cm2 <- cm2 / rowSums(cm2)
+print(pheatmap::pheatmap(cm2, main = "previous_vs_libra_id"))
+
+dev.off()
+
+graphics.off()
+
+### Supp 7 ---------------------------------------------------------------------
+#	List of top 10 genes per cell type
+Idents(seurat_data) <- seurat_data$celltype_cluster
+
+all_markers <- FindAllMarkers(seurat_data, assay = "RNA", 
+                              logfc.threshold = 0.25, max.cells.per.ident = 2000,
+                              only.pos = TRUE)
+
+save_excel <- openxlsx::createWorkbook()
+
+for(clust in unique(all_markers$cluster)){
+  write_markers <- all_markers %>%
+    dplyr::filter(cluster == clust, p_val_adj < 0.05)
+  
+  openxlsx::addWorksheet(wb = save_excel, sheetName = clust)
+  
+  openxlsx::writeData(wb = save_excel, sheet = clust, x = write_markers)
+}
+
+openxlsx::saveWorkbook(wb = save_excel, 
+                       file = file.path(image_dir, "cluster_markers.xlsx"),
+                       overwrite = TRUE)
+
+# Ran this to make sure the results didn't change with the downsampling,
+# they did not.
+# all_markers_short <- all_markers %>%
+#   dplyr::filter(abs(avg_log2FC) > 1)
+
+use_markers <- all_markers %>%
+  dplyr::filter(!grepl("IGK|IGH|IGL|AL139020.1", gene)) %>%
+  dplyr::group_by(cluster) %>%
+  dplyr::top_n(n = 10, wt = avg_log2FC) %>%
+  dplyr::arrange(cluster, desc(avg_log2FC))
+
+graphics.off()
+
+pdf(file.path(image_dir, "Supp7_marker_heatmap_average.pdf"),
+    width = 8, height = 12)
+
+print(plot_heatmap(seurat_data, gene_list = use_markers$gene,
+                   colors = cluster_celltype_colors, meta_col = "celltype_cluster",
+                   average_expression = TRUE, assay = "RNA"))
+
+dev.off()
+
+
+graphics.off()
