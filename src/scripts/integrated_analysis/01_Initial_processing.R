@@ -446,13 +446,50 @@ names(tetramer_full_colors) <- c("INS-tet", "GAD-tet", "IA2-tet",
                                  "Islet_Multi_Reactive")
 
 
-sample_colors <- MetBrewer::met.brewer(name = "Archambault", n = 16,
-                                       type = "continuous")
+# sample_colors <- c("110" = "#9886b8", # ND blue
+#                    "116" = "#8e47e2", # ND blue
+#                    "108" = "#639fb4", # ND blue
+#                    "107" = "#8266cb", # ND blue
+#                    "113" = "#4f7fbf", # ND blue
+#                    "114" = "#a29837", # AAB yellow
+#                    "118" = "#a8642d", # AAB yellow
+#                    "106" = "#dbd746", # AAB yellow
+#                    "117" = "#7e6c42", # AAB yellow
+#                    "115" = "#e09339", # AAB yellow
+#                    "105" = "#d8bf8d", # AAB yellow
+#                    "111" = "#8c5052", # T1D red
+#                    "102" = "#e05331", # T1D red
+#                    "112" = "#d48e84", # T1D red
+#                    "119" = "#d24062", # T1D red
+#                    "109" = "#a2462f") # T1D red
 
+# Yellow https://www.color-hex.com/color-palette/107172
+# Red https://www.color-hex.com/color-palette/2539
+# Blue https://www.color-hex.com/color-palette/30415
+sample_colors <- c("110" = "#1ebbd7", # ND blue
+                   "116" = "#107dac", # ND blue
+                   "108" = "#189ad3", # ND blue
+                   "107" = "#005073", # ND blue
+                   "113" = "#71c7ec", # ND blue
+                   "114" = "#ffde1a", # AAB yellow
+                   "118" = "#ffce00", # AAB yellow
+                   "106" = "#ffa700", # AAB yellow
+                   "117" = "#ff8d00", # AAB yellow
+                   "115" = "#ff7400", # AAB yellow
+                   "105" = "#e09339", # AAB yellow
+                   "111" = "#ffbaba", # T1D red
+                   "102" = "#ff7b7b", # T1D red
+                   "112" = "#ff5252", # T1D red
+                   "119" = "#ff5252", # T1D red
+                   "109" = "#a70000") # T1D red
 
-all_samples <- unique(seurat_data$sample)
-
-names(sample_colors) <- all_samples
+# sample_colors <- MetBrewer::met.brewer(name = "Archambault", n = 16,
+#                                        type = "continuous")
+# 
+# 
+# all_samples <- unique(seurat_data$sample)
+# 
+# names(sample_colors) <- all_samples
 
 status_colors <- MetBrewer::met.brewer(name = "Hokusai1", n = 7)
 

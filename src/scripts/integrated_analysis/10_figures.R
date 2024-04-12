@@ -93,6 +93,30 @@ image_dir <- file.path(save_dir, "images", "final_figures")
 
 ifelse(!dir.exists(image_dir), dir.create(image_dir), FALSE)
 
+# Set up long object -----------------------------------------------------------
+sep_columns <- c("chains", "cdr3", "cdr3_length",
+                 "cdr3_nt_length", "v_gene", "d_gene", "j_gene", "c_gene",
+                 "reads", "umis", "productive", "full_length",
+                 "v_ins", "v_del", "v_mis", "d_ins", "d_del",
+                 "d_mis", "j_ins", "j_del", "j_mis", "c_ins", "c_del", "c_mis",
+                 "all_ins", "all_del", "all_mis", "vd_ins", "vd_del", "dj_ins",
+                 "dj_del", "v_mis_freq", "d_mis_freq", "j_mis_freq",
+                 "c_mis_freq", "all_mis_freq")
+keep_columns <- c("isotype", "final_celltype", "sample", "paired",
+                  "clonotype_id", "Status", "tet_name_cutoff",
+                  "all_chains")
+
+all_info <- seurat_data[[]] %>%
+  dplyr::mutate(all_chains = chains) %>%
+  dplyr::select(dplyr::all_of(c(sep_columns, keep_columns)), n_chains) %>%
+  tibble::rownames_to_column("barcode") %>%
+  dplyr::filter(!is.na(n_chains))
+
+
+all_info_split <- cSplit(all_info, sep_columns, sep = ";", direction = "long") %>%
+  dplyr::filter(!is.na(chains))
+
+
 # Colors -----------------------------------------------------------------------
 all_colors <- readRDS(file = file.path("files/all_colors.rds"))
 
@@ -130,6 +154,7 @@ all_colors <- c(heavy_colors, light_colors)
 
 ## Figure 1 --------------------------------------------------------------------
 
+### 1C -------------------------------------------------------------------------
 # Facs percents from Catherine
 facs_percents <- read.table(here("files/PE_pos_sorted_percents.csv"),
                             header = TRUE, sep = ",")
@@ -185,6 +210,7 @@ dev.off()
 
 
 ## Figure 2 --------------------------------------------------------------------
+# Set up
 # Make a column of cell type and cluster
 seurat_data$celltype_cluster <- paste(seurat_data$final_celltype, 
                                       seurat_data$RNA_cluster,
@@ -235,6 +261,8 @@ seurat_data$celltype_cluster <- factor(seurat_data$celltype_cluster,
 cluster_celltype_colors <- cluster_celltype_colors[order(match(names(cluster_celltype_colors),
                                                                levels(seurat_data$celltype_cluster)))]
 
+### 2A -------------------------------------------------------------------------
+
 # Make a UMAP of all cells colored by cell type
 pdf(file.path(image_dir, "2A_rna_umap.pdf"), width = 8, height = 8)
 
@@ -243,6 +271,8 @@ print(plotDimRed(seurat_data, col_by = "celltype_cluster",
                  color = cluster_celltype_colors, ggrastr = TRUE))
 
 dev.off()
+
+### 2B -------------------------------------------------------------------------
 
 # Celltype genes, provided by Catherine, ordered for aesthetics
 gene_list <- c("CD38", "JCHAIN", "MZB1", "XBP1", "PRDM1", "IGHG1",
@@ -263,6 +293,8 @@ print(DotPlot(seurat_data, features = gene_list,
 
 dev.off()
 
+### 2C -------------------------------------------------------------------------
+
 # Cell type by status
 pdf(file.path(image_dir, "2C_status_celltype_barplot.pdf"),
     width = 8, height = 8)
@@ -277,6 +309,8 @@ dev.off()
 
 ## Figure 3 --------------------------------------------------------------------
 
+### 3A -------------------------------------------------------------------------
+
 # Barplot of antigen binding
 pdf(file.path(image_dir, "3A_status_antigen_barplot.pdf"),
     width = 8, height = 8)
@@ -288,6 +322,8 @@ barplot <- stacked_barplots(seurat_data, meta_col = "tet_name_cutoff",
 print(barplot)
 
 dev.off()
+
+### 3B -------------------------------------------------------------------------
 
 # Umaps by tetramer coloring
 all_umaps <- lapply(unique(seurat_data$tet_name_cutoff), function(x){
@@ -314,6 +350,8 @@ pdf(file.path(image_dir, "3B_tetramer_umap.pdf"),
     height = 8, width = 16)
 print(full_umaps)
 dev.off()
+
+### 3C -------------------------------------------------------------------------
 
 
 # Make a barplot of antigen 
@@ -366,6 +404,8 @@ pdf(file.path(image_dir, "3C_tetramer_stacked_barplot.pdf"),
 print(barplot)
 dev.off()
 
+### 3D -------------------------------------------------------------------------
+
 seurat_islet <- subset(seurat_data, 
                        subset = tet_name_cutoff == "Islet_Multi_Reactive")
 
@@ -386,6 +426,7 @@ pdf(file.path(image_dir, "3D_islet_multi_tetramer_stacked_barplot.pdf"),
 print(barplot2)
 dev.off()
 
+### 3E -------------------------------------------------------------------------
 
 # Make a violin plot that is all cells for each antigen reactivity across
 # status. Here each box will be cells from one antigen reactivity so nothing
@@ -478,6 +519,8 @@ de_genes <- markers_sig[markers_sig$cluster !=
 
 de_genes <- unique(de_genes)
 
+### 4A -------------------------------------------------------------------------
+
 new_sample_order <- c("110", "116", "108", "107", "113", "114", "118",
                       "106", "117", "115", "105", "111", "102", "112",
                       "119", "109")
@@ -524,6 +567,8 @@ pdf(file.path(image_dir, "4A_de_heatmap_average.pdf"),
 print(heatmap)
 
 dev.off()
+
+### 4B -------------------------------------------------------------------------
 
 # Use jaccard distance to make a dendrogram of gse terms
 gse_res <- read.csv(file.path(save_dir, "files/de/all_GSE_results.csv"))
@@ -624,6 +669,8 @@ print(combined)
 
 dev.off()
 
+### 4C -------------------------------------------------------------------------
+
 # DE volcano plots
 # Make volcano for all DE genes --> rerun DE for all
 # Color volcano by each set of genes
@@ -654,6 +701,28 @@ pdf(file.path(save_dir, "images", "final_figures",
 print(final_volcanos)
 dev.off()
 
+# Interactive volcanos
+plotly_volcanos <- lapply(names(keep_pathways), function(group_name){
+  kegg_pathways <- keep_pathways[[group_name]]
+  color <- pathway_colors[[group_name]]
+  
+  return_plot <- make_volcano(de_genes = de_genes, 
+                              kegg_pathways = kegg_pathways,
+                              group_name = group_name,
+                              color = color,
+                              plotly = TRUE)
+  
+  return_plot <- plotly::ggplotly(return_plot, tooltip = "text")
+  
+  htmlwidgets::saveWidget(return_plot, file.path(save_dir, "images",
+                                                 "final_figures",
+                                                 paste0(group_name, 
+                                                 "_interactive_volcano.html")))
+  return(return_plot)
+})
+
+### 4D -------------------------------------------------------------------------
+
 sample_levels <- levels(seurat_data$sample)
 seurat_data$sample <- as.character(seurat_data$sample)
 seurat_data$sample <- factor(seurat_data$sample, levels = sample_levels)
@@ -662,7 +731,8 @@ seurat_data$sample <- factor(seurat_data$sample, levels = sample_levels)
 twin_umap <- plotDimRed(seurat_data, col_by = "sample", color = sample_colors,
                         plot_type = "pca.umap", highlight_group = TRUE,
                         group = c("107", "108", "109"),
-                        meta_data_col = "sample", ggrastr = TRUE)[[1]] +
+                        meta_data_col = "sample", ggrastr = TRUE,
+                        reorder_cells = TRUE)[[1]] +
   ggplot2::ylab("UMAP 2") +
   ggplot2::xlab("UMAP 1")
 
@@ -674,10 +744,14 @@ pdf(file.path(save_dir, "images", "final_figures",
 print(twin_umap)
 dev.off()
 
+### 4E -------------------------------------------------------------------------
+
 # Overlaps of DE genes
 
 ## Figure 5 --------------------------------------------------------------------
 # Make a barplot of antigen 
+
+### 5A -------------------------------------------------------------------------
 
 # This function could be easily modified to be much more flexible and work
 # in both locations where the function has the same name
@@ -737,6 +811,8 @@ print(barplot)
 dev.off()
 graphics.off()
 
+### 5B -------------------------------------------------------------------------
+
 # 5B CDR3 length
 sep_columns <- c("chains", "cdr3", "cdr3_length",
                  "cdr3_nt_length", "v_gene", "d_gene", "j_gene", "c_gene",
@@ -784,7 +860,14 @@ print(boxplot_cdr3_len)
 dev.off()
 graphics.off()
 
-# SHM VH and VL
+### 5C -------------------------------------------------------------------------
+
+### 5D -------------------------------------------------------------------------
+
+
+### 5E -------------------------------------------------------------------------
+
+# 5E SHM VH and VL
 
 density_h_smh <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = Status,
                                                           x = all_mis_freq,
@@ -851,6 +934,8 @@ dev.off()
 graphics.off()
 
 ## Figure 6 --------------------------------------------------------------------
+### 6A -------------------------------------------------------------------------
+
 # Shannon index
 seurat_data$sample_celltype <- paste(seurat_data$sample,
                                      seurat_data$final_celltype,
@@ -892,6 +977,8 @@ print(diversity_p)
 dev.off()
 graphics.off()
 
+### 6B -------------------------------------------------------------------------
+
 # Tree maps
 all_data <- all_info_split[all_info_split$chains == "IGH", c("v_gene", "Status")]
 
@@ -930,6 +1017,8 @@ pdf(file.path(image_dir, "6B_vdj_percent_all.pdf"),
 print(combined_plot)
 
 dev.off()
+
+### 6C -------------------------------------------------------------------------
 
 
 # Odds ratio
@@ -1055,6 +1144,7 @@ print(light_plot)
 dev.off()
 graphics.off()
 
+### 6D -------------------------------------------------------------------------
 
 # Tree maps light
 all_data <- all_info_split[all_info_split$chains %in% c("IGK", "IGL"), c("v_gene", "Status")]
@@ -1096,6 +1186,7 @@ print(combined_plot)
 dev.off()
 
 
+### 6F -------------------------------------------------------------------------
 
 # Only odds increased heavy light pairs
 # Get only significant chains
@@ -1129,6 +1220,9 @@ make_circos_plot(circos_df = all_data$df,
 dev.off()
 graphics.off()
 
+### 6G -------------------------------------------------------------------------
+
+
 all_data <- count_genes_heavy_light(starting_df = use_data,
                                     group_by = "tet_name_cutoff",
                                     subset_counts = 0,
@@ -1151,6 +1245,8 @@ clone_data <- file.path(save_dir, "files", "v_gene_counting",
                         "clone_expansion.xlsx")
 
 clone_expanded <- openxlsx::readWorkbook(clone_data, sheet = "expanded_clones")
+
+### 7A -------------------------------------------------------------------------
 
 use_cells <- clone_expanded$barcode
 use_data <- all_info_split[all_info_split$barcode %in%
@@ -1178,6 +1274,8 @@ for(tet_group in levels(use_data$tet_name_cutoff)){
 }
 
 dev.off()
+
+### 7B -------------------------------------------------------------------------
 
 # Clone plots
 clone_expanded <- openxlsx::readWorkbook(clone_data, sheet = "expanded_clones")
@@ -1224,6 +1322,8 @@ print(expanded_barplot)
 dev.off()
 graphics.off()
 
+### 7C -------------------------------------------------------------------------
+
 # Public clone circos
 clone_public <- openxlsx::readWorkbook(clone_data, sheet = "public_clones")
 
@@ -1232,6 +1332,8 @@ use_cells <- clone_public$barcode
 
 use_data <- all_info_split[all_info_split$barcode %in%
                              use_cells, ]
+
+use_data <- use_data[order(use_data$sample),]
 
 all_data <- count_genes_heavy_light(starting_df = use_data,
                                     group_by = "sample",
@@ -1250,6 +1352,8 @@ make_circos_plot(circos_df = all_data$df,
 dev.off()
 graphics.off()
 
+### 7D -------------------------------------------------------------------------
+
 all_data <- count_genes_heavy_light(starting_df = use_data,
                                     group_by = "tet_name_cutoff",
                                     subset_counts = 0,
@@ -1266,6 +1370,8 @@ make_circos_plot(circos_df = all_data$df,
 
 dev.off()
 graphics.off()
+
+### 7E -------------------------------------------------------------------------
 
 # Public clones
 
@@ -1341,3 +1447,4 @@ print(bar_plot)
 
 dev.off()
 
+## Supplement ------------------------------------------------------------------

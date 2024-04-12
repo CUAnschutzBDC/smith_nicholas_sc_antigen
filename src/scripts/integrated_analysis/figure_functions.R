@@ -180,7 +180,7 @@ plot_histogram <- function(hc, gse_res, ylim = c(2, -2), title = NULL){
 #' of the plot
 #' @param color What color to color the kegg pathway genes
 make_volcano <- function(de_genes, kegg_pathways, group_name,
-                         color = NULL){
+                         color = NULL, plotly = FALSE){
   # Pull out all genes to highlight on the volcano plot
   highlight_genes <- get_gene_list(kegg_pathways)
   
@@ -220,9 +220,17 @@ make_volcano <- function(de_genes, kegg_pathways, group_name,
   
   
   # Make a volcano plot
-  volcano_plot <- ggplot2::ggplot(de_genes, ggplot2::aes(x = avg_log2FC,
-                                                         y = -log(p_val_adj),
-                                                         color = color)) +
+  if(plotly){
+    volcano_plot <- ggplot2::ggplot(de_genes, ggplot2::aes(x = avg_log2FC,
+                                                           y = -log(p_val_adj),
+                                                           color = color,
+                                                           text = gene))  
+  } else {
+    volcano_plot <- ggplot2::ggplot(de_genes, ggplot2::aes(x = avg_log2FC,
+                                                           y = -log(p_val_adj),
+                                                           color = color))
+  }
+  volcano_plot <- volcano_plot +
     ggplot2::geom_point() + 
     ggplot2::xlim(-2, 2) +
     ggplot2::scale_color_manual(values = color_mapping) +
