@@ -12,6 +12,10 @@ library(KEGGREST)
 library(org.Hs.eg.db)
 library(treemapify)
 library(rstatix)
+library(UpSetR)
+
+# Need to update scAnalysisR in docker
+# Need to add UpSetR to docker
 
 
 source(here("src/scripts/integrated_analysis/figure_functions.R"))
@@ -503,16 +507,17 @@ dev.off()
 ## Figure 4 --------------------------------------------------------------------
 # Read in de genes
 markers_sig <- read.csv(file.path(save_dir, "files", "mast_de.csv"))
-twin_markers <- read.csv(file.path(save_dir, "files", "twin_mast_de.csv"))
+twin_markers <- read.csv(file.path(save_dir, "files", "twins_mast_de.csv"))
+sister_markers <- read.csv(file.path(save_dir, "files", "sisters_mast_de.csv"))
 
-# Make heatmap of all DE
+# Pull out sig genes
 de_genes <- markers_sig[markers_sig$cluster !=
                           "T1D_Islet_Reactive_AAB_Islet_Reactive",]$gene
 
 de_genes <- unique(de_genes)
 
 ### 4A -------------------------------------------------------------------------
-
+# Make heatmap of all DE
 new_sample_order <- c("110", "116", "108", "107", "113", "114", "118",
                       "106", "117", "115", "105", "111", "102", "112",
                       "119", "109")
@@ -738,7 +743,23 @@ dev.off()
 
 ### 4E -------------------------------------------------------------------------
 
-# Overlaps of DE genes
+# Pull out sig genes
+twin_de_genes <- twin_markers[twin_markers$cluster !=
+                          "T1D_Islet_Reactive_AAB_Islet_Reactive",]$gene
+
+twin_de_genes <- unique(twin_de_genes)
+
+sister_de_genes <- sister_markers[sister_markers$cluster !=
+                                "T1D_Islet_Reactive_AAB_Islet_Reactive",]$gene
+
+sister_de_genes <- unique(sister_de_genes)
+
+de_list <- list(all_de = de_genes, twin_de = twin_de_genes,
+                sister_de = sister_de_genes)
+
+pdf(file.path(image_dir, "4E_de_upset.pdf"), height = 6, width = 6)
+print(upset(fromList(de_list), order.by = "freq"))
+dev.off()
 
 ## Figure 5 --------------------------------------------------------------------
 # Make a barplot of antigen 
