@@ -16,6 +16,7 @@ library(UpSetR)
 
 # Need to update scAnalysisR in docker
 # Need to add UpSetR to docker
+# Fix cell reordering in the non-highlighted plots
 
 
 source(here("src/scripts/integrated_analysis/figure_functions.R"))
@@ -1575,20 +1576,21 @@ dev.off()
 
 umap_one <- plotDimRed(seurat_data, col_by = "sample",
                        plot_type = "pca.umap", color = sample_colors,
-                       ggrastr = TRUE)[[1]]
+                       ggrastr = TRUE,
+                       reorder_cells = TRUE)[[1]]
 
 umap_two <- plotDimRed(seurat_data, col_by = "final_celltype",
                        plot_type = "pca.umap", color = final_colors,
-                       ggrastr = TRUE)[[1]]
+                       ggrastr = TRUE, reorder_cells = TRUE)[[1]]
 
 
 umap_three <- plotDimRed(seurat_data, col_by = "sample",
                          plot_type = "rna_mnn.umap", color = sample_colors,
-                         ggrastr = TRUE)[[1]]
+                         ggrastr = TRUE, reorder_cells = TRUE)[[1]]
 
 umap_four <- plotDimRed(seurat_data, col_by = "final_celltype",
                         plot_type = "rna_mnn.umap", color = final_colors,
-                        ggrastr = TRUE)[[1]]
+                        ggrastr = TRUE, reorder_cells = TRUE)[[1]]
 
 full_plot <- cowplot::plot_grid(umap_one, umap_two, umap_three, umap_four,
                                 rel_widths = c(0.84, 1, 0.84, 1),

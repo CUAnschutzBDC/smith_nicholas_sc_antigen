@@ -6,7 +6,7 @@ library(MAST)
 library(SingleCellExperiment)
 library(Seurat)
 library(cowplot)
-library(SCOPfunctions)
+#library(SCOPfunctions)
 library(KEGGREST)
 library(org.Hs.eg.db)
 
