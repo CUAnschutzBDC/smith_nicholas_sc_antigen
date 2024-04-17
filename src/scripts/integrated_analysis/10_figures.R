@@ -406,20 +406,44 @@ dev.off()
 seurat_islet <- subset(seurat_data, 
                        subset = tet_name_cutoff == "Islet_Multi_Reactive")
 
-fine_tet_options <- unique(seurat_islet$full_tet_name_cutoff)
+# Figure out the percent that contains each type
+# Want a data frame that has 
+# count percent  tetramer status
 
-fine_tet_options <- fine_tet_options[order(fine_tet_options)]
+all_tetramer <- c("INS.tet", "IA2.tet", "GAD.tet", "DNA.tet", "TET.tet")
+all_meta <- seurat_islet[[c("full_tet_name_cutoff", "Status")]]
+all_meta <- all_meta %>%
+  dplyr::group_by(Status) %>%
+  dplyr::add_count(name = "total_cells")
 
-fine_tet_colors <- grDevices::colorRampPalette(
-  colors = RColorBrewer::brewer.pal(n = 9, name = "Set1"))(length(fine_tet_options))
+all_dfs <- lapply(all_tetramer, function(tetramer){
+  count_data <- all_meta %>%
+    dplyr::filter(grepl(tetramer, full_tet_name_cutoff)) %>%
+    dplyr::group_by(Status) %>%
+    dplyr::add_count(name = "tetramer_cells") %>%
+    dplyr::mutate(tetramer = tetramer, 
+                  percent = tetramer_cells / total_cells * 100) %>%
+    dplyr::select(-full_tet_name_cutoff) %>%
+    dplyr::distinct()
+  
+  return(count_data)
+    
+})
 
-names(fine_tet_colors) <- fine_tet_options
+all_dfs <- do.call(rbind, all_dfs)
 
-barplot2 <- make_barplot(seurat_islet, tetramer_colors_use = fine_tet_colors,
-                         meta_data_col = "full_tet_name_cutoff")
+all_dfs$tetramer <- factor(all_dfs$tetramer, levels = plotting_levels)
 
-pdf(file.path(image_dir, "3D_islet_multi_tetramer_stacked_barplot.pdf"),
-    height = 8, width = 12)
+# Now make a barplot
+tet_only_colors <- tetramer_colors[all_tetramer]
+barplot2 <- ggplot2::ggplot(all_dfs, ggplot2::aes(x = Status,
+                                                 y = percent,
+                                                 fill = tetramer)) +
+  ggplot2::geom_bar(stat = "identity", position = "dodge") +
+  ggplot2::scale_fill_manual(values = tet_only_colors)
+
+pdf(file.path(image_dir, "3D_islet_multi_tetramer_barplot.pdf"),
+    height = 8, width = 8)
 print(barplot2)
 dev.off()
 
