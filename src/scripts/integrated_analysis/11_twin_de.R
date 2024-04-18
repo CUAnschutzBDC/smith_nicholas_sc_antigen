@@ -82,7 +82,9 @@ seurat_data$Status <- factor(seurat_data$Status, levels = c("ND", "AAB", "T1D"))
 
 # Function to run DE
 run_de <- function(sisters, seurat_data, save_name){
-  seurat_data <- subset(seurat_data, subset = sample %in% twins)
+  seurat_subset <- subset(seurat_data, subset = sample %in% sisters)
+  
+  print(unique(seurat_subset$sample))
   
   test_mapping <- c("DNA.tet" = "Other",
                     "GAD.tet" = "Islet_Reactive",
@@ -93,24 +95,24 @@ run_de <- function(sisters, seurat_data, save_name){
                     "Other_Multi_Reactive" = "Other",
                     "TET.tet" = "Other")
   
-  seurat_data$test_id <- test_mapping[seurat_data$tet_name_cutoff]
+  seurat_subset$test_id <- test_mapping[seurat_subset$tet_name_cutoff]
   
   # Name columns for muscat sample_id, group_id, cluster_id
-  seurat_data$sample_id <- paste(seurat_data$sample, seurat_data$test_id,
+  seurat_subset$sample_id <- paste(seurat_subset$sample, seurat_subset$test_id,
                                  sep = "_")
   
-  seurat_data$test_full_new_status <- paste(seurat_data$Status, 
-                                            seurat_data$test_id,
+  seurat_subset$test_full_new_status <- paste(seurat_subset$Status, 
+                                            seurat_subset$test_id,
                                             sep = "_")
   
   
-  Idents(seurat_data) <- "test_full_new_status"
+  Idents(seurat_subset) <- "test_full_new_status"
   
   tests_run <- list(c("T1D_Islet_Reactive", "ND_Islet_Reactive"))
   
   
   all_markers <- lapply(tests_run, function(x){
-    markers <- FindMarkers(seurat_data, test.use = "MAST", 
+    markers <- FindMarkers(seurat_subset, test.use = "MAST", 
                            ident.1 = x[[1]],
                            ident.2 = x[[2]])
     
@@ -126,7 +128,7 @@ run_de <- function(sisters, seurat_data, save_name){
   
   markers_sig <- all_markers[all_markers$p_val_adj < 0.05,]
   
-  table(markers_sig$ident.1, markers_sig$ident.2)
+  print(table(markers_sig$ident.1, markers_sig$ident.2))
   
   markers_sig$cluster <- paste(markers_sig$ident.1,
                                markers_sig$ident.2,
@@ -137,8 +139,10 @@ run_de <- function(sisters, seurat_data, save_name){
   
 }
 
+#seurat_data$sample <- as.character(seurat_data$sample)
+
 sisters <- c("109", "108", "107")
 
-twins <- c("109", "107")
+twins <- c("109", "108")
 run_de(sisters = sisters, seurat_data = seurat_data, save_name = "sisters")
 run_de(sisters = twins, seurat_data = seurat_data, save_name = "twins")
