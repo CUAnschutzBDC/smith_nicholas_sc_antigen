@@ -12,11 +12,9 @@ library(KEGGREST)
 library(org.Hs.eg.db)
 library(treemapify)
 library(rstatix)
-library(UpSetR)
+library(VennDiagram)
 
-# Need to update scAnalysisR in docker
-# Need to add UpSetR to docker
-# Fix cell reordering in the non-highlighted plots
+# Need to add VennDiagram to docker
 
 
 source(here("src/scripts/integrated_analysis/figure_functions.R"))
@@ -779,11 +777,28 @@ sister_de_genes <- sister_markers[sister_markers$cluster !=
 
 sister_de_genes <- unique(sister_de_genes)
 
-de_list <- list(all_de = de_genes, twin_de = twin_de_genes,
+de_genes <- markers_sig[markers_sig$cluster == 
+                          "T1D_Islet_Reactive_ND_Islet_Reactive",]$gene
+
+de_list <- list(all_de = unique(de_genes), twin_de = twin_de_genes,
                 sister_de = sister_de_genes)
 
+venn_plot <- VennDiagram::venn.diagram(x = de_list,
+                          category.names = names(de_list),
+                          output = TRUE,
+                          filename = NULL,
+                          col=c("#440154ff", '#21908dff', '#fde725ff'),
+                          fill = c(alpha("#440154ff",0.3),
+                                   alpha('#21908dff',0.3),
+                                   alpha('#fde725ff',0.3)),)
+
+
+pdf(file.path(image_dir, "4E_de_venn.pdf"), height = 6, width = 6)
+grid::grid.draw(venn_plot)
+dev.off()
+
 pdf(file.path(image_dir, "4E_de_upset.pdf"), height = 6, width = 6)
-print(upset(fromList(de_list), order.by = "freq"))
+print(UpSetR::upset(UpSetR::fromList(de_list), order.by = "freq"))
 dev.off()
 
 ## Figure 5 --------------------------------------------------------------------
@@ -1699,4 +1714,4 @@ print(plot_heatmap(seurat_data, gene_list = use_markers$gene,
 dev.off()
 
 
-graphics.off()                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 
+graphics.off()
