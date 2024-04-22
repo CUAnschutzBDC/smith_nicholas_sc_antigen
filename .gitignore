@@ -20,3 +20,4 @@ src/scripts/Initial_processing.rmd
 *.rds
 docker/*/*.sif
 files/210825_object
+manuscript
