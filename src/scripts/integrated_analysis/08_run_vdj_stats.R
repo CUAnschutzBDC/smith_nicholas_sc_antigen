@@ -90,18 +90,13 @@ for(cells_use in c("all", "memory")){
   if(cells_use == "all"){
     vdj_dir <- file.path(save_dir, "images", "vdj_plots")
     vdj_files <- file.path(save_dir, "files", "vdj_files")
-    seurat_data <- subset(seurat_data, 
-                          subset = RNA_combined_celltype %in% 
-                            c("Activated_memory", "Memory_IgA",
-                              "Resting_memory", "B.intermediate",
-                              "BND2", "Naive_1", "Naive_3", "Plasmablast"))
   } else {
     vdj_dir <- file.path(save_dir, "images", "memory_vdj_plots")
     vdj_files <- file.path(save_dir, "files", "memory_vdj_files")
     seurat_data <- subset(seurat_data, 
-                          subset = RNA_combined_celltype %in% 
-                            c("Activated_memory", "Memory_IgA",
-                              "Resting_memory"))
+                          subset = final_celltype %in% 
+                            c("Memory",
+                              "Resting_Memory"))
   }
   
   
@@ -118,9 +113,8 @@ for(cells_use in c("all", "memory")){
                    "all_ins", "all_del", "all_mis", "vd_ins", "vd_del", "dj_ins",
                    "dj_del", "v_mis_freq", "d_mis_freq", "j_mis_freq",
                    "c_mis_freq", "all_mis_freq")
-  keep_columns <- c("isotype", "RNA_combined_celltype", "sample", "paired",
-                    "clonotype_id", "Status", "tet_hash_id", "all_chains", 
-                    "scar_hash_id")
+  keep_columns <- c("isotype", "final_celltype", "sample", "paired",
+                    "clonotype_id", "Status", "tet_name_cutoff", "all_chains")
   
   all_info <- seurat_data[[]] %>%
     dplyr::mutate(all_chains = chains) %>%
@@ -516,11 +510,14 @@ for(cells_use in c("all", "memory")){
   # 2. All subsets of class switching
   
   # Build comparisons
-  comparison_builder <- function(starting_df){
+  comparison_builder <- function(starting_df, chains_use = "IGH",
+                                 keep_chains = c("IGH", "IGH;IGK", "IGH;IGK;IGK",
+                                                 "IGH;IGK;IGL", "IGH;IGL", 
+                                                 "IGH;IGL;IGL")){
     # Make this into a function that builds v_data based on whatever subset df,
     # and also makes the lists below
     v_data <- starting_df %>%
-      dplyr::filter(chains %in% c("IGH")) %>% 
+      dplyr::filter(chains %in% chains_use) %>% 
       dplyr::filter(all_chains %in% keep_chains) %>%
       dplyr::select(sample, v_gene, Status) %>%
       dplyr::group_by(sample, v_gene) %>%
@@ -579,18 +576,19 @@ for(cells_use in c("all", "memory")){
                          "T1D" = all_samples_t1d,
                          "AAB" = all_samples_aab)
   
-  build_tests <- lapply(c("all", "antigen", "isotype"), function(x){
+  build_tests <- lapply(c("all", "antigen", "isotype",
+                          "all_light", "all_heavy_light"), function(x){
     print(x)
     if(x == "all"){
       v_df <- list(comparison_builder(starting_df = all_info_split))
       names(v_df) <- "all"
     } else if(x == "antigen") {
-      v_df <- lapply(unique(all_info_split$scar_hash_id), function(y){
+      v_df <- lapply(unique(all_info_split$tet_name_cutoff), function(y){
         subset_df <- all_info_split %>%
-          dplyr::filter(scar_hash_id == y)
+          dplyr::filter(tet_name_cutoff == y)
         return(comparison_builder(starting_df = subset_df))
       })
-      names(v_df) <- unique(all_info_split$scar_hash_id)
+      names(v_df) <- unique(all_info_split$tet_name_cutoff)
     } else if(x == "isotype"){
       isotype_use <- c("IGHA", "IGHD", "IGHG", "IGHM")
       v_df <- lapply(isotype_use, function(y){
@@ -599,6 +597,16 @@ for(cells_use in c("all", "memory")){
         return(comparison_builder(starting_df = subset_df))
       })
       names(v_df) <- isotype_use
+    } else if(x == "all_light"){
+      v_df <- list(comparison_builder(starting_df = all_info_split,
+                                      chains_use = c("IGK", "IGL")))
+      names(v_df) <- "all_light"
+    } else if(x == "all_heavy_light"){
+      starting_df <- seurat_data[[]]
+      starting_df$all_chains <- starting_df$chains
+      v_df <- list(comparison_builder(starting_df = starting_df,
+                                      chains_use = c("IGH;IGK", "IGH;IGL")))
+      names(v_df) <- "all_heavy_light"
     }
     
     # Now we have the v df. We want to build a list that includes that
@@ -629,7 +637,9 @@ for(cells_use in c("all", "memory")){
     # Do full p-value correction for the stats tests
     all_odds <- lapply(names(all_stats), function(res){
       return_df <- all_stats[[res]]$all_odds_ratio
-      return_df$test <- res
+      if(!is.null(return_df)){
+        return_df$test <- res
+      }
       return(return_df)
     })
     
@@ -640,7 +650,9 @@ for(cells_use in c("all", "memory")){
     
     all_t <- lapply(names(all_stats), function(res){
       return_df <- all_stats[[res]]$all_t_test
-      return_df$test <- res
+      if(!is.null(return_df)){
+        return_df$test <- res
+      }      
       return(return_df)
     })
     
@@ -780,6 +792,7 @@ for(cells_use in c("all", "memory")){
     # member.
     
     for(test_type in all_odds$test_use){
+      graphics.off()
       odds_use <- all_odds %>%
         dplyr::filter(test_use == test_type)
       odds_plot <- ggplot2::ggplot(odds_use, 
@@ -790,10 +803,10 @@ for(cells_use in c("all", "memory")){
         
         ggplot2::geom_errorbar(ggplot2::aes(ymin = X95_conf_int_low,
                                             ymax = X95_conf_int_high,
-                                            color = status),
+                                            color = sig_status),
                                position = ggplot2::position_dodge(width = 0.75)) +
         ggplot2::geom_point(position = position_dodge(width=0.75),
-                            aes(color = status)) +
+                            aes(color = sig_status)) +
         ggplot2::geom_hline(yintercept = 1, linetype = "dashed") +
         ggplot2::scale_color_manual(values = plot_colors) +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45,
@@ -816,7 +829,7 @@ for(cells_use in c("all", "memory")){
                                             color = sig_status),
                                position = ggplot2::position_dodge(width = 0.75)) +
         ggplot2::geom_point(position = position_dodge(width=0.75),
-                            aes(color = status)) +
+                            aes(color = sig_status)) +
         ggplot2::geom_hline(yintercept = 1, linetype = "dashed") +
         ggplot2::scale_color_manual(values = plot_colors) +
         ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45,
@@ -826,7 +839,7 @@ for(cells_use in c("all", "memory")){
       # Save data
       pdf(file.path(save_dir_stats, paste0(test_type, "_",
                                            "combined_odds_ratio.pdf")),
-          width = 8, height = 12)
+          width = 12, height = 6)
       print(odds_plot)
       print(odds_plot_ord)
       dev.off()

@@ -144,7 +144,7 @@ if(ADT & run_adt_umap){
   plot_list <- plotDimRed(sample_object = seurat_data,
                           save_plot = NULL,
                           col_by = col_by_list, return_plot = TRUE,
-                          plot_type = "wnn.umap")
+                          plot_type = "wnn.umap", ggrastr = TRUE)
 }
 
 

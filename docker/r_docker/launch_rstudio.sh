@@ -3,7 +3,7 @@
 #BSUB -e logs/err.txt
 #BSUB -o logs/out.txt
 #BSUB -R "rusage[mem=128] span[hosts=1]"
-#BSUB -W 23:59
+#BSUB -W 08:00
 #BSUB -q rna
 
 module load singularity/3.9.2

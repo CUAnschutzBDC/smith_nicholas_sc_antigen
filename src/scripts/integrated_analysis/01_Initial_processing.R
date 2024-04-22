@@ -73,7 +73,202 @@ all_objs <- lapply(samples_use, function(x){
 })
 
 # Merge Seurat objects
-seurat_data <- merge(all_objs[[1]], all_objs[2:length(all_objs)])
+seurat_data <- merge(all_objs[[1]], all_objs[2:length(all_objs)],
+                     add.cell.ids = samples_use)
+
+# Make some plots --------------------------------------------------------------
+graphics.off()
+pdf(file.path(save_dir, "images", "tetramer_new_vs_old_cutoff.pdf"))
+
+cm1 <- confusionMatrix(seurat_data$tet_name_cutoff, seurat_data$scar_hash_id)
+cm1 <- cm1 / rowSums(cm1)
+print(pheatmap::pheatmap(cm1, main = "previous_vs_new_id"))
+
+cm2 <- confusionMatrix(seurat_data$tet_name_cutoff, seurat_data$libra_tet_hash_id)
+cm2 <- cm2 / rowSums(cm2)
+print(pheatmap::pheatmap(cm2, main = "previous_vs_libra_id"))
+
+dev.off()
+
+
+all_plots <- featDistPlot(seurat_data, geneset = c("INS-tet", "GAD-tet",
+                                                   "IA2-tet", "TET-tet", 
+                                                   "DNA-tet"),
+                          sep_by = "grouped_celltype", assay = "TET",
+                          combine = FALSE)
+
+all_plots2 <- featDistPlot(seurat_data, geneset = c("INS-tet", "GAD-tet",
+                                                    "IA2-tet", "TET-tet", 
+                                                    "DNA-tet"),
+                           sep_by = "grouped_celltype", assay = "SCAR_TET",
+                           combine = FALSE)
+
+all_plots3 <- featDistPlot(seurat_data, geneset = c("INS-tet", "GAD-tet",
+                                                    "IA2-tet", "TET-tet", 
+                                                    "DNA-tet"),
+                           sep_by = "grouped_celltype", assay = "SCAR_TET_LOG",
+                           combine = FALSE)
+
+
+all_plots4 <- featDistPlot(seurat_data, geneset = c("INS-tet", "GAD-tet",
+                                                    "IA2-tet", "TET-tet", 
+                                                    "DNA-tet"),
+                           sep_by = "grouped_celltype", assay = "SCAR_TET_LIBRA",
+                           combine = FALSE)
+
+
+
+all_plots5 <- featDistPlot(seurat_data, geneset = c("INS-tet", "GAD-tet",
+                                                    "IA2-tet", "TET-tet", 
+                                                    "DNA-tet"),
+                           sep_by = "grouped_celltype", assay = "SCAR_TET_PROPORTIONS",
+                           combine = FALSE)
+
+all_plots5 <- lapply(all_plots5, function(x){
+  x <- x +
+    ggplot2::ylim(-1, 50)
+})
+
+# Save all of these as plots
+final_plots <- lapply(names(all_plots), function(i){
+  plot_1 <- all_plots[[i]] +
+    ggplot2::ggtitle("tet_clr")
+  
+  plot_2 <- all_plots2[[i]] +
+    ggplot2::ggtitle("scar_tet_clr")
+  
+  plot_3 <- all_plots3[[i]] +
+    ggplot2::ggtitle("scar_tet_log")
+  
+  plot_4 <- all_plots4[[i]] +
+    ggplot2::ggtitle("scar_tet_libra")
+  
+  plot_5 <- all_plots5[[i]] +
+    ggplot2::ggtitle("scar_tet_proportions")
+  
+  cowplot::plot_grid(plot_1, plot_2, plot_3, plot_4, plot_5,
+                     nrow = 3, ncol = 2)
+  
+})
+
+pdf(file.path(save_dir, "images", "tetramers_b_cell_vs_other.pdf"),
+    height = 12, width = 8)
+print(final_plots)
+
+dev.off()
+
+
+
+all_plots6 <- featDistPlot(seurat_data, geneset = c("INS-tet", "GAD-tet",
+                                                    "IA2-tet", "TET-tet", 
+                                                    "DNA-tet"),
+                           sep_by = "grouped_celltype",
+                           col_by = "tet_name_cutoff",
+                           assay = "TET",
+                           combine = FALSE)
+
+all_plots7 <- featDistPlot(seurat_data, geneset = c("INS-tet", "GAD-tet",
+                                                    "IA2-tet", "TET-tet", 
+                                                    "DNA-tet"),
+                           sep_by = "grouped_celltype",
+                           col_by = "tet_name_cutoff",
+                           assay = "SCAR_TET",
+                           combine = FALSE)
+
+all_plots8 <- featDistPlot(seurat_data, geneset = c("INS-tet", "GAD-tet",
+                                                    "IA2-tet", "TET-tet", 
+                                                    "DNA-tet"),
+                           sep_by = "grouped_celltype",
+                           col_by = "tet_name_cutoff",
+                           assay = "SCAR_TET_LOG",
+                           combine = FALSE)
+
+all_plots9 <- featDistPlot(seurat_data, geneset = c("INS-tet", "GAD-tet",
+                                                    "IA2-tet", "TET-tet", 
+                                                    "DNA-tet"),
+                           sep_by = "grouped_celltype",
+                           col_by = "tet_name_cutoff",
+                           assay = "SCAR_TET_LIBRA",
+                           combine = FALSE)
+
+all_plots10 <- featDistPlot(seurat_data, geneset = c("INS-tet", "GAD-tet",
+                                                     "IA2-tet", "TET-tet", 
+                                                     "DNA-tet"),
+                            sep_by = "grouped_celltype",
+                            col_by = "tet_name_cutoff",
+                            assay = "SCAR_TET_PROPORTIONS",
+                            combine = FALSE)
+
+all_plots10 <- lapply(all_plots10, function(x){
+  x <- x +
+    ggplot2::ylim(-1, 50)
+})
+
+# Save all of these as plots
+final_plots2 <- lapply(names(all_plots), function(i){
+  plot_1 <- all_plots6[[i]] +
+    ggplot2::ggtitle("tet_clr")
+  
+  plot_2 <- all_plots7[[i]] +
+    ggplot2::ggtitle("scar_tet_clr")
+  
+  plot_3 <- all_plots8[[i]] +
+    ggplot2::ggtitle("scar_tet_log")
+  
+  plot_4 <- all_plots9[[i]] +
+    ggplot2::ggtitle("scar_tet_libra")
+  
+  plot_5 <- all_plots10[[i]] +
+    ggplot2::ggtitle("scar_tet_proportions")
+  
+  cowplot::plot_grid(plot_1, plot_2, plot_3, plot_4, plot_5,
+                     nrow = 3, ncol = 2)
+  
+})
+
+pdf(file.path(save_dir, "images", "tetramers_b_cell_vs_other_new_cutoff.pdf"),
+    height = 12, width = 8)
+print(final_plots2)
+
+dev.off()
+
+# Seeing if the barplot looks better
+# islet_reactive <- subset(seurat_data, 
+#                          subset = tet_name_cutoff %in% c("Islet_Multi_Reactive",
+#                                                            "IA2-tet", "GAD-tet",
+#                                                            "INS-tet"))
+# 
+# 
+# islet_cells <- stacked_barplots(islet_reactive, meta_col = "isotype",
+#                                 split_by = "Status")
+# 
+# cells <- stacked_barplots(seurat_data, meta_col = "isotype",
+#                                 split_by = "Status")
+# 
+# 
+# cm1 <- confusionMatrix(islet_reactive$Status, islet_reactive$isotype)
+# cm1 <- cm1/rowSums(cm1)
+# 
+# cm2 <- confusionMatrix(seurat_data$Status, seurat_data$isotype)
+# cm2 <- cm2/rowSums(cm2)
+# 
+# islet_reactive <- subset(seurat_data, 
+#                          subset = libra_tet_hash_id %in% c("Islet_Multi_Reactive",
+#                                                          "IA2-tet", "GAD-tet",
+#                                                          "INS-tet"))
+# 
+# cm1 <- confusionMatrix(islet_reactive$Status, islet_reactive$isotype)
+# cm1 <- cm1/rowSums(cm1)
+
+# Back to analysis -------------------------------------------------------------
+
+# Remove any cells that aren't b cells
+remove_celltypes <- c("CD14.Mono", "CD16.Mono", "CD4.TCM",
+                      "CD8.Naive", "CD8.TCM", "CD8.TEM",
+                      "gdT", "NK", "pDC")
+
+`%notin%` <- Negate(`%in%`)
+seurat_data <- subset(seurat_data, subset = RNA_celltype %notin% remove_celltypes)
 
 seurat_data$old_status <- seurat_data$Status
 
@@ -217,22 +412,28 @@ saveRDS(seurat_data, file = file.path(save_dir, "rda_obj",
                                       "seurat_adtnorm.rds"))
 
 # Colors -----------------------------------------------------------------------
-final_colors <- c("Resting_memory" = "#924bdb", # Resting memory
-                  "Naive_1" = "#69ba3d", # Naive 1
-                  "Naive_2" = "#9a43a4", # Naive 2
-                  "Memory_IgE_IgG" = "#bf9b31", # Memory IgE/IgG1
-                  "Naive_3" = "#6477ce", # Naive 3
-                  "Memory_IgA" = "#d15131", # Memory IA
-                  "Early_memory" = "#4c9e8e", # Early Memory
-                  "BND2" = "#cc4570", #Bnd2
-                  "DN2" = "#648d4f", # DN2
-                  "Activated_memory" = "#985978", # Activated memory
-                  "Activated_naive" = "#a06846", # Activated naive
-                  "B.intermediate" = "#00008b",
-                  "CD14.Mono" = "#e0205a",
-                  "pDC" = "#ffb6d3",
-                  "Plasmablast" = "#ffac14",
-                  "CD8.TEM" = "#000000") 
+# final_colors <- c("Resting_memory" = "#924bdb", # Resting memory
+#                   "Naive_1" = "#69ba3d", # Naive 1
+#                   "Naive_2" = "#9a43a4", # Naive 2
+#                   "Memory_IgE_IgG" = "#bf9b31", # Memory IgE/IgG1
+#                   "Naive_3" = "#6477ce", # Naive 3
+#                   "Memory_IgA" = "#d15131", # Memory IA
+#                   "Early_memory" = "#4c9e8e", # Early Memory
+#                   "BND2" = "#cc4570", #Bnd2
+#                   "DN2" = "#648d4f", # DN2
+#                   "Activated_memory" = "#985978", # Activated memory
+#                   "Activated_naive" = "#a06846", # Activated naive
+#                   "B.intermediate" = "#00008b",
+#                   "CD14.Mono" = "#e0205a",
+#                   "pDC" = "#ffb6d3",
+#                   "Plasmablast" = "#ffac14",
+#                   "CD8.TEM" = "#000000")
+
+final_colors <- c("Resting_Memory" = "#924bdb", # Resting memory
+                  "Naive" = "#69ba3d", # Naive 1
+                  "Memory" = "#a06846", # Activated memory
+                  "ABC" = "#4c9e8e",
+                  "Plasmablast" = "#bf9b31") 
 
 tetramer_full_colors <- MetBrewer::met.brewer(name = "Monet", n = 12,
                                          type = "continuous")
@@ -245,13 +446,50 @@ names(tetramer_full_colors) <- c("INS-tet", "GAD-tet", "IA2-tet",
                                  "Islet_Multi_Reactive")
 
 
-sample_colors <- MetBrewer::met.brewer(name = "Archambault", n = 16,
-                                       type = "continuous")
+# sample_colors <- c("110" = "#9886b8", # ND blue
+#                    "116" = "#8e47e2", # ND blue
+#                    "108" = "#639fb4", # ND blue
+#                    "107" = "#8266cb", # ND blue
+#                    "113" = "#4f7fbf", # ND blue
+#                    "114" = "#a29837", # AAB yellow
+#                    "118" = "#a8642d", # AAB yellow
+#                    "106" = "#dbd746", # AAB yellow
+#                    "117" = "#7e6c42", # AAB yellow
+#                    "115" = "#e09339", # AAB yellow
+#                    "105" = "#d8bf8d", # AAB yellow
+#                    "111" = "#8c5052", # T1D red
+#                    "102" = "#e05331", # T1D red
+#                    "112" = "#d48e84", # T1D red
+#                    "119" = "#d24062", # T1D red
+#                    "109" = "#a2462f") # T1D red
 
+# Yellow https://www.color-hex.com/color-palette/107172
+# Red https://www.color-hex.com/color-palette/2539
+# Blue https://www.color-hex.com/color-palette/30415
+sample_colors <- c("110" = "#1ebbd7", # ND blue
+                   "116" = "#107dac", # ND blue
+                   "108" = "#189ad3", # ND blue
+                   "107" = "#005073", # ND blue
+                   "113" = "#71c7ec", # ND blue
+                   "114" = "#ffde1a", # AAB yellow
+                   "118" = "#ffce00", # AAB yellow
+                   "106" = "#ffa700", # AAB yellow
+                   "117" = "#ff8d00", # AAB yellow
+                   "115" = "#ff7400", # AAB yellow
+                   "105" = "#e09339", # AAB yellow
+                   "111" = "#ffbaba", # T1D red
+                   "102" = "#ff7b7b", # T1D red
+                   "112" = "#ff5252", # T1D red
+                   "119" = "#ff5252", # T1D red
+                   "109" = "#a70000") # T1D red
 
-all_samples <- unique(seurat_data$sample)
-
-names(sample_colors) <- all_samples
+# sample_colors <- MetBrewer::met.brewer(name = "Archambault", n = 16,
+#                                        type = "continuous")
+# 
+# 
+# all_samples <- unique(seurat_data$sample)
+# 
+# names(sample_colors) <- all_samples
 
 status_colors <- MetBrewer::met.brewer(name = "Hokusai1", n = 7)
 

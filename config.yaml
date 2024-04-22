@@ -173,6 +173,7 @@ SAMPLE_SCRIPTS:
         - "09_demultiplex_tets.R"
         - "10_compare_dsb_clr.R"
         - "11_remove_ambience.R"
+        - "12_improve_cutoff.R"
 
 # If merging all samples, put the scripts to process them below. Under
 # samples include what samples should be merged. If merging all samples,
