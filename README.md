@@ -1,10 +1,29 @@
-# Exploration of islet reactive B cells using single cell RNA-seq, single cell CITE-seq, and single cell LIBRA-seq
+# Exploration of islet reactive B cells
+Using single cell RNA-seq, single cell CITE-seq, and single cell LIBRA-seq
+
+<!--ts-->
+   * [Setting up the pipeline](#Setting-up-the-pipeline)
+     * [Download required packages](# download-required-packages)
+     * [`Snakemake` installation](#snakemake-installation)
+       * [Setting up `docker` or `singularity`](#setting-up-docker-or-singularity)
+     * [Updating the configfile](#updating-the-config-file)
+     * [Running the pipeline](#running-the-pipeline)
+     * [T1K](#t1k)
+  * [R analysis](#r-analysis)
+    * [Overall analysis steps](#overall-analysis-steps)
+    * [Detailed description of each script](#detailed-description-of-each-script)
+  * [Seurat object](#seurat-object)
+    * [Assays](#assays)
+    * [Meta data columns](#meta-data-columns)
+
+<!--te-->
 
 ## TODO
 * Clean up metadata/seurat object
   * Talk to Mia and Catherine to determine what needs to be removed from the metadata before we can publish
   * Remove all doublet finder columns (`PANN...`)
 * Upload docker containers
+
 
 This repository contains a pipeline that can be used to fully replicate all analysis and figures associated with the manuscript [TODO add manuscript name].
 
@@ -20,7 +39,7 @@ This pipeline was written to interact with an lsf scheduler. Feel free to reach 
 
 ## Setting up the pipeline
 
-### Download all required packages
+### Download required packages
 
 The majority of the packages required to run this are in docker images that are publicly available:
 * [smith_2024_r_docker]()
@@ -39,17 +58,17 @@ Other required packages include
 * `snakemake` V 6.0.3
   * [`snakemake` install instructions](https://snakemake.readthedocs.io/en/stable/getting_started/installation.html)
 
-#### Snakemake installation
+#### `Snakemake` installation
 1. Download and install miniconda3: For Linux
 ```{bash}
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh bash Miniconda3-latest-Linux-x86_64.sh
 ```
-2. Install Snakemake:
+2. Install `Snakemake`:
 ```{bash}
 conda install snakemake=6.3.0 -c bioconda -c conda-forge
 ```
 
-#### Setting up `docker`/`singularity`
+#### Setting up `docker` or `singularity`
 If you are using `docker`, you can download the images directly from dockerhub
 [TODO] - Test how downloading works.
 [TODO] - Test making sif from docker hub directly
@@ -97,7 +116,7 @@ This runs through snakemake and will process the whole pipeline for you.
 
 I highly recommend looking at the csv files that are generated and passed to cell ranger to ensure that the correct fastq files have been detected for each sample.
 
-## T1K
+### T1K
 Once you've run T1K, map to HLA types [here](https://www.ebi.ac.uk/ipd/imgt/hla/alleles/)
 
 ## R analysis
