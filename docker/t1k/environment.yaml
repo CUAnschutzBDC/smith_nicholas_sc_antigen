@@ -1,0 +1,16 @@
+name: t1k
+
+channels:
+  - conda-forge
+  - bioconda
+  - anaconda
+  - defaults
+dependencies:
+  - python >=3.8
+  - pip >=1.4
+  - pysam >= 0.16
+  - gfortran
+  - pthread-stubs
+  - samtools
+  - pandas
+  - xlrd

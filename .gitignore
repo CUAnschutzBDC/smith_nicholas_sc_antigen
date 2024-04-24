@@ -20,3 +20,5 @@ src/scripts/Initial_processing.rmd
 *.rds
 docker/*/*.sif
 files/210825_object
+docker/t1k/T1K/hlaidx/*
+docker/t1k/T1K/kiridx/*

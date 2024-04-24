@@ -1,0 +1,75 @@
+# Rules to run t1k
+
+def _get_fastq(wildcards):
+    fastq_dir = os.path.join(wildcards.results, "fastqs")
+    all_fastq_files = os.listdir(fastq_dir)
+    keep_sample = wildcards.sample + "_GEX"
+    keep_fastq = [i for i in all_fastq_files if keep_sample in i]
+    fastq_file = [i for i in keep_fastq if "R1" in i]
+    #print(fastq_file[0])
+    r1_fastq = fastq_file[0]
+    r1_fastq = os.path.join(fastq_dir, r1_fastq)
+    r2_fastq = re.sub("_R1_", "_R2_", r1_fastq)
+    return([r1_fastq, r2_fastq])
+
+rule run_t1k:
+    input:
+        "{results}/logs/{sample}_count_done.txt"
+    output:
+        "{results}/t1k/{sample}_t1k_finished.txt"
+    params:
+        job_name   = "t1k",
+        memory     = "select[mem>50] rusage[mem=50]",
+        genome     = GENOME,
+        fastqs     = _get_fastq
+    log:
+        "{results}/logs/t1k/{sample}_t1k"
+    threads:
+        1
+    singularity:
+        config["T1K_CONTAINER"]
+    shell:
+        """
+        # kiridx_rna_seq.fa in singularity image
+        save_dir={wildcards.results}/{wildcards.sample}
+        mkdir -p $save_dir/t1k
+        run-t1k \
+            -u {params.fastqs[1]} \
+            --barcode {params.fastqs[0]} \
+            --barcodeRange 0 15 + \
+            --barcodeWhitelist /beevol/home/wellskri/packages/cellranger-7.1.0/lib/python/cellranger/barcodes/737K-august-2016.txt \
+            -f /T1K/hlaidx/hlaidx_rna_seq.fa \
+            -o {wildcards.sample} \
+            --od $save_dir/t1k \
+            --barcode CB \
+            --preset hla
+        touch {output}
+        """
+
+rule parse_t1k:
+    input:
+        expand(
+            "{{results}}/t1k/{sample}_t1k_finished.txt",
+            sample = SAMPLES
+            )
+    output:
+        "{results}/t1k/combined_results.tsv"
+    params:
+        job_name        = "combine_t1k",
+        memory          = "select[mem>4] rusage[mem=4]",
+        samples         = SAMPLES,
+        sample_metadata = SAMPLE_METADATA
+    log:
+        "{results}/logs/t1k/combined_t1k"
+    threads:
+        1
+    singularity:
+        config["T1K_CONTAINER"]
+    shell:
+        """
+        python src/scripts/python/combine_t1k.py \
+            -m {params.sample_metadata} \
+            -r {wildcards.results} \
+            -o {output} \
+            -s {params.samples}
+        """

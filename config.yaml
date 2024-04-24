@@ -218,3 +218,6 @@ DROPKICK_CONTAINER:
 
 SCAR_CONTAINER:
     "/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/docker/scar/scar.sif"
+
+T1K_CONTAINER:
+    "/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/docker/t1k/t1k_v1.sif"

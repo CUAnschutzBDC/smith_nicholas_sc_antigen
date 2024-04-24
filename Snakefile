@@ -208,6 +208,14 @@ rule all:
             "{results}/R_analysis/merged/define_clones/all_clones_finished.txt",
             results = RESULTS
             ),
+        expand(
+            "{results}/t1k/{sample}_t1k_finished.txt",
+            results = RESULTS, sample = SAMPLES
+            ),
+        expand(
+             "{results}/t1k/combined_results.tsv",
+             results = RESULTS
+        )
         # Add in germlines
         #expand(
         #    "{results}/R_analysis/merged/define_clones/germlines_finished.txt",
@@ -226,3 +234,4 @@ include: "src/rules/cellranger_multi.snake"
 include: "src/rules/velocyto.snake"
 include: "src/rules/run_rscripts.snake"
 include: "src/rules/immcantation.snake"
+include: "src/rules/run_t1k.snake"

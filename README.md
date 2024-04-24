@@ -85,11 +85,15 @@ The script to submit the job is [here](https://github.com/CUAnschutzBDC/smith_ni
 This pipeline will run
 * `Cellranger` data preprocessing
 * `Immcantation` VDJ clone calling
+* `T1K` for HLA identification
 * R analysis scripts to recreate analysis and figures (described below)
 
 This runs through snakemake and will process the whole pipeline for you.
 
 I highly recommend looking at the csv files that are generated and passed to cell ranger to ensure that the correct fastq files have been detected for each sample.
+
+## T1K
+Once you've run T1K, map to HLA types [here](https://www.ebi.ac.uk/ipd/imgt/hla/alleles/)
 
 ## R analysis
 
@@ -142,6 +146,11 @@ For all scripts in this analysis, please make sure you understand the processing
     * Pulls out the tetramers
     * Normalizes the tetramers and ADTs with the `CLR` method
     * Identifies the libra score form the scar corrected tetramer data and add the score as an assay
+    ```R
+    clr_matrix <- log2((all_tetramers + 1) / rowMeans(all_tetramers))
+
+	libra_score <- scale(clr_matrix, center = TRUE, scale = TRUE)
+    ```
   * Runs `HTOdemux` on the tetramers
   * Identifies positive values for each tetramer based on a libra cutoff of 1 for both the raw and `scar` corrected libra scores.
   * Runs SCT normalization on the RNA assay
