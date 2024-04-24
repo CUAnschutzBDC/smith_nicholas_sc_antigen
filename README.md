@@ -3,7 +3,7 @@ Using single cell RNA-seq, single cell CITE-seq, and single cell LIBRA-seq
 
 <!--ts-->
    * [Setting up the pipeline](#Setting-up-the-pipeline)
-     * [Download required packages](# download-required-packages)
+     * [Download required packages](#download-required-packages)
      * [`Snakemake` installation](#snakemake-installation)
        * [Setting up `docker` or `singularity`](#setting-up-docker-or-singularity)
      * [Updating the configfile](#updating-the-config-file)
@@ -28,10 +28,10 @@ Using single cell RNA-seq, single cell CITE-seq, and single cell LIBRA-seq
 This repository contains a pipeline that can be used to fully replicate all analysis and figures associated with the manuscript [TODO add manuscript name].
 
 In order to fully replicate analysis download the following docker images from dockerhub:
-* [smith_2024_r_docker]()
-* [smith_2024_dropkick]()
-* [smith_2024_scar]()
-* [smith_2024_t1k]()
+* [smith_2024_r_docker](https://hub.docker.com/r/kwellswrasman/smith_2024_r_docker)
+* [smith_2024_dropkick](https://hub.docker.com/r/kwellswrasman/smith_2024_dropkick)
+* [smith_2024_scar](https://hub.docker.com/r/kwellswrasman/smith_2024_scar)
+* [smith_2024_t1k](https://hub.docker.com/r/kwellswrasman/smith_2024_t1k)
 
 All aspects of this pipeline are contained within a `Snakemake` pipeline. This will be able to start with fastq files and generate a final directory containing all final figures numbered based on the figure in the manuscript.
 
@@ -42,10 +42,10 @@ This pipeline was written to interact with an lsf scheduler. Feel free to reach 
 ### Download required packages
 
 The majority of the packages required to run this are in docker images that are publicly available:
-* [smith_2024_r_docker]()
-* [smith_2024_dropkick]()
-* [smith_2024_scar]()
-* [smith_2024_t1k]()
+* [smith_2024_r_docker](https://hub.docker.com/r/kwellswrasman/smith_2024_r_docker)
+* [smith_2024_dropkick](https://hub.docker.com/r/kwellswrasman/smith_2024_dropkick)
+* [smith_2024_scar](https://hub.docker.com/r/kwellswrasman/smith_2024_scar)
+* [smith_2024_t1k](https://hub.docker.com/r/kwellswrasman/smith_2024_t1k)
 
 To load these packages as docker images:
 
