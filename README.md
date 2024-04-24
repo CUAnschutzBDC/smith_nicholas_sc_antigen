@@ -189,91 +189,187 @@ Below is a detailed explanation of all parts of the seurat object
 
 ### Meta data columns
 
-* `Seurat` defaul columns
+* `Seurat` default columns
   * `orig.ident` - Sample name
   * `nCount_RNA` - Number of RNA molecules in the cell
-  * `nFeature_RNA` - Number of genes in the cell                     
+  * `nFeature_RNA` - Number of genes in the cell
   * `nCount_ADT` - Number of ADT molecules in the cell
   * `nFeature_ADT` - Number of different ADTs in the cell
   * `nCount_SCT` - Number of reads based on SCT normalization
   * `nFeature_SCT` - Number of genes based on SCT normalization 
   * `nCount_TET`
-  * `nFeature_TET`                      "`nCount_TET_LIBRA`"                 
- [85] "`nFeature_TET_LIBRA`"                "`nCount_SCAR_ADT_LOG`"               "`nFeature_SCAR_ADT_LOG`"            
- [88] "`nCount_SCAR_ADT`"                   "`nFeature_SCAR_ADT`"                 "`nCount_SCAR_TET`"                  
- [91] "`nFeature_SCAR_TET`"                 "`nCount_SCAR_TET_LOG`"               "`nFeature_SCAR_TET_LOG`"            
- [94] "`nCount_SCAR_TET_LIBRA`"             "`nFeature_SCAR_TET_LIBRA`"        
- [121] "`nCount_CLR_ADT`"                    "`nFeature_CLR_ADT`"                  
-[127] "`nCount_CLR_TET`"                    "`nFeature_CLR_TET`"    
- "`nCount_AMBRNA`"                     "`nFeature_AMBRNA`"    
- [157] "`nCount_TET_PROPORTIONS`"            "`nFeature_TET_PROPORTIONS`"          "`nCount_SCAR_TET_PROPORTIONS`"      
-[160] "`nFeature_SCAR_TET_PROPORTIONS`"     "`nCount_DSB_ADT`"                    "`nFeature_DSB_ADT`"                 
-[163] "`nCount_DSB_TET`"                    "`nFeature_DSB_TET`"                  "`nCount_NEW_TET_PROPORTIONS`"       
-[166] "`nFeature_NEW_TET_PROPORTIONS`"  
+  * `nFeature_TET`
+  * `nCount_TET_LIBRA`
+  * `nFeature_TET_LIBRA`
+  * `nCount_SCAR_ADT_LOG`
+  * `nFeature_SCAR_ADT_LOG`
+  * `nCount_SCAR_ADT`
+  * `nFeature_SCAR_ADT`
+  * `nCount_SCAR_TET`
+  * `nFeature_SCAR_TET`
+  * `nCount_SCAR_TET_LOG`
+  * `nFeature_SCAR_TET_LOG`
+  * `nCount_SCAR_TET_LIBRA`
+  * `nFeature_SCAR_TET_LIBRA`
+  * `nCount_CLR_ADT`
+  * `nFeature_CLR_ADT`
+  * `nCount_CLR_TET`
+  * `nFeature_CLR_TET`
+  * `nCount_AMBRNA`
+  * `nFeature_AMBRNA`
+  * `nCount_TET_PROPORTIONS`
+  * `nFeature_TET_PROPORTIONS`
+  * `nCount_SCAR_TET_PROPORTIONS`
+  * `nFeature_SCAR_TET_PROPORTIONS`
+  * `nCount_DSB_ADT`
+  * `nFeature_DSB_ADT`
+  * `nCount_DSB_TET`
+  * `nFeature_DSB_TET`
+  * `nCount_NEW_TET_PROPORTIONS`
+  * `nFeature_NEW_TET_PROPORTIONS`
   * `percent.mt` - Percent of reads mapping to the mitochondria
 * Meta data columns
-  [7] "`ID`"                                "`Initials`"                          "`Sample.Name`"                      
- [10] "`Sex`"                               "`Collection.Date`"                   "Age.at.Collection..years."        
- [13] "`Age.at.Collection..Months.`"        "`Status`"                            "`Date.of.Diagnosis`"                
- [16] "`Days.post.onset`"                   "`millions.of.cells.frozen`"          "`HLA.type`"                         
- [19] "`Autoantibodies`"                    "`date.processed.for.scSeq`"          "`Notes..FDR.relationship.`"
-   "`old_status`"                        "`sample`"        
+  * `ID`
+  * `Initials`
+  * `Sample.Name`
+  * `Sex`
+  * `Collection.Date`
+  * `Age.at.Collection..years.`
+  * `Age.at.Collection..Months.`
+  * `Status`
+  * `Date.of.Diagnosis`
+  * `Days.post.onset`
+  * `millions.of.cells.frozen`
+  * `HLA.type`
+  * `Autoantibodies`
+  * `date.processed.for.scSeq`
+  * `Notes..FDR.relationship.`
+  * `old_status`
+  * `sample`
 * `scuttle` qc columns
- [22] "`cell_qc_sum`"                       "`cell_qc_detected`"                  "`cell_qc_subsets_Mito_sum`"         
- [25] "`cell_qc_subsets_Mito_detected`"     "`cell_qc_subsets_Mito_percent`"      "`cell_qc_altexps_ADT_sum`"          
- [28] "`cell_qc_altexps_ADT_detected`"      "`cell_qc_altexps_ADT_percent`"       "`cell_qc_total`"                    
- [31] "`cell_qc_low_lib_size`"              "`cell_qc_low_n_features`"            "`cell_qc_high_subsets_Mito_percent`"
- [34] "`cell_qc_discard`"   
+  * `cell_qc_sum`
+  * `cell_qc_detected`
+  * `cell_qc_subsets_Mito_sum`
+  * `cell_qc_subsets_Mito_detected`
+  * `cell_qc_subsets_Mito_percent`
+  * `cell_qc_altexps_ADT_sum`
+  * `cell_qc_altexps_ADT_detected`
+  * `cell_qc_altexps_ADT_percent`
+  * `cell_qc_total`
+  * `cell_qc_low_lib_size`
+  * `cell_qc_low_n_features`
+  * `cell_qc_high_subsets_Mito_percent`
+  * `cell_qc_discard`
 * Cell cycle columns
- [37] "`S.Score`"                           "`G2M.Score`"                         "`Phase`"
+ * `S.Score`
+ * `G2M.Score`
+ * `Phase`
 * VDJ columns
- [40] "`clonotype_id`"                      "`exact_subclonotype_id`"             "`chains`"                           
- [43] "`n_chains`"                          "`cdr3`"                              "`cdr3_nt`"                          
- [46] "`cdr3_length`"                       "`cdr3_nt_length`"                    "`v_gene`"                           
- [49] "`d_gene`"                            "`j_gene`"                            "`c_gene`"                           
- [52] "`isotype`"                           "`reads`"                             "`umis`"                             
- [55] "`productive`"                        "`full_length`"                       "`paired`"                           
- [58] "`v_ins`"                             "`v_del`"                             "`v_mis`"                            
- [61] "`d_ins`"                             "`d_del`"                             "`d_mis`"                            
- [64] "`j_ins`"                             "`j_del`"                             "`j_mis`"                            
- [67] "`c_ins`"                             "`c_del`"                             "`c_mis`"                            
- [70] "`all_ins`"                           "`all_del`"                           "`all_mis`"                          
- [73] "`vd_ins`"                            "`vd_del`"                            "`dj_ins`"                           
- [76] "`dj_del`"                            "`v_mis_freq`"                        "`d_mis_freq`"                       
- [79] "`j_mis_freq`"                        "`c_mis_freq`"                        "`all_mis_freq`"
+  * `clonotype_id`
+  * `exact_subclonotype_id`
+  * `chains`
+  * `n_chains`
+  * `cdr3`
+  * `cdr3_nt`
+  * `cdr3_length`
+  * `cdr3_nt_length`
+  * `v_gene`
+  * `d_gene`
+  * `j_gene`
+  * `c_gene`
+  * `isotype`
+  * `reads`
+  * `umis`
+  * `productive`
+  * `full_length`
+  * `paired`
+  * `v_ins`
+  * `v_del`
+  * `v_mis`
+  * `d_ins`
+  * `d_del`
+  * `d_mis`
+  * `j_ins`
+  * `j_del`
+  * `j_mis`
+  * `c_ins`
+  * `c_del`
+  * `c_mis`
+  * `all_ins`
+  * `all_del`
+  * `all_mis`
+  * `vd_ins`
+  * `vd_del`
+  * `dj_ins`
+  * `dj_del`
+  * `v_mis_freq`
+  * `d_mis_freq`
+  * `j_mis_freq`
+  * `c_mis_freq`
+  * `all_mis_freq`
 * Columns relating to tetramer calling
   * `tet_hash_id` - The tetramer id defined by `HTODemux` (highest score). Defined in `02_Initial_processing.R`
   * `full_hash_id` - All tetramers defined as positive by `HTODemux`. Defined in `02_Initial_processing.R`
   * `libra_tet_hash_id` - The tetramer id defined by the libra score. If more than 1 tetramer had a value higher than 1. Defined in `02_Initial_processing.R`
-                     
-  "TET_maxID"                        
- [97] "TET_secondID"                      "TET_margin"                        "TET_classification"               
-[100] "TET_classification.global"         "hash.ID"                           "tet_hash_id"                      
-[103] "full_hash_id"                      "libra_tet_hash_id"                 "libra_full_hash_id"               
-[106] "old_hash_id"                       "SCAR_TET_maxID"                    "SCAR_TET_secondID"                
-[109] "SCAR_TET_margin"                   "SCAR_TET_classification"           "SCAR_TET_classification.global"   
-[112] "scar_hash_id"                      "full_scar_hash_id"                 "scar_libra_tet_hash_id"           
-[115] "scar_libra_full_hash_id"           "old_scar_hash_id"        
-
+ * `TET_maxID`
+ * `TET_secondID`
+ * `TET_margin`
+ * `TET_classification`
+ * `TET_classification.global`
+ * `hash.ID`
+ * `tet_hash_id`
+ * `full_hash_id`
+ * `libra_tet_hash_id`
+ * `libra_full_hash_id`
+ * `old_hash_id`
+ * `SCAR_TET_maxID`
+ * `SCAR_TET_secondID`
+ * `SCAR_TET_margin`
+ * `SCAR_TET_classification`
+ * `SCAR_TET_classification.global`
+ * `scar_hash_id`
+ * `full_scar_hash_id`
+ * `scar_libra_tet_hash_id`
+ * `scar_libra_full_hash_id`
+ * `old_scar_hash_id`
 * Clustering and cell type columns
-"seurat_clusters"                  
-[118] "RNA_cluster"   
-"RNA_celltype_seurat"              
-[124] "RNA_celltype_bnd"                  "RNA_celltype"                      "cluster_celltype"  "adtdsb_clusters"                  
-[130] "adtclr_clusters"                   "adtscar_clusters"                  "tetdsb_clusters"                  
-[133] "tetclr_clusters"                   "tetscar_clusters"                  "tetscarlog_clusters"              
-[136] "tetdsb_nd_clusters"                    
-   "tet_name_cutoff"                   "full_tet_name_cutoff"
-   139] "grouped_celltype"                              
-                     
-[169] "celltype_cluster"                  "rna_uncorrected_cluster"           "rna_harmony_clust"                
-[172] "rna_mnn_clust"                     "AMBRNA_cluster"                    "ambience_uncorrected_cluster"     
-[175] "ambience_harmony_clust"            "ambience_mnn_clust"                "rna_corrected_cluster"            
-[178] "ambience_corrected_cluster"        "RNA_comb_celltype_seurat"          "RNA_comb_celltype_bnd"            
-[181] "RNA_combined_celltype"             "AMBRNA_comb_celltype_seurat"       "AMBRNA_comb_celltype_bnd"         
-[184] "AMBRNA_combined_celltype"          "final_celltype"                    "AMBRNA_snn_res.0.6"
+  * `seurat_clusters`
+  * `RNA_cluster`
+  * `RNA_celltype_seurat`
+  * `RNA_celltype_bnd`
+  * `RNA_celltype`
+  * `cluster_celltype`
+  * `adtdsb_clusters`
+  * `adtclr_clusters`
+  * `adtscar_clusters`
+  * `tetdsb_clusters`
+  * `tetclr_clusters`
+  * `tetscar_clusters`
+  * `tetscarlog_clusters`
+  * `tetdsb_nd_clusters`
+  * `tet_name_cutoff`
+  * `full_tet_name_cutoff`
+  * `grouped_celltype`
+  * `celltype_cluster`
+  * `rna_uncorrected_cluster`
+  * `rna_harmony_clust`
+  * `rna_mnn_clust`
+  * `AMBRNA_cluster`
+  * `ambience_uncorrected_cluster`
+  * `ambience_harmony_clust`
+  * `ambience_mnn_clust`
+  * `rna_corrected_cluster`
+  * `ambience_corrected_cluster`
+  * `RNA_comb_celltype_seurat`
+  * `RNA_comb_celltype_bnd`
+  * `RNA_combined_celltype`
+  * `AMBRNA_comb_celltype_seurat`
+  * `AMBRNA_comb_celltype_bnd`
+  * `AMBRNA_combined_celltype`
+  * `final_celltype`
+  * `AMBRNA_snn_res.0.6`
 * Doublet finder
-                             "Doublet_finder"   
+  * `Doublet_finder`   
 * immcantation columns
-             
-[187] "final_clone"                       "imcantation_isotype"            
+  * `final_clone`
+  * `imcantation_isotype`            
