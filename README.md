@@ -12,6 +12,7 @@ In order to fully replicate analysis download the following docker images from d
 * [smith_2024_r_docker]()
 * [smith_2024_dropkick]()
 * [smith_2024_scar]()
+* [smith_2024_t1k]()
 
 All aspects of this pipeline are contained within a `Snakemake` pipeline. This will be able to start with fastq files and generate a final directory containing all final figures numbered based on the figure in the manuscript.
 
@@ -25,6 +26,7 @@ The majority of the packages required to run this are in docker images that are 
 * [smith_2024_r_docker]()
 * [smith_2024_dropkick]()
 * [smith_2024_scar]()
+* [smith_2024_t1k]()
 
 To load these packages as docker images:
 
@@ -76,16 +78,19 @@ Once everything is installed, you will need to update the config file to make su
 >* SAMPLE_METADATA: Any metadata to add to the sample objects. This file is found [here]()
 >* SAMPLE_INFO: Path to the file containing sample info. If you are running analysis from scratch, you can fill this out as you get outputs to help make decisions. This file is [here](https://github.com/CUAnschutzBDC/smith_nicholas_sc_antigen/blob/main/files/sample_info.tsv)
 >* RSRIPT_CONTAINER: Path to docker or singularity rscript file. See above for access.
->* DROPKICK_CONTAINER: Path to docker or singularity rscript file. See above for access.
->* SCAR_CONTAINER: Path to docker or singularity rscript file. See above for access.
+>* DROPKICK_CONTAINER: Path to docker or singularity dropkick file. See above for access.
+>* SCAR_CONTAINER: Path to docker or singularity scar file. See above for access.
+>* T1K_CONTAINER: Path to docker or singularity T1K file. See above for access.
 
 ### Running the pipeline
 The script to submit the job is [here](https://github.com/CUAnschutzBDC/smith_nicholas_sc_antigen/blob/main/snakecharmer.sh). You will need to update this command to work with your cluster or system.
 
 This pipeline will run
 * `Cellranger` data preprocessing
-* `Immcantation` VDJ clone calling
-* `T1K` for HLA identification
+* `Dropkick` to determine cutoffs for cells [Dropkick](https://github.com/KenLauLab/dropkick)
+* `Scar` to remove ambient protein reads [scar](https://github.com/Novartis/scar)
+* `Immcantation` VDJ clone calling [Immcantation](https://immcantation.readthedocs.io/en/stable/index.html)
+* `T1K` for HLA identification [T1K](https://github.com/mourisl/T1K)
 * R analysis scripts to recreate analysis and figures (described below)
 
 This runs through snakemake and will process the whole pipeline for you.
