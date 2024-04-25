@@ -1031,6 +1031,17 @@ boxplot_h_smh <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = (all_mis_freq),
   ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
   ggplot2::ggtitle("Heavy chain SMH")
 
+violin_h_smh <- ggplot2::ggplot(heavy_data, ggplot2::aes(y = (all_mis_freq),
+                                                          x = tet_name_cutoff,
+                                                          fill = Status)) +
+  ggplot2::geom_violin(scale = "width", position = ggplot2::position_dodge(1)) +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
+  ggplot2::ggtitle("Heavy chain SMH") +
+  ggplot2::stat_summary(fun = median, geom = "point", size = 2,
+                        position = ggplot2::position_dodge(1)) +
+  ggplot2::ylim(c(-0.01, 0.2))
+
 light_data <- all_info_split %>%
   dplyr::filter(chains %in% c("IGK", "IGL"))
 
@@ -1041,6 +1052,17 @@ boxplot_l_smh <- ggplot2::ggplot(light_data, ggplot2::aes(y = all_mis_freq,
   ggplot2::scale_fill_manual(values = status_colors) +
   ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
   ggplot2::ggtitle("Light chain SMH")
+
+violin_l_smh <- ggplot2::ggplot(light_data, ggplot2::aes(y = all_mis_freq,
+                                                          x = tet_name_cutoff,
+                                                          fill = Status)) +
+  ggplot2::geom_violin(scale = "width", position = ggplot2::position_dodge(1)) +
+  ggplot2::scale_fill_manual(values = status_colors) +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angl = 45, hjust = 1)) +
+  ggplot2::ggtitle("Light chain SMH") +
+  ggplot2::stat_summary(fun = median, geom = "point", size = 2,
+                        position = ggplot2::position_dodge(1)) +
+  ggplot2::ylim(c(-0.01, 0.2))
 
 density_l_smh <- ggplot2::ggplot(light_data, ggplot2::aes(y = Status,
                                                           x = all_mis_freq,
@@ -1057,6 +1079,9 @@ density_l_smh <- ggplot2::ggplot(light_data, ggplot2::aes(y = Status,
 h_and_l <- cowplot::plot_grid(boxplot_h_smh, boxplot_l_smh,
                               nrow = 2, ncol = 1)
 
+h_and_l_violin <- cowplot::plot_grid(violin_h_smh, violin_l_smh,
+                                     nrow = 2, ncol = 1)
+
 h_and_l_density <- cowplot::plot_grid(density_h_smh, density_l_smh,
                                       nrow = 2, ncol = 1)
 
@@ -1072,6 +1097,14 @@ pdf(file.path(image_dir, "5E_heavy_ligh_smh_density.pdf"),
     width = 8, height = 8)
 
 print(h_and_l_density)
+
+dev.off()
+graphics.off()
+
+pdf(file.path(image_dir, "5E_heavy_ligh_smh_violin.pdf"),
+    width = 8, height = 8)
+
+print(h_and_l_violin)
 
 dev.off()
 graphics.off()
@@ -1494,6 +1527,16 @@ make_circos_plot(circos_df = all_data$df,
 
 dev.off()
 graphics.off()
+
+my_hist <- ggplot(use_data, aes(x = cdr3_length, fill = sample)) + 
+  geom_bar() +
+  ggplot2::scale_fill_manual(values = sample_colors)
+
+legend <- cowplot::get_legend(my_hist)
+pdf(file.path(image_dir, "7C_legened.pdf"),
+    width = 8, height = 8)
+grid.draw(legend)
+dev.off()
 
 ### 7D -------------------------------------------------------------------------
 

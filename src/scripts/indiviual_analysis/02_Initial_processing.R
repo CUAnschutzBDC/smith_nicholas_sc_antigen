@@ -324,6 +324,10 @@ seurat_object <- SetAssayData(object = seurat_object, slot = "data",
                               assay = "SCAR_TET_LIBRA", new.data = libra_score_scar)
 
 # HTO demux --------------------------------------------------------------------
+# Updated because the existing function makes mistakes if one feature has many
+# higher counts than other features. It didn't select based on amount above
+# the cutoff, only based on higher counts. This function also returns a list
+# of all features above the cutoff in the `full_hash_id` column.
 HTODemuxUpdate <- function(object, assay = "HTO", positive.quantile = 0.99,
                            init = NULL, nstarts = 100, kfunc = "clara", 
                            nsamples = 100, seed = 42, verbose = TRUE){

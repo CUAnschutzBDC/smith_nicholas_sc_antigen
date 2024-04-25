@@ -14,7 +14,8 @@ Using single cell RNA-seq, single cell CITE-seq, and single cell LIBRA-seq
     * [Detailed description of each script](#detailed-description-of-each-script)
   * [Seurat object](#seurat-object)
     * [Assays](#assays)
-    * [Meta data columns](#meta-data-columns)
+    * [Most useful meta data columns](#most-useful-meta-data-columns)
+    * [All meta data columns](#all-meta-data-columns)
 
 <!--te-->
 
@@ -164,7 +165,7 @@ For all scripts in this analysis, please make sure you understand the processing
     ```R
     clr_matrix <- log2((all_tetramers + 1) / rowMeans(all_tetramers))
 
-	libra_score <- scale(clr_matrix, center = TRUE, scale = TRUE)
+	  libra_score <- scale(clr_matrix, center = TRUE, scale = TRUE)
     ```
   * Reads in the output from `scar`
     * Pulls out the tetramers
@@ -173,9 +174,10 @@ For all scripts in this analysis, please make sure you understand the processing
     ```R
     clr_matrix <- log2((all_tetramers + 1) / rowMeans(all_tetramers))
 
-	libra_score <- scale(clr_matrix, center = TRUE, scale = TRUE)
+	  libra_score <- scale(clr_matrix, center = TRUE, scale = TRUE)
     ```
-  * Runs `HTOdemux` on the tetramers
+  * Runs an updated form of `HTOdemux` on the tetramers (both raw and scar corrected)
+    * `HTOdemux` was updated because the previous form would take the highest counts for any feature even if it was not the feature with the highest value above the determined cutoff. Because of this, sometimes the actual feature that was higher than the cutoff was not returned while features that were below the  cutoff were returned. The updated function also returns a list of all features that were above the cutoff in the `full_hash_id` column.
   * Identifies positive values for each tetramer based on a libra cutoff of 1 for both the raw and `scar` corrected libra scores.
   * Runs SCT normalization on the RNA assay
 * `03_remove_doublets.R` - Identifies and tags doublets using [`DoubletFinder`](https://github.com/chris-mcginnis-ucsf/DoubletFinder). Images related to this can be found in `results/R_analysis/{sample_name}/images/dropkick_vs_cellqc.pdf`.
@@ -183,10 +185,17 @@ For all scripts in this analysis, please make sure you understand the processing
 * `05_PCA.R` - Runs PCA using methods from `Seurat`. Makes the output `results/R_analysis/{sample_name}/images/RNA_pca.pdf` to help determine the number of pcs to use for downstream processing.
 * `06a_UMAP_find_resolution.R` - Uses the number of pcs found above (specified in the file `files/sample_info.tsv`) and uses `clustree` to visualize many clustering resolutions. The `clustree` and umaps of each resolution will be in a file `results/R_analysis/{sample_name}/images/clustering_resolution.pdf` to guide resolution selection for downstream analysis.
 * `06b_UMAP.R` - Taking the number of pcs and resolution determined in the previous steps (specified in `files/sample_info.tsv`), generates the final umap and clustering for the object. The final images can be found in `results/R_analysis/{sample_name}/images/RNA_pca.pdf`
-* 
+* `07_name_clusters.R` - Uses two references the [seurat reference](https://www.sciencedirect.com/science/article/pii/S0092867421005833?via%3Dihub) which can be downloaded [here](https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat) and a [BND reference previously published by Mia Smith](https://rupress.org/jem/article/220/8/e20221604/214110/Identification-of-an-anergic-BND-cell-derived) to name clusters. I name each cluster on individual samples to provide more confidence in the integration of samples.
+* `08_find_markers.R` - Finds markers for each of the clusters and cell types using a one-vs-all approach with `FindAllMarkers` in Seurat. This outputs a file of markers that should be used to double check cell type determination.
+* `09_demultiplex_tets.R` - More attempts to identify positive tetramers. Here, UMAPs are generated on the `ADT_CLR`, `TET_CLR`, `ADT_DSB` and the `TET_DSB` assays and clusters are found in the same. These clusters are compared to the tetramer deremination at other steps. Nothing from this script was used in the final manuscript.
+* `10_compare_dsb_clr.R` - A script comparing the output of the dsb and clr normalization approaches. Nothing from this script was used in the final manuscript
+* `11_remove_ambience.R` - A script that runs `removeAmbience` from `DropletUtils` to attempt to remove ambient contamination. This assay was used for all steps and compared to the non-abient removal downstream, but was not used in the final manuscript because ambience removal from a popultion of only B cells did not make much difference.
+* `12_improve_cutoff.R` - Steps to try a tetramer identification that uses the non-b cells in our population to determine a cutoff. A cutoff of the 95th quartile of the non-b cells was used to identify a cutoff. A proportion above the cutoff was than calculated for each cell (and made into an assay) and tetramer calls were based on any tetramers with scores above 1. This scoring system ended up being used in the final manuscript.
 
 
-*NOTE on tetramer labeling. While libra, HTODemux, scar, and raw data were all used, only the libra score on ______ and the t-cell/myeloid cell cutoff on ______ were used to identify tetramer names the others were just used to test methods and compare results*
+*NOTE on tetramer labeling. While libra, HTODemux, scar, and raw data were all used, only the libra score on ______ and the t-cell/myeloid cell cutoff on the scar corrected values were used to identify tetramer names the others were just used to test methods and compare results*
+
+#### Integrated analysis
 
 ## Seurat object
 
@@ -204,9 +213,67 @@ Below is a detailed explanation of all parts of the seurat object
 * `SCAR_TET_LIBRA` - libra score on all `scar` corrected tetramer values
 * `DSB_ADT` - ADTs with background corrected with `dsb`
 * `SCT` - SCT normalized data
+* `TET_PROPORTIONS` - The proportions above the cutoff based on the modified `HTOdemux` run on the raw tetramer data.
+* `NEW_TET_PROPORTIONS` - The proportion above the cutoff based on the 95th quartile of the non-b cells included in the assay. The scores were determined based on the scar corrected tetramer data. This was added in `12_improve_cutoffs.R`
 
-
-### Meta data columns
+### Most useful meta data colums
+* `Seurat` default columns
+  * `orig.ident` - Sample name
+  * `nCount_RNA` - Number of RNA molecules in the cell
+  * `nFeature_RNA` - Number of genes in the cell
+  * `nCount_ADT` - Number of ADT molecules in the cell
+  * `nFeature_ADT` - Number of different ADTs in the cell
+  * `percent.mt` - Percent of reads mapping to the mitochondria
+* Meta data columns
+  * `Sex` - Sex
+  * `Collection.Date` - Date the blood was collected
+  * `Age.at.Collection..years.` - Age of patient at date of collection in years
+  * `Age.at.Collection..Months.` - Age of patient at date of collection in months
+  * `Status` - Disease status (ND = non-diabetic, T1D = type 1 diabetes, AAB = autoantibody positive)
+  * `Date.of.Diagnosis` - Date of T1D diagnosis
+  * `Days.post.onset` - Number of days between diagnosis and collection
+  * `millions.of.cells.frozen` - Number of cells collected
+  * `HLA.type` - HLA type of the individual
+  * `Autoantibodies` - What autoantibodies were detected
+  * `date.processed.for.scSeq` - The date cells were thawed and prepped for scRNA-seq
+  * `Notes..FDR.relationship.` - For first degree relative, how they are related
+  * `sample` - Sample ID
+* Cell cycle columns
+ * `Phase` - Final cell cycle phase determination as determined by Seurat's `CellCycleScoring` function
+* VDJ columns (Added by [`djvdj`](https://github.com/rnabioco/djvdj))
+  * `chains` - What chains are present in the cell, each chain is separated by a semi colon
+  * `n_chains` - How many chains are in the cell
+  * `cdr3` - The amino acid sequence of the CDR3 region(s). Each chain is separated by a semi colon
+  * `cdr3_nt`  - The nucleotide sequence of the CDR3 region(s). Each chain is separated by a semi colon
+  * `cdr3_length` - The CDR3 amino acid length(s). Each chain is separated by a semi colon
+  * `cdr3_nt_length` - The CDR3 nucleotide length(s). Each chain is separated by a semi colon
+  * `v_gene` - The V gene(s) identified by cellranger. Each chain is separated by a semi colon
+  * `d_gene` - The D gene(s) identified by cellranger. Each chain is separated by a semi colon
+  * `j_gene` - The J gene(s) identified by cellranger. Each chain is separated by a semi colon
+  * `c_gene` - The C gene(s) identified by cellranger. Each chain is separated by a semi colon
+  * `isotype` - The isotype(s) identified by cellranger. Each chain is separated by a semi colon
+  * `reads` - How many reads support each chain. Each chain is separated by a semi colon
+  * `umis` - How many umis support each chain. Each chain is separated by a semi colon
+  * `productive` - If each chain (separated by a simi colon) is productive
+  * `full_length` - If each chain (separated by a simi colon) is full length
+  * `paired` - If there were paired chains present
+  * `all_mis_freq` - The number of mimatches in all region(s). Each chain is separated by a semi colon
+* Columns relating to tetramer calling
+  * `libra_tet_hash_id` - The classification of tetramers based on the libra score - the name of the tetramer if only one is above the cutoff or multi-reactive (Islet or Other) depending on what tetramers were above the cutoff. Defined in `02_Initial_processing.R`. This uses the libra score based on the raw tetramer data.
+  * `libra_full_hash_id` - Full id based on libra scores. This gives all tetramers above the cutoff. Defined in `02_Initial_processing.R`. This uses the libra scores computed based on the raw tetramer data.
+  * `scar_libra_tet_hash_id` - The classification of tetramers based on the libra score - the name of the tetramer if only one is above the cutoff or multi-reactive (Islet or Other) depending on what tetramers were above the cutoff. Defined in `02_Initial_processing.R`. This uses the libra score based on the scar corrected tetramer data.
+  * `scar_libra_full_hash_id` - Full id based on libra scores. This gives all tetramers above the cutoff. Defined in `02_Initial_processing.R`. This uses the libra scores computed based on the scar corrected tetramer data.
+  * `tet_name_cutoff` - Cutoff determined based on the non-b cells present for each sample. Here a cutoff was drawn ath the 95th quartile of the non-b cells. The value is the name of the tetramer if only one is above the cutoff or multi-reactive (Islet or Other) depending on what tetramers were above the cutoff. Defined in `12_improve_cutoff.R`. This uses the scar corrected tetramer data.
+  * `full_tet_name_cutoff` - Cutoff determined based on the non-b cells present for each sample. Here a cutoff was drawn ath the 95th quartile of the non-b cells. This gives all tetramers above the cutoff. Defined in `12_improve_cutoff.R`. This uses the scar corrected tetramer data.
+* Clustering and cell type columns
+  * `RNA_cluster` - The final clusters used for downstream analysis
+  * `cluster_celltype` - A combination of the final cluster and final cell type
+  * `final_celltype` - Final cell types that were used for making the figures 
+* immcantation columns
+  * `final_clone` - Clone call by immcantation
+  * `imcantation_isotype` - Isotype determined by immcantation
+  
+### All meta data columns
 
 * `Seurat` default columns
   * `orig.ident` - Sample name
@@ -216,179 +283,175 @@ Below is a detailed explanation of all parts of the seurat object
   * `nFeature_ADT` - Number of different ADTs in the cell
   * `nCount_SCT` - Number of reads based on SCT normalization
   * `nFeature_SCT` - Number of genes based on SCT normalization 
-  * `nCount_TET`
-  * `nFeature_TET`
-  * `nCount_TET_LIBRA`
-  * `nFeature_TET_LIBRA`
-  * `nCount_SCAR_ADT_LOG`
-  * `nFeature_SCAR_ADT_LOG`
-  * `nCount_SCAR_ADT`
-  * `nFeature_SCAR_ADT`
-  * `nCount_SCAR_TET`
-  * `nFeature_SCAR_TET`
-  * `nCount_SCAR_TET_LOG`
-  * `nFeature_SCAR_TET_LOG`
-  * `nCount_SCAR_TET_LIBRA`
-  * `nFeature_SCAR_TET_LIBRA`
-  * `nCount_CLR_ADT`
-  * `nFeature_CLR_ADT`
-  * `nCount_CLR_TET`
-  * `nFeature_CLR_TET`
-  * `nCount_AMBRNA`
-  * `nFeature_AMBRNA`
-  * `nCount_TET_PROPORTIONS`
-  * `nFeature_TET_PROPORTIONS`
-  * `nCount_SCAR_TET_PROPORTIONS`
-  * `nFeature_SCAR_TET_PROPORTIONS`
-  * `nCount_DSB_ADT`
-  * `nFeature_DSB_ADT`
-  * `nCount_DSB_TET`
-  * `nFeature_DSB_TET`
-  * `nCount_NEW_TET_PROPORTIONS`
-  * `nFeature_NEW_TET_PROPORTIONS`
+  * `nCount_TET` - Number of reads from the tetramers
+  * `nFeature_TET` - Number of features from the tetramers
+  * `nCount_TET_LIBRA` - Number of reads associated with the libra score (ignore)
+  * `nFeature_TET_LIBRA` - Number of genes associated with the libra score (ignore)
+  * `nCount_SCAR_ADT_LOG` - Number of reads from the log normalized scar corrected ADTs (ignore)
+  * `nFeature_SCAR_ADT_LOG` - Number of genes from the log normalized scar corrected ADTs (ignore)
+  * `nCount_SCAR_ADT` - Number of reads from the scar corrected ADTs
+  * `nFeature_SCAR_ADT` - Number of genes from the scar corrected ADTs
+  * `nCount_SCAR_TET` - Number of reads from the scar corrected tetramers
+  * `nFeature_SCAR_TET` - Number of genes from the scar corrected tetramers
+  * `nCount_SCAR_TET_LOG` - Number of reads from the log normalized scar corrected tetramers (ignore)
+  * `nFeature_SCAR_TET_LOG` - Number of genes from the log normalized scar corrected tetramers (ignore)
+  * `nCount_SCAR_TET_LIBRA` - Number of reads associated with the tetramer libra score (ignore)
+  * `nFeature_SCAR_TET_LIBRA` - Number of genes associated with the tetramer libra score (ignore)
+  * `nCount_CLR_ADT` - Number of reads associated with the clr normalized adts (ignore)
+  * `nFeature_CLR_ADT` - Number of genes associated with the clr normalized adts (ignore)
+  * `nCount_CLR_TET` - Number of reads associated with the clr normalized tetramers (ignore)
+  * `nFeature_CLR_TET` - Number of genes associated with the clr normalized tetramers (ignore)
+  * `nCount_AMBRNA` - Number of reads from the ambient corrected rna
+  * `nFeature_AMBRNA` - Number of genes from the ambient corrected rna
+  * `nCount_TET_PROPORTIONS` - Number of reads from the hto determined proportions on the raw data (ignore)
+  * `nFeature_TET_PROPORTIONS` - Number of features from the hto determined proportions on the raw data (ignore)
+  * `nCount_SCAR_TET_PROPORTIONS` - Number of reads from the hto determined proportions on the scar corrected data (ignore)
+  * `nFeature_SCAR_TET_PROPORTIONS` - Number of features from the quantile determined proportions on the scar corrected data (ignore)
+  * `nCount_DSB_ADT` - Number of reads associated with the dsb normalized adts (ignore)
+  * `nFeature_DSB_ADT` - Number of genes associated with the dsb normalized adts (ignore)
+  * `nCount_DSB_TET` - Number of reads associated with the dsb normalized tetramers (ignore)
+  * `nFeature_DSB_TET` - Number of genes associated with the dsb normalized tetramers (ignore)
+  * `nCount_NEW_TET_PROPORTIONS` - Number of reads from the qantile determined proportions based on the scar corrected tetramers (ignore)
+  * `nFeature_NEW_TET_PROPORTIONS` - Number of features from the quantile determined proportions based on the scar corrected tetramers (ignore)
   * `percent.mt` - Percent of reads mapping to the mitochondria
 * Meta data columns
-  * `ID`
-  * `Initials`
-  * `Sample.Name`
-  * `Sex`
-  * `Collection.Date`
-  * `Age.at.Collection..years.`
-  * `Age.at.Collection..Months.`
-  * `Status`
-  * `Date.of.Diagnosis`
-  * `Days.post.onset`
-  * `millions.of.cells.frozen`
-  * `HLA.type`
-  * `Autoantibodies`
-  * `date.processed.for.scSeq`
-  * `Notes..FDR.relationship.`
-  * `old_status`
+  * `ID` - Sample id
+  * `Initials` - Individual initials
+  * `Sample.Name` - Full sample name
+  * `Sex` - Sex
+  * `Collection.Date` - Date the blood was collected
+  * `Age.at.Collection..years.` - Age of patient at date of collection in years
+  * `Age.at.Collection..Months.` - Age of patient at date of collection in months
+  * `Status` - Disease status (ND = non-diabetic, T1D = type 1 diabetes, AAB = autoantibody positive)
+  * `Date.of.Diagnosis` - Date of T1D diagnosis
+  * `Days.post.onset` - Number of days between diagnosis and collection
+  * `millions.of.cells.frozen` - Number of cells collected
+  * `HLA.type` - HLA type of the individual
+  * `Autoantibodies` - What autoantibodies were detected
+  * `date.processed.for.scSeq` - The date cells were thawed and prepped for scRNA-seq
+  * `Notes..FDR.relationship.` - For first degree relative, how they are related
+  * `old_status` - Previous naming convention for status (ignore)
   * `sample`
-* `scuttle` qc columns
-  * `cell_qc_sum`
-  * `cell_qc_detected`
-  * `cell_qc_subsets_Mito_sum`
-  * `cell_qc_subsets_Mito_detected`
-  * `cell_qc_subsets_Mito_percent`
-  * `cell_qc_altexps_ADT_sum`
-  * `cell_qc_altexps_ADT_detected`
-  * `cell_qc_altexps_ADT_percent`
-  * `cell_qc_total`
-  * `cell_qc_low_lib_size`
-  * `cell_qc_low_n_features`
-  * `cell_qc_high_subsets_Mito_percent`
-  * `cell_qc_discard`
+* `scuttle` qc columns (Added by [`scuttle`](https://www.bioconductor.org/packages/release/bioc/html/scuttle.html))
+  * `cell_qc_sum` - Same as `nCount_RNA`
+  * `cell_qc_detected` - Same as `nFeature_RNA`
+  * `cell_qc_subsets_Mito_sum` - Sum of mito counts per cell
+  * `cell_qc_subsets_Mito_detected` - Number of mit genes per cell
+  * `cell_qc_subsets_Mito_percent` - Percentmit per cell
+  * `cell_qc_altexps_ADT_sum` - Same as `nCount_ADT`
+  * `cell_qc_altexps_ADT_detected` - Same as `nFeature_ADT`
+  * `cell_qc_altexps_ADT_percent` - Percent of ADT counts per cell
+  * `cell_qc_total` - sum of counts for each cell across the main and alternative experiment
+  * `cell_qc_low_lib_size` - If the cell passed QC based on library size
+  * `cell_qc_low_n_features` - If the cell passed QC based on number of features
+  * `cell_qc_high_subsets_Mito_percent` - If the cell passed QC based on mito percent
+  * `cell_qc_discard` - If the cell is flagged to be removed by `perCellQCFilters`
 * Cell cycle columns
- * `S.Score`
- * `G2M.Score`
- * `Phase`
-* VDJ columns
-  * `clonotype_id`
-  * `exact_subclonotype_id`
-  * `chains`
-  * `n_chains`
-  * `cdr3`
-  * `cdr3_nt`
-  * `cdr3_length`
-  * `cdr3_nt_length`
-  * `v_gene`
-  * `d_gene`
-  * `j_gene`
-  * `c_gene`
-  * `isotype`
-  * `reads`
-  * `umis`
-  * `productive`
-  * `full_length`
-  * `paired`
-  * `v_ins`
-  * `v_del`
-  * `v_mis`
-  * `d_ins`
-  * `d_del`
-  * `d_mis`
-  * `j_ins`
-  * `j_del`
-  * `j_mis`
-  * `c_ins`
-  * `c_del`
-  * `c_mis`
-  * `all_ins`
-  * `all_del`
-  * `all_mis`
-  * `vd_ins`
-  * `vd_del`
-  * `dj_ins`
-  * `dj_del`
-  * `v_mis_freq`
-  * `d_mis_freq`
-  * `j_mis_freq`
-  * `c_mis_freq`
-  * `all_mis_freq`
+ * `S.Score` - Cell cycle score for S phase as determined by Seurat's `CellCycleScoring` function
+ * `G2M.Score` - Cell cycle score for G2M phase as determined by Seurat's `CellCycleScoring` function
+ * `Phase` - Final cell cycle phase determination as determined by Seurat's `CellCycleScoring` function
+* VDJ columns (Added by [`djvdj`](https://github.com/rnabioco/djvdj))
+  * `clonotype_id` - Clonotype determined by `djvdj`
+  * `exact_subclonotype_id` - Clonotype sub id determined by `djvdj`
+  * `chains` - What chains are present in the cell, each chain is separated by a semi colon
+  * `n_chains` - How many chains are in the cell
+  * `cdr3` - The amino acid sequence of the CDR3 region(s). Each chain is separated by a semi colon
+  * `cdr3_nt`  - The nucleotide sequence of the CDR3 region(s). Each chain is separated by a semi colon
+  * `cdr3_length` - The CDR3 amino acid length(s). Each chain is separated by a semi colon
+  * `cdr3_nt_length` - The CDR3 nucleotide length(s). Each chain is separated by a semi colon
+  * `v_gene` - The V gene(s) identified by cellranger. Each chain is separated by a semi colon
+  * `d_gene` - The D gene(s) identified by cellranger. Each chain is separated by a semi colon
+  * `j_gene` - The J gene(s) identified by cellranger. Each chain is separated by a semi colon
+  * `c_gene` - The C gene(s) identified by cellranger. Each chain is separated by a semi colon
+  * `isotype` - The isotype(s) identified by cellranger. Each chain is separated by a semi colon
+  * `reads` - How many reads support each chain. Each chain is separated by a semi colon
+  * `umis` - How many umis support each chain. Each chain is separated by a semi colon
+  * `productive` - If each chain (separated by a simi colon) is productive
+  * `full_length` - If each chain (separated by a simi colon) is full length
+  * `paired` - If there were paired chains present
+  * `v_ins` - The number of insertions in the v region(s). Each chain is separated by a semi colon
+  * `v_del` - The number of deletions in the v region(s). Each chain is separated by a semi colon
+  * `v_mis` - The number of mismatches in the v region(s). Each chain is separated by a semi colon
+  * `d_ins` - The number of insertions in the d region(s). Each chain is separated by a semi colon
+  * `d_del` - The number of deletions in the d region(s). Each chain is separated by a semi colon
+  * `d_mis` - The number of mismatches in the d region(s). Each chain is separated by a semi colon
+  * `j_ins` - The number of insertions in the j region(s). Each chain is separated by a semi colon
+  * `j_del` - The number of deletions in the j region(s). Each chain is separated by a semi colon
+  * `j_mis` - The number of mismatches in the j region(s). Each chain is separated by a semi colon
+  * `c_ins` - The number of insertions in the c region(s). Each chain is separated by a semi colon
+  * `c_del` - The number of deletions in the c region(s). Each chain is separated by a semi colon
+  * `c_mis` - The number of mismatches in the c region(s). Each chain is separated by a semi colon
+  * `all_ins` - The number of insertions in all region(s). Each chain is separated by a semi colon
+  * `all_del` - The number of deletions in all region(s). Each chain is separated by a semi colon
+  * `all_mis` - The number of mismatches in all region(s). Each chain is separated by a semi colon
+  * `vd_ins` - The number of insertions in the v and d region(s). Each chain is separated by a semi colon
+  * `vd_del` - The number of deletions in the c and d region(s). Each chain is separated by a semi colon
+  * `dj_ins` - The number of insertions in the d and j region(s). Each chain is separated by a semi colon
+  * `dj_del` - The number of deletions in the d and j region(s). Each chain is separated by a semi colon
+  * `v_mis_freq` - The number of mimatches in the v region(s). Each chain is separated by a semi colon
+  * `d_mis_freq` - The number of mimatches in the d region(s). Each chain is separated by a semi colon
+  * `j_mis_freq` - The number of mimatches in the j region(s). Each chain is separated by a semi colon
+  * `c_mis_freq` - The number of mimatches in the c region(s). Each chain is separated by a semi colon
+  * `all_mis_freq` - The number of mimatches in all region(s). Each chain is separated by a semi colon
 * Columns relating to tetramer calling
-  * `tet_hash_id` - The tetramer id defined by `HTODemux` (highest score). Defined in `02_Initial_processing.R`
-  * `full_hash_id` - All tetramers defined as positive by `HTODemux`. Defined in `02_Initial_processing.R`
-  * `libra_tet_hash_id` - The tetramer id defined by the libra score. If more than 1 tetramer had a value higher than 1. Defined in `02_Initial_processing.R`
- * `TET_maxID`
- * `TET_secondID`
- * `TET_margin`
- * `TET_classification`
- * `TET_classification.global`
- * `hash.ID`
- * `tet_hash_id`
- * `full_hash_id`
- * `libra_tet_hash_id`
- * `libra_full_hash_id`
- * `old_hash_id`
- * `SCAR_TET_maxID`
- * `SCAR_TET_secondID`
- * `SCAR_TET_margin`
- * `SCAR_TET_classification`
- * `SCAR_TET_classification.global`
- * `scar_hash_id`
- * `full_scar_hash_id`
- * `scar_libra_tet_hash_id`
- * `scar_libra_full_hash_id`
- * `old_scar_hash_id`
+  * `TET_maxID` - Output of running the new version of `HTOdemux` based on the `TET` assay (the `CLR` normalized raw tetramer counts). This gives the highest tet id. (Ignore)
+  * `TET_secondID` - Output of running the new version of `HTOdemux` based on the `TET` assay (the `CLR` normalized raw tetramer counts). This gives the second highest tet id. (Ignore)
+  * `TET_margin` - Output of running the new version of `HTOdemux` based on the `TET` assay (the `CLR` normalized raw tetramer counts). This gives the difference between the highest and second highest cutoffs (ignore)
+  * `TET_classification` - Output of running the new version of `HTOdemux` based on the `TET` assay (the `CLR` normalized raw tetramer counts). This gives the two highest tet ids. (ignore)
+  * `TET_classification.global` - Output of running the new version of `HTOdemux` based on the `TET` assay (the `CLR` normalized raw tetramer counts). This gives the values `Negative`, `Singlet` and `Doublet` depending on how many were positive (Ignore)
+  * `hash.ID` - Ignore
+  * `tet_hash_id` - Output of running the new version of `HTOdemux` based on the `TET` assay (the `CLR` normalized raw tetramer counts). This gives the final label - the name of the tetramer if only one is above the cutoff or multi-reactive (Islet or Other) depending on what tetramers were above the cutoff. Defined in `02_Initial_processing.R`
+  * `full_hash_id` - Output of running the new version of `HTOdemux` based on the `TET` assay (the `CLR` normalized raw tetramer counts). This gives all tetramers above the cutoff. Defined in `02_Initial_processing.R`
+  * `libra_tet_hash_id` - The classification of tetramers based on the libra score - the name of the tetramer if only one is above the cutoff or multi-reactive (Islet or Other) depending on what tetramers were above the cutoff. Defined in `02_Initial_processing.R`. This uses the libra score based on the raw tetramer data.
+  * `libra_full_hash_id` - Full id based on libra scores. This gives all tetramers above the cutoff. Defined in `02_Initial_processing.R`. This uses the libra scores computed based on the raw tetramer data.
+  * `old_hash_id` - ignore
+  * `SCAR_TET_maxID` - Output of running the new version of `HTOdemux` based on the `SCAR_TET` assay (the `CLR` normalized scar corrected tetramer counts). This gives the highest tet id. (Ignore)
+  * `SCAR_TET_secondID` - Output of running the new version of `HTOdemux` based on the `SCAR_TET` assay (the `CLR` normalized scar corrected tetramer counts). This gives the second highest tet id. (Ignore)
+  * `SCAR_TET_margin` - Output of running the new version of `HTOdemux` based on the `SCAR_TET` assay (the `CLR` normalized scar corrected tetramer counts). This gives the difference between the highest and second highest cutoffs (ignore)
+  * `SCAR_TET_classification` - Output of running the new version of `HTOdemux` based on the `SCAR_TET` assay (the `CLR` normalized scar corrected tetramer counts). This gives the two highest tet ids. (ignore)
+  * `SCAR_TET_classification.global`
+  * `scar_hash_id` - Output of running the new version of `HTOdemux` based on the `SCAR_TET` assay (the `CLR` normalized scar corrected tetramer counts). This gives the values `Negative`, `Singlet` and `Doublet` depending on how many were positive (Ignore)
+  * `full_scar_hash_id` - Output of running the new version of `HTOdemux` based on the `SCAR_TET` assay (the `CLR` normalized scar corrected tetramer counts). This gives all tetramers above the cutoff. Defined in `02_Initial_processing.R`
+  * `scar_libra_tet_hash_id` - The classification of tetramers based on the libra score - the name of the tetramer if only one is above the cutoff or multi-reactive (Islet or Other) depending on what tetramers were above the cutoff. Defined in `02_Initial_processing.R`. This uses the libra score based on the scar corrected tetramer data.
+  * `scar_libra_full_hash_id` - Full id based on libra scores. This gives all tetramers above the cutoff. Defined in `02_Initial_processing.R`. This uses the libra scores computed based on the scar corrected tetramer data.
+  * `old_scar_hash_id` - ignore
+  * `tet_name_cutoff` - Cutoff determined based on the non-b cells present for each sample. Here a cutoff was drawn ath the 95th quartile of the non-b cells. The value is the name of the tetramer if only one is above the cutoff or multi-reactive (Islet or Other) depending on what tetramers were above the cutoff. Defined in `12_improve_cutoff.R`. This uses the scar corrected tetramer data.
+  * `full_tet_name_cutoff` - Cutoff determined based on the non-b cells present for each sample. Here a cutoff was drawn ath the 95th quartile of the non-b cells. This gives all tetramers above the cutoff. Defined in `12_improve_cutoff.R`. This uses the scar corrected tetramer data.
 * Clustering and cell type columns
-  * `seurat_clusters`
-  * `RNA_cluster`
-  * `RNA_celltype_seurat`
-  * `RNA_celltype_bnd`
-  * `RNA_celltype`
-  * `cluster_celltype`
-  * `adtdsb_clusters`
-  * `adtclr_clusters`
-  * `adtscar_clusters`
-  * `tetdsb_clusters`
-  * `tetclr_clusters`
-  * `tetscar_clusters`
-  * `tetscarlog_clusters`
+  * `seurat_clusters` - Final clusters called by the clustering algorithm (ignore)
+  * `RNA_cluster` - The final clusters used for downstream analysis
+  * `RNA_celltype_seurat` - Cell types determined by mapping the RNA clusters from individual samples to the [seurat reference](https://www.sciencedirect.com/science/article/pii/S0092867421005833?via%3Dihub). Download of the reference is [here](https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat)
+  * `RNA_celltype_bnd` - Cell types determined by mapping the RNA clusters from individual samples to a [BND reference previously published by Mia Smith](https://rupress.org/jem/article/220/8/e20221604/214110/Identification-of-an-anergic-BND-cell-derived)
+  * `RNA_celltype` - Final cell type determined by a combined best score from the BND and Seurat references based on the RNA clusters from individual samples.
+  * `cluster_celltype` - A combination of the final cluster and final cell type
+  * `adtdsb_clusters` - Clusters determined by using the adt dsb normalized data (ignore)
+  * `adtclr_clusters` - Clusters determined by using the adt clr normalized data (ignore)
+  * `adtscar_clusters` - Clusters determined by using the adt scar normalized data (ignore)
+  * `tetdsb_clusters` - Clusters determined by using the tet dsb normalized data (ignore)
+  * `tetclr_clusters` - Clusters determined by using the tet clr normalized data (ignore)
+  * `tetscar_clusters` - Clusters determined by using the tet scar normalized data (ignore)
+  * `tetscarlog_clusters` - Clusters determined by using the tet scar log normalized data (ignore)
   * `tetdsb_nd_clusters`
-  * `tet_name_cutoff`
-  * `full_tet_name_cutoff`
   * `grouped_celltype`
   * `celltype_cluster`
-  * `rna_uncorrected_cluster`
-  * `rna_harmony_clust`
-  * `rna_mnn_clust`
-  * `AMBRNA_cluster`
-  * `ambience_uncorrected_cluster`
-  * `ambience_harmony_clust`
-  * `ambience_mnn_clust`
-  * `rna_corrected_cluster`
-  * `ambience_corrected_cluster`
-  * `RNA_comb_celltype_seurat`
-  * `RNA_comb_celltype_bnd`
-  * `RNA_combined_celltype`
-  * `AMBRNA_comb_celltype_seurat`
-  * `AMBRNA_comb_celltype_bnd`
-  * `AMBRNA_combined_celltype`
-  * `final_celltype`
-  * `AMBRNA_snn_res.0.6`
+  * `rna_uncorrected_cluster` - Clusters determined before RNA correction
+  * `rna_harmony_clust` - Clusters determined using the `harmony` dimensionality reduction
+  * `rna_mnn_clust` - Clusters determined using the `mnn` dimensionality reduction
+  * `AMBRNA_cluster` - Clusters determined using the ambient corrected RNA data (ignore)
+  * `ambience_uncorrected_cluster` - Clusters determined before RNA correction using the ambient RNA corrected data
+  * `ambience_harmony_clust` - Clusters determined using the `harmony` dimensionality reduction using the ambient RNA corrected data
+  * `ambience_mnn_clust` - Clusters determined using the `mnn` dimensionality reduction using the ambient RNA corrected data
+  * `rna_corrected_cluster` - Final clustering based on the `mnn` reduction
+  * `ambience_corrected_cluster` - Final clustering using the abmient RNA based on the `mnn` reduction
+  * `RNA_comb_celltype_seurat`- Cell types determined by mapping the RNA clusters from the combined samples to the [seurat reference](https://www.sciencedirect.com/science/article/pii/S0092867421005833?via%3Dihub). Download of the reference is [here](https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat)
+  * `RNA_comb_celltype_bnd`- Cell types determined by mapping the RNA clusters from the combined samples to a [BND reference previously published by Mia Smith](https://rupress.org/jem/article/220/8/e20221604/214110/Identification-of-an-anergic-BND-cell-derived)
+  * `RNA_combined_celltype` - Final cell type determined by a combined best score from the BND and Seurat references based on the RNA clusters from individual samples.
+  * `AMBRNA_comb_celltype_seurat` - Combined cell type based on the ambience removed assay using the [seurat reference](https://www.sciencedirect.com/science/article/pii/S0092867421005833?via%3Dihub). Download of the reference is [here](https://atlas.fredhutch.org/data/nygc/multimodal/pbmc_multimodal.h5seurat)
+  * `AMBRNA_comb_celltype_bnd` - Combined cell type based on the ambience removed assaying using a [BND reference previously published by Mia Smith](https://rupress.org/jem/article/220/8/e20221604/214110/Identification-of-an-anergic-BND-cell-derived)
+  * `AMBRNA_combined_celltype` - Combined cell type based on the ambience removed assay using both references.
+  * `final_celltype` - Final cell types that were used for making the figures 
 * Doublet finder
-  * `Doublet_finder`   
+  * `Doublet_finder` - Doublet finder results
 * immcantation columns
-  * `final_clone`
-  * `imcantation_isotype`            
+  * `final_clone` - Clone call by immcantation
+  * `imcantation_isotype` - Isotype determined by immcantation
