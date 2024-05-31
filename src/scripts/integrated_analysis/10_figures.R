@@ -293,14 +293,57 @@ dev.off()
 # Cell type by status
 pdf(file.path(image_dir, "2C_status_celltype_barplot.pdf"),
     width = 8, height = 8)
-barplot <- stacked_barplots(seurat_data, meta_col = "celltype_cluster",
-                            split_by = "Status",
-                            color = cluster_celltype_colors) +
+barplot_data <- stacked_barplots(seurat_data, meta_col = "celltype_cluster",
+                                 split_by = "Status",
+                                 color = cluster_celltype_colors,
+                                 return_values = TRUE)
+barplot <- barplot_data$barplot +
   ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
 
 print(barplot)
 
 dev.off()
+
+# Get some stats
+seurat_data$sample_status <- paste(seurat_data$orig.ident, seurat_data$Status,
+                                   sep = "_")
+barplot_data <- stacked_barplots(seurat_data, meta_col = "celltype_cluster",
+                                 split_by = "sample_status",
+                                 color = cluster_celltype_colors,
+                                 return_values = TRUE)$data
+
+barplot_data$sample <- gsub("_.*", "", barplot_data$split_by)
+barplot_data$Status <- gsub(".*_", "", barplot_data$split_by)
+barplot_data$Status <- factor(barplot_data$Status, 
+                              levels = levels(seurat_data$Status))
+barplot_data$meta_col <- factor(barplot_data$meta_col,
+                                levels = levels(seurat_data$celltype_cluster))
+barplot_data <- dplyr::ungroup(barplot_data)
+
+all_t_tests <- lapply(levels(barplot_data$meta_col), function(celltype){
+  barplot_celltype <- barplot_data[barplot_data$meta_col == celltype,]
+  res <- t_test(barplot_celltype, percents ~ Status)
+  res$celltype <- celltype
+  return(res)
+
+})
+
+all_t_tests <- do.call(rbind, all_t_tests)
+
+all_t_tests$p.adj <- NULL
+all_t_tests$p.adj.signif <- NULL
+all_t_tests$.y. <- NULL
+
+all_t_tests <- adjust_pvalue(all_t_tests, p.col = "p",
+                             output.col = "p_adj", method = "bonferroni")
+
+write.csv(all_t_tests, file.path(image_dir, "cell_type_statistics.csv"))
+
+colnames(barplot_data) <- c("celltype_cluster", "split_by", "Freq", "percents",
+                            "sample", "Status")
+barplot_data <- barplot_data[,colnames(barplot_data) != "split_by"]
+
+write.csv(barplot_data, file.path(image_dir, "cell_type_percens.csv"))
 
 ## Figure 3 --------------------------------------------------------------------
 
@@ -317,6 +360,69 @@ barplot <- stacked_barplots(seurat_data, meta_col = "tet_name_cutoff",
 print(barplot)
 
 dev.off()
+
+# Get some stats
+seurat_data$sample_status <- paste(seurat_data$orig.ident, seurat_data$Status,
+                                   sep = "_")
+barplot_data <- stacked_barplots(seurat_data, meta_col = "tet_name_cutoff",
+                                 split_by = "sample_status",
+                                 color = cluster_celltype_colors,
+                                 return_values = TRUE)$data
+
+barplot_data$sample <- gsub("_.*", "", barplot_data$split_by)
+barplot_data$Status <- gsub(".*_", "", barplot_data$split_by)
+barplot_data$Status <- factor(barplot_data$Status, 
+                              levels = levels(seurat_data$Status))
+barplot_data$meta_col <- factor(barplot_data$meta_col,
+                                levels = levels(seurat_data$tet_name_cutoff))
+barplot_data <- dplyr::ungroup(barplot_data)
+
+all_t_tests <- lapply(levels(barplot_data$meta_col), function(tet){
+  barplot_tet <- barplot_data[barplot_data$meta_col == tet,]
+  res <- t_test(barplot_tet, percents ~ Status)
+  res$tet <- tet
+  
+  return(res)
+  
+})
+
+all_t_tests <- do.call(rbind, all_t_tests)
+
+res_combined <- barplot_data %>%
+  dplyr::mutate(type = ifelse(meta_col %in% c("Negative", "DNA.tet", 
+                                              "TET.tet"),
+                              meta_col, "IAR")) %>%
+  dplyr::group_by(sample, type) %>%
+  dplyr::mutate(percents_combined = sum(percents)) %>%
+  dplyr::ungroup() %>%
+  dplyr::select(sample, percents_combined, Status, type) %>%
+  dplyr::distinct() %>%
+  dplyr::filter(type == "IAR")
+
+res <- t_test(res_combined, percents_combined ~ Status)
+res$tet <- "IAR_combined"
+
+all_t_tests <- rbind(all_t_tests, res)
+
+
+all_t_tests$p.adj <- NULL
+all_t_tests$p.adj.signif <- NULL
+all_t_tests$.y. <- NULL
+
+all_t_tests <- adjust_pvalue(all_t_tests, p.col = "p",
+                              output.col = "p_adj", method = "bonferroni")
+
+write.csv(all_t_tests, file.path(image_dir, "tetramer_statistics.csv"))
+
+colnames(barplot_data) <- c("tetramer", "split_by", "Freq", "percents",
+                            "sample", "Status")
+barplot_data <- barplot_data[,colnames(barplot_data) != "split_by"]
+
+write.csv(barplot_data, file.path(image_dir, "tetramer_percents.csv"))
+
+colnames(res_combined) <- c("sample", "percents", "Status", "type") 
+write.csv(res_combined, file.path(image_dir, "IAR_percents.csv"))
+
 
 ### 3B -------------------------------------------------------------------------
 
@@ -1703,7 +1809,7 @@ graphics.off()
 ### Supp 6 ---------------------------------------------------------------------
 pdf(file.path(image_dir, "Supp6_tetramer_new_vs_old_cutoff.pdf"))
 
-cm2 <- confusionMatrix(seurat_data$tet_name_cutoff, seurat_data$libra_tet_hash_id)
+cm2 <- confusionMatrix(seurat_data$tet_name_cutoff, seurat_data$scar_libra_tet_hash_id)
 cm2 <- cm2 / rowSums(cm2)
 print(pheatmap::pheatmap(cm2, main = "previous_vs_libra_id"))
 

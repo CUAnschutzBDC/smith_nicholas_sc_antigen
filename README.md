@@ -23,7 +23,6 @@ Using single cell RNA-seq, single cell CITE-seq, and single cell LIBRA-seq
 * Clean up metadata/seurat object
   * Talk to Mia and Catherine to determine what needs to be removed from the metadata before we can publish
   * Remove all doublet finder columns (`PANN...`)
-* Upload docker containers
 
 
 This repository contains a pipeline that can be used to fully replicate all analysis and figures associated with the manuscript [TODO add manuscript name].
@@ -193,9 +192,10 @@ For all scripts in this analysis, please make sure you understand the processing
 * `12_improve_cutoff.R` - Steps to try a tetramer identification that uses the non-b cells in our population to determine a cutoff. A cutoff of the 95th quartile of the non-b cells was used to identify a cutoff. A proportion above the cutoff was than calculated for each cell (and made into an assay) and tetramer calls were based on any tetramers with scores above 1. This scoring system ended up being used in the final manuscript.
 
 
-*NOTE on tetramer labeling. While libra, HTODemux, scar, and raw data were all used, only the libra score on ______ and the t-cell/myeloid cell cutoff on the scar corrected values were used to identify tetramer names the others were just used to test methods and compare results*
+*NOTE on tetramer labeling. While libra, HTODemux, scar, and raw data were all used, only the libra score on scar corrected values and the t-cell/myeloid cell cutoff on the scar corrected values were used to identify tetramer names the others were just used to test methods and compare results*
 
 #### Integrated analysis
+[TODO]
 
 ## Seurat object
 
@@ -272,7 +272,7 @@ Below is a detailed explanation of all parts of the seurat object
 * immcantation columns
   * `final_clone` - Clone call by immcantation
   * `imcantation_isotype` - Isotype determined by immcantation
-  
+
 ### All meta data columns
 
 * `Seurat` default columns
