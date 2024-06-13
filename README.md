@@ -19,11 +19,6 @@ Using single cell RNA-seq, single cell CITE-seq, and single cell LIBRA-seq
 
 <!--te-->
 
-## TODO
-* Clean up metadata/seurat object
-  * Talk to Mia and Catherine to determine what needs to be removed from the metadata before we can publish
-  * Remove all doublet finder columns (`PANN...`)
-
 
 This repository contains a pipeline that can be used to fully replicate all analysis and figures associated with the manuscript [TODO add manuscript name].
 
@@ -216,7 +211,9 @@ Below is a detailed explanation of all parts of the seurat object
 * `TET_PROPORTIONS` - The proportions above the cutoff based on the modified `HTOdemux` run on the raw tetramer data.
 * `NEW_TET_PROPORTIONS` - The proportion above the cutoff based on the 95th quartile of the non-b cells included in the assay. The scores were determined based on the scar corrected tetramer data. This was added in `12_improve_cutoffs.R`
 
-### Most useful meta data colums
+### Most useful meta data columns
+These columns are all in the metadata available on GEO
+
 * `Seurat` default columns
   * `orig.ident` - Sample name
   * `nCount_RNA` - Number of RNA molecules in the cell
@@ -239,7 +236,7 @@ Below is a detailed explanation of all parts of the seurat object
   * `Notes..FDR.relationship.` - For first degree relative, how they are related
   * `sample` - Sample ID
 * Cell cycle columns
- * `Phase` - Final cell cycle phase determination as determined by Seurat's `CellCycleScoring` function
+  * `Phase` - Final cell cycle phase determination as determined by Seurat's `CellCycleScoring` function
 * VDJ columns (Added by [`djvdj`](https://github.com/rnabioco/djvdj))
   * `chains` - What chains are present in the cell, each chain is separated by a semi colon
   * `n_chains` - How many chains are in the cell
@@ -274,6 +271,7 @@ Below is a detailed explanation of all parts of the seurat object
   * `imcantation_isotype` - Isotype determined by immcantation
 
 ### All meta data columns
+These columns will be generated when the seurat object is made following the pipeline in this repository. These are not all in the published meta data.
 
 * `Seurat` default columns
   * `orig.ident` - Sample name
@@ -347,9 +345,9 @@ Below is a detailed explanation of all parts of the seurat object
   * `cell_qc_high_subsets_Mito_percent` - If the cell passed QC based on mito percent
   * `cell_qc_discard` - If the cell is flagged to be removed by `perCellQCFilters`
 * Cell cycle columns
- * `S.Score` - Cell cycle score for S phase as determined by Seurat's `CellCycleScoring` function
- * `G2M.Score` - Cell cycle score for G2M phase as determined by Seurat's `CellCycleScoring` function
- * `Phase` - Final cell cycle phase determination as determined by Seurat's `CellCycleScoring` function
+  * `S.Score` - Cell cycle score for S phase as determined by Seurat's `CellCycleScoring` function
+  * `G2M.Score` - Cell cycle score for G2M phase as determined by Seurat's `CellCycleScoring` function
+  * `Phase` - Final cell cycle phase determination as determined by Seurat's `CellCycleScoring` function
 * VDJ columns (Added by [`djvdj`](https://github.com/rnabioco/djvdj))
   * `clonotype_id` - Clonotype determined by `djvdj`
   * `exact_subclonotype_id` - Clonotype sub id determined by `djvdj`
