@@ -111,7 +111,7 @@ RESULTS:
 
 # Path to the Cell Ranger genome reference.
 GENOME:
-    "/beevol/home/rbilab/ref/cellranger/human/refdata-gex-GRCh38-2020-A"
+    "/pl/active/Anschutz_BDC/resources/ref/cellranger/human/refdata-gex-GRCh38-2020-A"
 
 # Path to the antibody reference table used to extract the antibody name 
 # and barcode. If CITE-seq or cell hashing was not performed, leave this 
@@ -122,7 +122,7 @@ ADT_REF:
 # Path to the Cell Ranger VDJ reference. If VDJ sequencing was not performed,
 # leave this blank.
 VDJ_REF:
-    "/beevol/home/rbilab/ref/cellranger/human/refdata-cellranger-vdj-GRCh38-alts-ensembl-5.0.0"
+    "/pl/active/Anschutz_BDC/resources/ref/cellranger/human/refdata-cellranger-vdj-GRCh38-alts-ensembl-5.0.0"
 
 # Maximum number of jobs per sample that can be submitted by Cell Ranger
 # at a time.
@@ -141,7 +141,7 @@ VELOCYTO_GROUP:
 
 
 IMMCANTATION_CONTAINER:
-    "/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/docker/immcantation/immcantation.sif"
+    "docker/immcantation/immcantation.sif"
 
 # =============================================================================== #
 
@@ -210,14 +210,14 @@ SAMPLE_INFO:
     "files/sample_info.tsv"
 
 RSCRIPT_CONTAINER:
-    "/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/docker/r_docker/catherine_bcells2.sif"
+    "docker/r_docker/catherine_bcells2.sif"
 
 DROPKICK_CONTAINER:
-    "/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/docker/dropkick/dropkick.sif"
+    "docker/dropkick/dropkick.sif"
 
 
 SCAR_CONTAINER:
-    "/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/docker/scar/scar.sif"
+    "docker/scar/scar.sif"
 
 T1K_CONTAINER:
-    "/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/docker/t1k/t1k_v1.sif"
+    "docker/t1k/t1k_v1.sif"

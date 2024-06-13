@@ -1,7 +1,7 @@
 #!/bin/bash 
 
 #SBATCH --job-name=rstudio
-#SBATCH --ntasks=8
+#SBATCH --ntasks=1
 #SBATCH --time=08:00:00
 #SBATCH --mem=50gb
 #SBATCH --output=logs/rstudio.out

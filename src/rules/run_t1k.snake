@@ -14,7 +14,8 @@ def _get_fastq(wildcards):
 
 rule run_t1k:
     input:
-        "{results}/logs/{sample}_count_done.txt"
+        "{results}/logs/{sample}_count_done.txt",
+         "{results}/logs/{sample}_merge_fastqs_done.txt"
     output:
         "{results}/t1k/{sample}_t1k_finished.txt"
     params:

@@ -1,11 +1,11 @@
 [gene-expression]
-reference,/beevol/home/rbilab/ref/cellranger/human/refdata-gex-GRCh38-2020-A
+reference,/pl/active/Anschutz_BDC/resources/ref/cellranger/human/refdata-gex-GRCh38-2020-A
 [feature]
-reference,/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/files/antibodies.csv
+reference,/pl/active/Anschutz_BDC/analysis/wells/analysis/smith/catherine/full_antigen_pos_data/files/antibodies.csv
 [vdj]
-reference,/beevol/home/rbilab/ref/cellranger/human/refdata-cellranger-vdj-GRCh38-alts-ensembl-5.0.0
+reference,/pl/active/Anschutz_BDC/resources/ref/cellranger/human/refdata-cellranger-vdj-GRCh38-alts-ensembl-5.0.0
 [libraries]
 fastq_id,fastqs,feature_types
-JH310-12_AP_GEX,/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/results/fastqs,Gene Expression
-JH310-12_AP_FB,/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/results/fastqs,Antibody Capture
-JH310-12_AP_VDJ_B,/beevol/home/wellskri/Analysis/Mia_Smith/Catherine_Nicolas/full_antigen_pos_data/results/fastqs,VDJ-B
+JH310-12_AP_GEX,/pl/active/Anschutz_BDC/analysis/wells/analysis/smith/catherine/full_antigen_pos_data/results/fastqs,Gene Expression
+JH310-12_AP_FB,/pl/active/Anschutz_BDC/analysis/wells/analysis/smith/catherine/full_antigen_pos_data/results/fastqs,Antibody Capture
+JH310-12_AP_VDJ_B,/pl/active/Anschutz_BDC/analysis/wells/analysis/smith/catherine/full_antigen_pos_data/results/fastqs,VDJ-B
