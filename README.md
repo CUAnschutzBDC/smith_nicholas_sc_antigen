@@ -230,11 +230,12 @@ These columns are all in the metadata available on GEO
   * `Date.of.Diagnosis` - Date of T1D diagnosis
   * `Days.post.onset` - Number of days between diagnosis and collection
   * `millions.of.cells.frozen` - Number of cells collected
-  * `HLA.type` - HLA type of the individual
+  * `HLA` - HLA type of the individual
   * `Autoantibodies` - What autoantibodies were detected
   * `date.processed.for.scSeq` - The date cells were thawed and prepped for scRNA-seq
   * `Notes..FDR.relationship.` - For first degree relative, how they are related
   * `sample` - Sample ID
+  * `Ethnicity` - The ethnicity of the individual
 * Cell cycle columns
   * `Phase` - Final cell cycle phase determination as determined by Seurat's `CellCycleScoring` function
 * VDJ columns (Added by [`djvdj`](https://github.com/rnabioco/djvdj))
@@ -324,12 +325,12 @@ These columns will be generated when the seurat object is made following the pip
   * `Date.of.Diagnosis` - Date of T1D diagnosis
   * `Days.post.onset` - Number of days between diagnosis and collection
   * `millions.of.cells.frozen` - Number of cells collected
-  * `HLA.type` - HLA type of the individual
+  * `HLA` - HLA type of the individual
   * `Autoantibodies` - What autoantibodies were detected
   * `date.processed.for.scSeq` - The date cells were thawed and prepped for scRNA-seq
   * `Notes..FDR.relationship.` - For first degree relative, how they are related
-  * `old_status` - Previous naming convention for status (ignore)
-  * `sample`
+  * `sample` - Sample ID
+  * `Ethnicity` - The ethnicity of the individual
 * `scuttle` qc columns (Added by [`scuttle`](https://www.bioconductor.org/packages/release/bioc/html/scuttle.html))
   * `cell_qc_sum` - Same as `nCount_RNA`
   * `cell_qc_detected` - Same as `nFeature_RNA`
