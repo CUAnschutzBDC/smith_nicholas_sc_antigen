@@ -137,6 +137,6 @@ mnn <- Embeddings(seurat_data, reduction = "rna_mnn")
 # Corrected UMAP
 umap <- Embeddings(seurat_data, reduction = "rna_mnn.umap")
 
-saveRDS(pca, here("GEO_submission", "pca.rda"))
-saveRDS(mnn, here("GEO_submission", "mnn.rda"))
-saveRDS(umap, here("GEO_submission", "umap.rda"))
+# write.csv(pca, here("GEO_submission", "pca.csv"))
+# write.csv(mnn, here("GEO_submission", "mnn.csv"))
+write.csv(umap, here("GEO_submission", "umap.csv"))

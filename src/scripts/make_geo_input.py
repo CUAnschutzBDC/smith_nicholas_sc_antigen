@@ -60,33 +60,27 @@ def copy_data_files(geo_dir, results_dir, all_samples):
 	"""
 
 	for sample in all_samples.keys():
-		geo_save_dir = os.path.join(geo_dir, sample)
-		geo_vdj_dir = os.path.join(geo_save_dir, "vdj_b")
-
-		# First make a new directory that will contain all of this data
-		os.makedirs(geo_vdj_dir, exist_ok = True)
-
 		# Now find the required files
 		output_dir = os.path.join(results_dir, sample, "outs/per_sample_outs", sample)
 
 		count_dir = os.path.join(output_dir, "count", "sample_filtered_feature_bc_matrix")
 
-		# Copy all the count files
-		subprocess.run(["rsync", "-avz", count_dir, geo_save_dir], check=True)
+		for file_name in os.listdir(count_dir):
+			rsync_command(file_name = file_name, source_dir = count_dir, target_dir = geo_dir, sample = all_samples[sample])
 
 		# Copy all the vdj files
 		vdj_dir = os.path.join(output_dir, "vdj_b")
-		file_one = os.path.join(vdj_dir, "filtered_contig_annotations.csv")
-		file_two = os.path.join(vdj_dir, "concat_ref.bam")
-		file_three = os.path.join(vdj_dir, "concat_ref.bam.bai")
-		file_four = os.path.join(vdj_dir, "airr_rearrangement.tsv")
-		subprocess.run(["rsync", "-avz", file_one, file_two, file_three, file_four, geo_vdj_dir], check=True)
+		vdj_files = ["filtered_contig_annotations.csv", "concat_ref.bam", "concat_ref.bam.bai", "airr_rearrangement.tsv"]
+		vdj_files = ["filtered_contig_annotations.csv", "airr_rearrangement.tsv"]
 
-		# Now tar the whole directory
-		subprocess.run(["tar", "-zcvf", os.path.join(geo_dir, sample + ".tar.gz"), geo_save_dir])
+		for file_name in vdj_files:
+			rsync_command(file_name = file_name, source_dir = vdj_dir, target_dir = geo_dir, sample = all_samples[sample])
 
-		# Remove the pre tarred directory
-		shutil.rmtree(geo_save_dir)
+def rsync_command(file_name, source_dir, target_dir, sample):
+	source_file = os.path.join(os.path.abspath(source_dir), file_name)
+	new_file = os.path.join(target_dir, sample + "_" + file_name)
+
+	subprocess.run(["ln", "-s", source_file, new_file], check=True)
 
 def copy_antibody_reference(geo_dir, antibody_reference):
 	subprocess.run(["rsync", "-avz", antibody_reference, geo_dir])

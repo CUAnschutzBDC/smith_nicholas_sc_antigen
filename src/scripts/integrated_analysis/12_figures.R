@@ -973,7 +973,8 @@ graphics.off()
 ### 5B -------------------------------------------------------------------------
 
 # 5B CDR3 length
-sep_columns <- c("chains", "cdr3", "cdr3_length",
+sep_columns 
+<- c("chains", "cdr3", "cdr3_length",
                  "cdr3_nt_length", "v_gene", "d_gene", "j_gene", "c_gene",
                  "reads", "umis", "productive", "full_length",
                  "v_ins", "v_del", "v_mis", "d_ins", "d_del",
@@ -1811,7 +1812,17 @@ pdf(file.path(image_dir, "Supp6_tetramer_new_vs_old_cutoff.pdf"))
 
 cm2 <- confusionMatrix(seurat_data$tet_name_cutoff, seurat_data$scar_libra_tet_hash_id)
 cm2 <- cm2 / rowSums(cm2)
-print(pheatmap::pheatmap(cm2, main = "previous_vs_libra_id"))
+
+order <- c("TET_tet", "DNA_tet", "IA2_tet", "INS_tet", "GAD_tet",
+           "Islet_Multi_Reactive", "Negative")
+
+rownames(cm2) <- gsub("\\.", "_", rownames(cm2))
+
+cm2 <- cm2[order(match(rownames(cm2), order)),
+           order(match(colnames(cm2), order))]
+
+print(pheatmap::pheatmap(cm2, main = "previous_vs_libra_id",
+                         cluster_rows = FALSE, cluster_cols = FALSE))
 
 dev.off()
 
