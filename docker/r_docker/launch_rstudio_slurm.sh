@@ -2,12 +2,14 @@
 
 #SBATCH --job-name=rstudio
 #SBATCH --ntasks=1
-#SBATCH --time=08:00:00
-#SBATCH --mem=50gb
+#SBATCH --time=04:00:00
+#SBATCH --mem=3gb
 #SBATCH --output=logs/rstudio.out
 #SBATCH --partition=amilan
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=kristen.wells-wrasman@cuanschutz.edu
+
+module load python
 
 # Set up environment
 export ALPINE_SCRATCH=/gpfs/alpine1/scratch/$USER

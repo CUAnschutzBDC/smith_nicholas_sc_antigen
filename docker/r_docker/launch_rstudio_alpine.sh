@@ -5,9 +5,10 @@
 #SBATCH --time=1:00:00
 #SBATCH --mem=50gb
 #SBATCH --output=logs/rstudio.out
-#SBATCH --partition=atesting
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=kristen.wells-wrasman@cuanschutz.edu
+
+module load python
 
 # Set up environment
 export ALPINE_SCRATCH=/gpfs/alpine1/scratch/$USER
